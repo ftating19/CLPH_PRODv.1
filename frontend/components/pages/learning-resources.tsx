@@ -1,12 +1,25 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Download, Eye, Upload, Search } from "lucide-react"
+import { FileText, Download, Eye, Upload, Search, Filter } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useSubjects } from "@/hooks/use-subjects"
 
 export default function LearningResources() {
+  const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedSubject, setSelectedSubject] = useState("all")
+  
   const resources = [
     {
       id: "1",
@@ -58,6 +71,17 @@ export default function LearningResources() {
     },
   ]
 
+  // Filter resources based on search term and selected subject
+  const filteredResources = resources.filter((resource) => {
+    const matchesSearch = resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         resource.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         resource.uploadedBy.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesSubject = selectedSubject === "all" || resource.subject === selectedSubject
+    
+    return matchesSearch && matchesSubject
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -74,12 +98,44 @@ export default function LearningResources() {
       <div className="flex items-center space-x-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input placeholder="Search resources..." className="pl-10" />
+          <Input 
+            placeholder="Search resources..." 
+            className="pl-10" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={subjectsLoading || !!subjectsError}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder={subjectsLoading ? "Loading..." : subjectsError ? "Error loading subjects" : "Filter by subject"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Subjects</SelectItem>
+              {!subjectsLoading && !subjectsError && subjects.map((subject) => (
+                <SelectItem key={subject.subject_id} value={subject.subject_name}>
+                  {subject.subject_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {resources.map((resource) => (
+        {filteredResources.length === 0 ? (
+          <div className="col-span-full text-center py-8">
+            <p className="text-muted-foreground">
+              {searchTerm || selectedSubject !== "all" 
+                ? "No resources found matching your filters." 
+                : "No resources available."
+              }
+            </p>
+          </div>
+        ) : (
+          filteredResources.map((resource) => (
           <Card key={resource.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -114,7 +170,8 @@ export default function LearningResources() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        ))
+        )}
       </div>
     </div>
   )

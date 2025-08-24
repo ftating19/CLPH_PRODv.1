@@ -6,10 +6,21 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, MessageSquare, Users, Clock, Plus } from "lucide-react"
+import { Search, MessageSquare, Users, Clock, Plus, Filter } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useSubjects } from "@/hooks/use-subjects"
 
 export default function DiscussionForums() {
+  const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedSubject, setSelectedSubject] = useState("all")
 
   const topics = [
     {
@@ -62,6 +73,16 @@ export default function DiscussionForums() {
     },
   ]
 
+  // Filter topics based on search term and selected subject
+  const filteredTopics = topics.filter((topic) => {
+    const matchesSearch = topic.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         topic.description.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesSubject = selectedSubject === "all" || topic.category === selectedSubject
+    
+    return matchesSearch && matchesSubject
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -78,7 +99,29 @@ export default function DiscussionForums() {
       <div className="flex items-center space-x-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input placeholder="Search topics..." className="pl-10" />
+          <Input 
+            placeholder="Search topics..." 
+            className="pl-10" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={subjectsLoading || !!subjectsError}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder={subjectsLoading ? "Loading..." : subjectsError ? "Error loading subjects" : "Filter by subject"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Subjects</SelectItem>
+              {!subjectsLoading && !subjectsError && subjects.map((subject) => (
+                <SelectItem key={subject.subject_id} value={subject.subject_name}>
+                  {subject.subject_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -86,7 +129,19 @@ export default function DiscussionForums() {
         {/* Topics List */}
         <div className="lg:col-span-1 space-y-4">
           <h2 className="text-xl font-semibold">Topics</h2>
-          {topics.map((topic) => (
+          {filteredTopics.length === 0 ? (
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-muted-foreground">
+                  {searchTerm || selectedSubject !== "all" 
+                    ? "No topics found matching your filters." 
+                    : "No topics available."
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredTopics.map((topic) => (
             <Card
               key={topic.id}
               className={`cursor-pointer transition-colors ${selectedTopic === topic.id ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"}`}
@@ -118,7 +173,8 @@ export default function DiscussionForums() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+          ))
+          )}
         </div>
 
         {/* Chat Area */}

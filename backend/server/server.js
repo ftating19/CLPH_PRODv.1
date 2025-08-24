@@ -6,6 +6,13 @@ const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
 const { generateTemporaryPassword, sendWelcomeEmail, testEmailConnection } = require('../services/emailService')
 const { 
+  getAllSubjects, 
+  getSubjectById, 
+  createSubject, 
+  updateSubject, 
+  deleteSubject 
+} = require('../queries/subjects')
+const { 
   getAllTutorApplications, 
   getTutorApplicationsByStatus, 
   getTutorApplicationById, 
@@ -1077,6 +1084,223 @@ app.post('/api/tutors', async (req, res) => {
   } catch (err) {
     console.error('Error creating tutor:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ===== SUBJECTS API ENDPOINTS =====
+
+// Get all subjects
+app.get('/api/subjects', async (req, res) => {
+  try {
+    console.log('Fetching all subjects');
+    
+    const pool = await db.getPool();
+    const subjects = await getAllSubjects(pool);
+    
+    console.log(`✅ Found ${subjects.length} subjects`);
+    
+    res.json({
+      success: true,
+      subjects: subjects,
+      total: subjects.length
+    });
+  } catch (err) {
+    console.error('Error fetching subjects:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get subject by ID
+app.get('/api/subjects/:id', async (req, res) => {
+  try {
+    const subjectId = parseInt(req.params.id);
+    
+    if (!subjectId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid subject ID is required' 
+      });
+    }
+    
+    console.log(`Fetching subject with ID: ${subjectId}`);
+    
+    const pool = await db.getPool();
+    const subject = await getSubjectById(pool, subjectId);
+    
+    if (!subject) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Subject not found' 
+      });
+    }
+    
+    console.log(`✅ Found subject: ${subject.subject_name}`);
+    
+    res.json({
+      success: true,
+      subject: subject
+    });
+  } catch (err) {
+    console.error('Error fetching subject:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Create new subject
+app.post('/api/subjects', async (req, res) => {
+  try {
+    const { subject_name, description, subject_code } = req.body;
+    
+    // Validation
+    if (!subject_name || !description || !subject_code) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Subject name, description, and subject code are required' 
+      });
+    }
+    
+    console.log(`Creating new subject: ${subject_name} (${subject_code})`);
+    
+    const pool = await db.getPool();
+    const newSubject = await createSubject(pool, {
+      subject_name,
+      description,
+      subject_code
+    });
+    
+    console.log(`✅ Subject created successfully with ID: ${newSubject.subject_id}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Subject created successfully',
+      subject: newSubject
+    });
+  } catch (err) {
+    console.error('Error creating subject:', err);
+    
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ 
+        success: false,
+        error: 'Subject code already exists' 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Update subject
+app.put('/api/subjects/:id', async (req, res) => {
+  try {
+    const subjectId = parseInt(req.params.id);
+    const { subject_name, description, subject_code } = req.body;
+    
+    if (!subjectId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid subject ID is required' 
+      });
+    }
+    
+    // Validation
+    if (!subject_name || !description || !subject_code) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Subject name, description, and subject code are required' 
+      });
+    }
+    
+    console.log(`Updating subject ID: ${subjectId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if subject exists
+    const existingSubject = await getSubjectById(pool, subjectId);
+    if (!existingSubject) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Subject not found' 
+      });
+    }
+    
+    const updatedSubject = await updateSubject(pool, subjectId, {
+      subject_name,
+      description,
+      subject_code
+    });
+    
+    console.log(`✅ Subject updated successfully: ${subject_name}`);
+    
+    res.json({
+      success: true,
+      message: 'Subject updated successfully',
+      subject: updatedSubject
+    });
+  } catch (err) {
+    console.error('Error updating subject:', err);
+    
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ 
+        success: false,
+        error: 'Subject code already exists' 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete subject
+app.delete('/api/subjects/:id', async (req, res) => {
+  try {
+    const subjectId = parseInt(req.params.id);
+    
+    if (!subjectId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid subject ID is required' 
+      });
+    }
+    
+    console.log(`Deleting subject ID: ${subjectId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if subject exists
+    const existingSubject = await getSubjectById(pool, subjectId);
+    if (!existingSubject) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Subject not found' 
+      });
+    }
+    
+    await deleteSubject(pool, subjectId);
+    
+    console.log(`✅ Subject deleted successfully: ${existingSubject.subject_name}`);
+    
+    res.json({
+      success: true,
+      message: 'Subject deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting subject:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
   }
 });
 

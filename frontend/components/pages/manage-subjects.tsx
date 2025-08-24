@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Library, Plus, Search, Filter, Edit, Trash2, BookOpen, Users, Calendar, MoreVertical } from "lucide-react"
+import { Library, Plus, Search, Edit, Trash2, Loader2, MoreVertical } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,156 +34,246 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
 
-const subjects = [
-  {
-    id: "1",
-    name: "Data Structures and Algorithms",
-    code: "CS201",
-    description: "Fundamental concepts of data structures including arrays, linked lists, stacks, queues, trees, and graphs. Algorithm analysis and design techniques.",
-    department: "Computer Science",
-    credits: 3,
-    prerequisites: ["Programming Fundamentals", "Discrete Mathematics"],
-    totalTutors: 8,
-    activeTutors: 6,
-    totalQuizzes: 15,
-    totalFlashcards: 12,
-    createdDate: "2024-01-15",
-    lastUpdated: "2024-08-20",
-    status: "Active"
-  },
-  {
-    id: "2",
-    name: "Database Systems",
-    code: "CS301",
-    description: "Design and implementation of database systems. Covers relational models, SQL, normalization, indexing, and database optimization.",
-    department: "Computer Science", 
-    credits: 3,
-    prerequisites: ["Data Structures and Algorithms"],
-    totalTutors: 5,
-    activeTutors: 4,
-    totalQuizzes: 12,
-    totalFlashcards: 8,
-    createdDate: "2024-01-20",
-    lastUpdated: "2024-08-18",
-    status: "Active"
-  },
-  {
-    id: "3",
-    name: "Calculus I",
-    code: "MATH101",
-    description: "Differential and integral calculus of functions of one variable. Limits, derivatives, applications of derivatives, and basic integration.",
-    department: "Mathematics",
-    credits: 4,
-    prerequisites: ["College Algebra", "Trigonometry"],
-    totalTutors: 12,
-    activeTutors: 10,
-    totalQuizzes: 20,
-    totalFlashcards: 15,
-    createdDate: "2024-01-10",
-    lastUpdated: "2024-08-22",
-    status: "Active"
-  },
-  {
-    id: "4",
-    name: "Mobile Application Development",
-    code: "IT401",
-    description: "Development of mobile applications for iOS and Android platforms. Covers native and cross-platform development frameworks.",
-    department: "Information Technology",
-    credits: 3,
-    prerequisites: ["Object-Oriented Programming", "Web Development"],
-    totalTutors: 3,
-    activeTutors: 2,
-    totalQuizzes: 8,
-    totalFlashcards: 6,
-    createdDate: "2024-02-01",
-    lastUpdated: "2024-08-15",
-    status: "Active"
-  },
-  {
-    id: "5",
-    name: "Network Security",
-    code: "CS450",
-    description: "Principles and practices of network security. Cryptography, authentication, access control, and security protocols.",
-    department: "Computer Science",
-    credits: 3,
-    prerequisites: ["Computer Networks", "Operating Systems"],
-    totalTutors: 2,
-    activeTutors: 1,
-    totalQuizzes: 5,
-    totalFlashcards: 4,
-    createdDate: "2024-02-15",
-    lastUpdated: "2024-07-30",
-    status: "Inactive"
-  },
-]
+// TypeScript interface for subject data
+interface Subject {
+  subject_id: number
+  subject_name: string
+  description: string
+  subject_code: string
+}
 
 export default function ManageSubjects() {
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [selectedSubject, setSelectedSubject] = useState<any>(null)
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Form states
+  const [createForm, setCreateForm] = useState({
+    subject_name: "",
+    description: "",
+    subject_code: ""
+  })
+  
+  const [editForm, setEditForm] = useState({
+    subject_name: "",
+    description: "",
+    subject_code: ""
+  })
+  
   const { toast } = useToast()
 
-  const handleCreateSubject = () => {
-    toast({
-      title: "Subject Created",
-      description: "New subject has been successfully created.",
-      duration: 3000,
-    })
-    setShowCreateDialog(false)
+  // Fetch subjects from API
+  const fetchSubjects = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch('http://localhost:4000/api/subjects')
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setSubjects(data.subjects || [])
+      } else {
+        throw new Error('Failed to fetch subjects')
+      }
+    } catch (err) {
+      console.error('Error fetching subjects:', err)
+      setError('Failed to load subjects. Please try again later.')
+      setSubjects([])
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleEditSubject = (subject: any) => {
+  useEffect(() => {
+    fetchSubjects()
+  }, [])
+
+  const handleCreateSubject = async () => {
+    if (!createForm.subject_name.trim() || !createForm.description.trim() || !createForm.subject_code.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      
+      const response = await fetch('http://localhost:4000/api/subjects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(createForm)
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create subject')
+      }
+      
+      if (data.success) {
+        toast({
+          title: "Subject Created",
+          description: `${createForm.subject_name} has been successfully created.`,
+          duration: 3000,
+        })
+        
+        setCreateForm({ subject_name: "", description: "", subject_code: "" })
+        setShowCreateDialog(false)
+        fetchSubjects() // Refresh the list
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create subject'
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleEditSubject = (subject: Subject) => {
     setSelectedSubject(subject)
+    setEditForm({
+      subject_name: subject.subject_name,
+      description: subject.description,
+      subject_code: subject.subject_code
+    })
     setShowEditDialog(true)
   }
 
-  const handleUpdateSubject = () => {
-    toast({
-      title: "Subject Updated",
-      description: `${selectedSubject?.name} has been successfully updated.`,
-      duration: 3000,
-    })
-    setShowEditDialog(false)
-    setSelectedSubject(null)
+  const handleUpdateSubject = async () => {
+    if (!selectedSubject) return
+    
+    if (!editForm.subject_name.trim() || !editForm.description.trim() || !editForm.subject_code.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      
+      const response = await fetch(`http://localhost:4000/api/subjects/${selectedSubject.subject_id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm)
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update subject')
+      }
+      
+      if (data.success) {
+        toast({
+          title: "Subject Updated",
+          description: `${editForm.subject_name} has been successfully updated.`,
+          duration: 3000,
+        })
+        
+        setShowEditDialog(false)
+        setSelectedSubject(null)
+        fetchSubjects() // Refresh the list
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update subject'
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleDeleteSubject = (subject: any) => {
+  const handleDeleteSubject = (subject: Subject) => {
     setSelectedSubject(subject)
     setShowDeleteDialog(true)
   }
 
-  const confirmDelete = () => {
-    toast({
-      title: "Subject Deleted",
-      description: `${selectedSubject?.name} has been successfully deleted.`,
-      variant: "destructive",
-      duration: 3000,
-    })
-    setShowDeleteDialog(false)
-    setSelectedSubject(null)
+  const confirmDelete = async () => {
+    if (!selectedSubject) return
+
+    try {
+      setIsSubmitting(true)
+      
+      const response = await fetch(`http://localhost:4000/api/subjects/${selectedSubject.subject_id}`, {
+        method: 'DELETE'
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete subject')
+      }
+      
+      if (data.success) {
+        toast({
+          title: "Subject Deleted",
+          description: `${selectedSubject.subject_name} has been successfully deleted.`,
+          variant: "destructive",
+          duration: 3000,
+        })
+        
+        setShowDeleteDialog(false)
+        setSelectedSubject(null)
+        fetchSubjects() // Refresh the list
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete subject'
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const filteredSubjects = subjects.filter(subject =>
-    subject.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    subject.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    subject.department.toLowerCase().includes(searchQuery.toLowerCase())
+    subject.subject_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    subject.subject_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    subject.description.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const SubjectCard = ({ subject }: { subject: (typeof subjects)[0] }) => (
+  const SubjectCard = ({ subject }: { subject: Subject }) => (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center space-x-2">
-              <CardTitle className="text-xl">{subject.name}</CardTitle>
-              <Badge variant={subject.status === "Active" ? "default" : "secondary"}>
-                {subject.status}
-              </Badge>
+              <CardTitle className="text-xl">{subject.subject_name}</CardTitle>
+              <Badge variant="default">Active</Badge>
             </div>
             <CardDescription className="text-base mt-1">
-              {subject.code} • {subject.department} • {subject.credits} Credits
+              {subject.subject_code}
             </CardDescription>
           </div>
           <DropdownMenu>
@@ -209,42 +299,45 @@ export default function ManageSubjects() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">{subject.description}</p>
-        
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center space-x-2">
-            <Users className="w-4 h-4 text-muted-foreground" />
-            <span>{subject.activeTutors}/{subject.totalTutors} Active Tutors</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <BookOpen className="w-4 h-4 text-muted-foreground" />
-            <span>{subject.totalQuizzes} Quizzes</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Library className="w-4 h-4 text-muted-foreground" />
-            <span>{subject.totalFlashcards} Flashcard Sets</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span>Updated: {new Date(subject.lastUpdated).toLocaleDateString()}</span>
-          </div>
+        <div>
+          <Label className="text-sm font-medium">Description</Label>
+          <p className="text-sm text-muted-foreground mt-1">{subject.description}</p>
         </div>
-
-        {subject.prerequisites.length > 0 && (
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Prerequisites</Label>
-            <div className="flex flex-wrap gap-1">
-              {subject.prerequisites.map((prereq) => (
-                <Badge key={prereq} variant="outline" className="text-xs">
-                  {prereq}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
+        
+        <div className="text-xs text-muted-foreground">
+          Subject ID: {subject.subject_id}
+        </div>
       </CardContent>
     </Card>
   )
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading subjects...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <Library className="h-12 w-12 mx-auto mb-2" />
+            <h3 className="text-lg font-medium">Error Loading Subjects</h3>
+          </div>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={fetchSubjects}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -268,40 +361,47 @@ export default function ManageSubjects() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Subject Name</Label>
-                  <Input id="name" placeholder="Enter subject name" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="code">Subject Code</Label>
-                  <Input id="code" placeholder="e.g., CS201" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Input id="department" placeholder="e.g., Computer Science" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="credits">Credits</Label>
-                  <Input id="credits" type="number" placeholder="3" />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="subject_name">Subject Name *</Label>
+                <Input 
+                  id="subject_name" 
+                  placeholder="Enter subject name" 
+                  value={createForm.subject_name}
+                  onChange={(e) => setCreateForm({...createForm, subject_name: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea id="description" placeholder="Enter subject description" rows={3} />
+                <Label htmlFor="subject_code">Subject Code *</Label>
+                <Input 
+                  id="subject_code" 
+                  placeholder="e.g., CS201" 
+                  value={createForm.subject_code}
+                  onChange={(e) => setCreateForm({...createForm, subject_code: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="prerequisites">Prerequisites (comma-separated)</Label>
-                <Input id="prerequisites" placeholder="Programming Fundamentals, Discrete Mathematics" />
+                <Label htmlFor="description">Description *</Label>
+                <Textarea 
+                  id="description" 
+                  placeholder="Enter subject description" 
+                  rows={3} 
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm({...createForm, description: e.target.value})}
+                />
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateSubject}>
-                  Create Subject
+                <Button onClick={handleCreateSubject} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Subject"
+                  )}
                 </Button>
               </div>
             </div>
@@ -313,21 +413,20 @@ export default function ManageSubjects() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input 
-            placeholder="Search subjects by name, code, or department..." 
+            placeholder="Search subjects by name, code, or description..." 
             className="pl-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline">
-          <Filter className="w-4 h-4 mr-2" />
-          Filters
+        <Button variant="outline" onClick={fetchSubjects}>
+          Refresh
         </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredSubjects.map((subject) => (
-          <SubjectCard key={subject.id} subject={subject} />
+          <SubjectCard key={subject.subject_id} subject={subject} />
         ))}
       </div>
 
@@ -363,40 +462,44 @@ export default function ManageSubjects() {
           </DialogHeader>
           {selectedSubject && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-name">Subject Name</Label>
-                  <Input id="edit-name" defaultValue={selectedSubject.name} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-code">Subject Code</Label>
-                  <Input id="edit-code" defaultValue={selectedSubject.code} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-department">Department</Label>
-                  <Input id="edit-department" defaultValue={selectedSubject.department} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-credits">Credits</Label>
-                  <Input id="edit-credits" type="number" defaultValue={selectedSubject.credits} />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-subject_name">Subject Name *</Label>
+                <Input 
+                  id="edit-subject_name" 
+                  value={editForm.subject_name}
+                  onChange={(e) => setEditForm({...editForm, subject_name: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
-                <Textarea id="edit-description" defaultValue={selectedSubject.description} rows={3} />
+                <Label htmlFor="edit-subject_code">Subject Code *</Label>
+                <Input 
+                  id="edit-subject_code" 
+                  value={editForm.subject_code}
+                  onChange={(e) => setEditForm({...editForm, subject_code: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-prerequisites">Prerequisites (comma-separated)</Label>
-                <Input id="edit-prerequisites" defaultValue={selectedSubject.prerequisites.join(", ")} />
+                <Label htmlFor="edit-description">Description *</Label>
+                <Textarea 
+                  id="edit-description" 
+                  rows={3} 
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                />
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setShowEditDialog(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleUpdateSubject}>
-                  Update Subject
+                <Button onClick={handleUpdateSubject} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Subject"
+                  )}
                 </Button>
               </div>
             </div>
@@ -410,25 +513,26 @@ export default function ManageSubjects() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Subject</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{selectedSubject?.name}</strong>?
+              Are you sure you want to delete <strong>{selectedSubject?.subject_name}</strong>?
               <br /><br />
-              This will permanently remove the subject and all associated:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Quizzes ({selectedSubject?.totalQuizzes})</li>
-                <li>Flashcard sets ({selectedSubject?.totalFlashcards})</li>
-                <li>Tutor assignments ({selectedSubject?.totalTutors})</li>
-              </ul>
-              <br />
-              This action cannot be undone.
+              This action cannot be undone and will permanently remove the subject from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDelete}
               className="bg-red-600 hover:bg-red-700"
+              disabled={isSubmitting}
             >
-              Delete Subject
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Subject"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -26,6 +26,7 @@ import {
 import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Loader2 } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
+import { useSubjects } from "@/hooks/use-subjects"
 
 // TypeScript interface for tutor data
 interface Tutor {
@@ -52,6 +53,7 @@ export default function TutorMatching() {
   const [error, setError] = useState<string | null>(null)
   const { currentUser } = useUser()
   const { toast } = useToast()
+  const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
 
   // Application form state
   const [applicationForm, setApplicationForm] = useState({
@@ -94,25 +96,6 @@ export default function TutorMatching() {
     fetchTutors()
   }, [])
 
-  // Available subjects (based on manage-subjects data)
-  const subjects = [
-    { id: "1", name: "Data Structures and Algorithms", code: "CS201" },
-    { id: "2", name: "Object-Oriented Programming", code: "CS202" },
-    { id: "3", name: "Database Systems", code: "CS301" },
-    { id: "4", name: "Software Engineering", code: "CS302" },
-    { id: "5", name: "Web Development", code: "CS303" },
-    { id: "6", name: "Mobile App Development", code: "CS401" },
-    { id: "7", name: "Calculus I", code: "MATH101" },
-    { id: "8", name: "Calculus II", code: "MATH102" },
-    { id: "9", name: "Linear Algebra", code: "MATH201" },
-    { id: "10", name: "Statistics and Probability", code: "MATH301" },
-    { id: "11", name: "Discrete Mathematics", code: "MATH202" },
-    { id: "12", name: "Computer Networks", code: "IT301" },
-    { id: "13", name: "Information Systems Analysis", code: "IS201" },
-    { id: "14", name: "System Administration", code: "IT201" },
-    { id: "15", name: "Digital Logic Design", code: "ECE101" }
-  ]
-
   // Available programs
   const programs = [
     "Bachelor of Science in Information Systems",
@@ -141,13 +124,13 @@ export default function TutorMatching() {
       return
     }
 
-    const selectedSubject = subjects.find(s => s.id === applicationForm.subject_id)
+    const selectedSubject = subjects.find(s => s.subject_id.toString() === applicationForm.subject_id)
     
     const applicationData = {
       user_id: currentUser.user_id,
       name: `${currentUser.first_name} ${currentUser.middle_name ? currentUser.middle_name + ' ' : ''}${currentUser.last_name}`,
       subject_id: parseInt(applicationForm.subject_id),
-      subject_name: selectedSubject?.name || "",
+      subject_name: selectedSubject?.subject_name || "",
       tutor_information: applicationForm.tutor_information,
       program: applicationForm.program,
       specialties: applicationForm.specialties
@@ -348,14 +331,15 @@ export default function TutorMatching() {
                   <Select 
                     value={applicationForm.subject_id} 
                     onValueChange={(value) => setApplicationForm(prev => ({...prev, subject_id: value}))}
+                    disabled={subjectsLoading || !!subjectsError}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select the subject you want to tutor" />
+                      <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : subjectsError ? "Error loading subjects" : "Select the subject you want to tutor"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {subjects.map((subject) => (
-                        <SelectItem key={subject.id} value={subject.id}>
-                          {subject.code} - {subject.name}
+                      {!subjectsLoading && !subjectsError && subjects.map((subject) => (
+                        <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                          {subject.subject_code} - {subject.subject_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
