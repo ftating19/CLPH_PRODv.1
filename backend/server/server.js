@@ -271,6 +271,33 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
+// Add endpoint to fetch students specifically
+app.get('/api/students', async (req, res) => {
+  try {
+    console.log('Fetching students for tutor matching');
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Fetch only students with active status (excluding passwords for security)
+    const [students] = await pool.query(
+      'SELECT user_id, first_name, middle_name, last_name, email, program, role, status, first_login, created_at FROM users WHERE role = ? AND status = ? ORDER BY created_at DESC',
+      ['Student', 'active']
+    );
+
+    console.log(`✅ Found ${students.length} active students`);
+    
+    res.status(200).json({ 
+      success: true,
+      students: students,
+      total: students.length
+    });
+  } catch (err) {
+    console.error('Error fetching students:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Test endpoint to verify server is working
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is working', timestamp: new Date().toISOString() });

@@ -99,9 +99,16 @@ export default function Sidebar() {
                   <NavItem href="/dashboard" icon={Home}>
                     Dashboard
                   </NavItem>
-                  <NavItem href="/tutor-matching" icon={UserCheck}>
-                    Tutor Matching
-                  </NavItem>
+                  {(userRole === "faculty" || userRole === "admin") && (
+                    <NavItem href="/tutor-matching" icon={UserCheck}>
+                      Tutor Matching
+                    </NavItem>
+                  )}
+                  {(userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
+                    <NavItem href="/student-matching" icon={Users}>
+                      Student Matching
+                    </NavItem>
+                  )}
                   <NavItem href="/learning-resources" icon={FileText}>
                     Learning Resources
                   </NavItem>
