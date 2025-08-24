@@ -16,12 +16,120 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap } from "lucide-react"
+import { useUser } from "@/contexts/UserContext"
+import { useToast } from "@/hooks/use-toast"
 
 export default function TutorMatching() {
   const [selectedTutor, setSelectedTutor] = useState<string | null>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [showApplyModal, setShowApplyModal] = useState(false)
+  const { currentUser } = useUser()
+  const { toast } = useToast()
+
+  // Application form state
+  const [applicationForm, setApplicationForm] = useState({
+    subject_id: "",
+    program: "",
+    specialties: ""
+  })
+
+  // Available subjects (based on manage-subjects data)
+  const subjects = [
+    { id: "1", name: "Data Structures and Algorithms", code: "CS201" },
+    { id: "2", name: "Object-Oriented Programming", code: "CS202" },
+    { id: "3", name: "Database Systems", code: "CS301" },
+    { id: "4", name: "Software Engineering", code: "CS302" },
+    { id: "5", name: "Web Development", code: "CS303" },
+    { id: "6", name: "Mobile App Development", code: "CS401" },
+    { id: "7", name: "Calculus I", code: "MATH101" },
+    { id: "8", name: "Calculus II", code: "MATH102" },
+    { id: "9", name: "Linear Algebra", code: "MATH201" },
+    { id: "10", name: "Statistics and Probability", code: "MATH301" },
+    { id: "11", name: "Discrete Mathematics", code: "MATH202" },
+    { id: "12", name: "Computer Networks", code: "IT301" },
+    { id: "13", name: "Information Systems Analysis", code: "IS201" },
+    { id: "14", name: "System Administration", code: "IT201" },
+    { id: "15", name: "Digital Logic Design", code: "ECE101" }
+  ]
+
+  // Available programs
+  const programs = [
+    "Bachelor of Science in Information Systems",
+    "Bachelor of Science in Information Technology", 
+    "Bachelor of Science in Computer Science",
+    "Bachelor of Library and Information Science",
+    "Bachelor of Science in Entertainment and Multimedia Computing"
+  ]
+
+  const handleApplicationSubmit = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to apply as a tutor",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!applicationForm.subject_id || !applicationForm.program || !applicationForm.specialties.trim()) {
+      toast({
+        title: "Error", 
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      })
+      return
+    }
+
+    const selectedSubject = subjects.find(s => s.id === applicationForm.subject_id)
+    
+    const applicationData = {
+      user_id: currentUser.user_id,
+      name: `${currentUser.first_name} ${currentUser.middle_name ? currentUser.middle_name + ' ' : ''}${currentUser.last_name}`,
+      subject_id: parseInt(applicationForm.subject_id),
+      subject_name: selectedSubject?.name || "",
+      application_date: new Date().toISOString().split('T')[0],
+      status: "pending",
+      validatedby: null,
+      tutor_information: {
+        program: applicationForm.program,
+        specialties: applicationForm.specialties
+      }
+    }
+
+    try {
+      // In a real app, this would be an API call
+      console.log("Tutor application submitted:", applicationData)
+      
+      toast({
+        title: "Application Submitted",
+        description: "Your tutor application has been submitted successfully. You will be notified once it's reviewed.",
+        variant: "default"
+      })
+
+      // Reset form and close modal
+      setApplicationForm({
+        subject_id: "",
+        program: "",
+        specialties: ""
+      })
+      setShowApplyModal(false)
+
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit application. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
 
   const tutors = [
     {
@@ -291,34 +399,112 @@ export default function TutorMatching() {
                 Share your expertise and help fellow students succeed in their academic journey.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input id="fullName" placeholder="Enter your full name" />
+            <div className="space-y-6">
+              {/* User Information Display */}
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                <h3 className="font-medium mb-3">Applicant Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <Label className="text-muted-foreground">Full Name</Label>
+                    <p className="font-medium">
+                      {currentUser ? `${currentUser.first_name} ${currentUser.middle_name ? currentUser.middle_name + ' ' : ''}${currentUser.last_name}` : 'Not logged in'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Email</Label>
+                    <p className="font-medium">{currentUser?.email || 'Not logged in'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Current Program</Label>
+                    <p className="font-medium">{currentUser?.program || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Application Date</Label>
+                    <p className="font-medium">{new Date().toLocaleDateString()}</p>
+                  </div>
                 </div>
+              </div>
+
+              {/* Application Form */}
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="your.email@cict.edu" />
+                  <Label htmlFor="subject">Subject Expertise *</Label>
+                  <Select 
+                    value={applicationForm.subject_id} 
+                    onValueChange={(value) => setApplicationForm(prev => ({...prev, subject_id: value}))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select the subject you want to tutor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subjects.map((subject) => (
+                        <SelectItem key={subject.id} value={subject.id}>
+                          {subject.code} - {subject.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="program">Program *</Label>
+                  <Select 
+                    value={applicationForm.program} 
+                    onValueChange={(value) => setApplicationForm(prev => ({...prev, program: value}))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your program" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {programs.map((program) => (
+                        <SelectItem key={program} value={program}>
+                          {program}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="specialties">Specialties *</Label>
+                  <Textarea 
+                    id="specialties"
+                    placeholder="Describe your specific areas of expertise, skills, and specializations (e.g., Java Programming, Algorithm Design, Data Analysis, etc.)"
+                    value={applicationForm.specialties}
+                    onChange={(e) => setApplicationForm(prev => ({...prev, specialties: e.target.value}))}
+                    rows={4}
+                  />
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">Application Process</h3>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        Your application will be reviewed by administrators. You will be notified via email once your application is approved or if additional information is needed.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject Expertise</Label>
-                <Input id="subject" placeholder="e.g., Computer Science, Mathematics" />
+
+              <div className="flex justify-end space-x-3">
+                <Button variant="outline" onClick={() => setShowApplyModal(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={handleApplicationSubmit}
+                  disabled={!currentUser}
+                >
+                  Submit Application
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="specialties">Specialties</Label>
-                <Input id="specialties" placeholder="e.g., Data Structures, Algorithms, Java" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="experience">Teaching Experience</Label>
-                <Textarea id="experience" placeholder="Describe your teaching or tutoring experience..." rows={3} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
-                <Textarea id="bio" placeholder="Tell students about yourself and your teaching approach..." rows={4} />
-              </div>
-              <Button className="w-full bg-green-600 hover:bg-green-700">Submit Application</Button>
             </div>
           </DialogContent>
         </Dialog>

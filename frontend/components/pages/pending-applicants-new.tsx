@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -26,200 +26,182 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { CheckCircle, XCircle, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Eye, Loader2 } from "lucide-react"
+import { CheckCircle, XCircle, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Eye } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-
-interface TutorApplication {
-  application_id: number
-  user_id: number
-  name: string
-  subject_id: number
-  subject_name: string
-  application_date: string
-  status: string
-  validatedby: number | null
-  tutor_information: {
-    program: string
-    specialties: string
-  }
-  // Additional display info from user table
-  email?: string
-  studentId?: string
-  yearLevel?: string
-  gpa?: string
-  avatar?: string
-}
 
 export default function PendingApplicants() {
   const [selectedApplicant, setSelectedApplicant] = useState<string | null>(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
-  const [currentApplicant, setCurrentApplicant] = useState<TutorApplication | null>(null)
-  const [applicants, setApplicants] = useState<TutorApplication[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [currentApplicant, setCurrentApplicant] = useState<any>(null)
   const { toast } = useToast()
 
-  // Fetch tutor applications from database
-  useEffect(() => {
-    fetchTutorApplications()
-  }, [])
-
-  const fetchTutorApplications = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const response = await fetch('http://localhost:4000/api/tutor-applications?status=pending')
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      
-      if (data.success && data.applications) {
-        setApplicants(data.applications)
-      } else {
-        setApplicants([])
-      }
-      
-    } catch (error) {
-      console.error('Error fetching tutor applications:', error)
-      setError(error instanceof Error ? error.message : 'Failed to fetch applications')
-      toast({
-        title: "Error",
-        description: "Failed to load tutor applications. Please try again.",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
+  // Updated applicants based on your database schema
+  const applicants = [
+    {
+      application_id: 1,
+      user_id: 101,
+      name: "John Michael Santos",
+      subject_id: 1,
+      subject_name: "Data Structures and Algorithms",
+      application_date: "2024-08-20",
+      status: "pending",
+      validatedby: null,
+      tutor_information: {
+        program: "Bachelor of Science in Computer Science",
+        specialties: "Advanced algorithms, dynamic programming, graph theory, competitive programming. Experience with Java, C++, and Python. Previously tutored 15+ students with 95% pass rate."
+      },
+      // Additional display info
+      avatar: "/placeholder.svg?height=100&width=100&text=JS",
+      email: "john.santos@cict.edu",
+      studentId: "2022-00123",
+      yearLevel: "4th Year",
+      gpa: "3.85"
+    },
+    {
+      application_id: 2,
+      user_id: 102,
+      name: "Maria Elena Cruz",
+      subject_id: 7,
+      subject_name: "Calculus I",
+      application_date: "2024-08-19",
+      status: "pending",
+      validatedby: null,
+      tutor_information: {
+        program: "Bachelor of Science in Information Systems",
+        specialties: "Differential calculus, limits, derivatives, optimization problems. Strong background in mathematical analysis. Available for both individual and group sessions."
+      },
+      avatar: "/placeholder.svg?height=100&width=100&text=MC",
+      email: "maria.cruz@cict.edu",
+      studentId: "2021-00456",
+      yearLevel: "3rd Year",
+      gpa: "3.92"
+    },
+    {
+      application_id: 3,
+      user_id: 103,
+      name: "David Kim Lee",
+      subject_id: 6,
+      subject_name: "Mobile App Development",
+      application_date: "2024-08-18",
+      status: "pending",
+      validatedby: null,
+      tutor_information: {
+        program: "Bachelor of Science in Information Technology",
+        specialties: "Flutter, React Native, iOS Swift, Android Kotlin. Published 3 mobile apps on app stores. Expert in cross-platform development and UI/UX design."
+      },
+      avatar: "/placeholder.svg?height=100&width=100&text=DL",
+      email: "david.lee@cict.edu",
+      studentId: "2022-00789",
+      yearLevel: "4th Year", 
+      gpa: "3.78"
+    },
+    {
+      application_id: 4,
+      user_id: 104,
+      name: "Sarah Jane Torres",
+      subject_id: 3,
+      subject_name: "Database Systems",
+      application_date: "2024-08-17",
+      status: "pending",
+      validatedby: null,
+      tutor_information: {
+        program: "Bachelor of Science in Information Systems",
+        specialties: "SQL optimization, database design, normalization, stored procedures, MongoDB, PostgreSQL. Internship experience at tech company working with large-scale databases."
+      },
+      avatar: "/placeholder.svg?height=100&width=100&text=ST",
+      email: "sarah.torres@cict.edu",
+      studentId: "2021-00234",
+      yearLevel: "3rd Year",
+      gpa: "3.89"
+    },
+    {
+      application_id: 5,
+      user_id: 105,
+      name: "Alex Rodriguez",
+      subject_id: 10,
+      subject_name: "Statistics and Probability",
+      application_date: "2024-08-16",
+      status: "pending",
+      validatedby: null,
+      tutor_information: {
+        program: "Bachelor of Science in Computer Science",
+        specialties: "Statistical analysis, hypothesis testing, regression analysis, R programming, data visualization. Research experience in machine learning and data science."
+      },
+      avatar: "/placeholder.svg?height=100&width=100&text=AR",
+      email: "alex.rodriguez@cict.edu",
+      studentId: "2022-00567",
+      yearLevel: "4th Year",
+      gpa: "3.94"
     }
-  }
+  ]
 
-  const handleApprove = (applicant: TutorApplication) => {
+  const handleApprove = (applicant: any) => {
     setCurrentApplicant(applicant)
     setShowApproveDialog(true)
   }
 
-  const handleReject = (applicant: TutorApplication) => {
+  const handleReject = (applicant: any) => {
     setCurrentApplicant(applicant)
     setShowRejectDialog(true)
   }
 
-  const confirmApproval = async () => {
-    if (!currentApplicant) return
-    
-    try {
-      const response = await fetch(`http://localhost:4000/api/tutor-applications/${currentApplicant.application_id}/approve`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          validatedby: 1 // This should be the current admin's user ID
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to approve application')
-      }
-
-      toast({
-        title: "Application Approved",
-        description: `${currentApplicant.name} has been approved as a tutor and will be notified via email.`,
-        duration: 5000,
-      })
-
-      // Refresh the applications list
-      await fetchTutorApplications()
-      
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to approve application. Please try again.",
-        variant: "destructive"
-      })
-    } finally {
-      setShowApproveDialog(false)
-      setCurrentApplicant(null)
-    }
+  const confirmApproval = () => {
+    toast({
+      title: "Application Approved",
+      description: `${currentApplicant?.name} has been approved as a tutor and will be notified via email.`,
+      duration: 5000,
+    })
+    setShowApproveDialog(false)
+    setCurrentApplicant(null)
   }
 
-  const confirmRejection = async () => {
-    if (!currentApplicant) return
-    
-    try {
-      const response = await fetch(`http://localhost:4000/api/tutor-applications/${currentApplicant.application_id}/reject`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          validatedby: 1 // This should be the current admin's user ID
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to reject application')
-      }
-
-      toast({
-        title: "Application Rejected",
-        description: `${currentApplicant.name}'s application has been rejected. They will be notified via email.`,
-        duration: 5000,
-      })
-
-      // Refresh the applications list
-      await fetchTutorApplications()
-      
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to reject application. Please try again.",
-        variant: "destructive"
-      })
-    } finally {
-      setShowRejectDialog(false)
-      setCurrentApplicant(null)
-    }
+  const confirmRejection = () => {
+    toast({
+      title: "Application Rejected",
+      description: `${currentApplicant?.name}'s application has been rejected. They will be notified via email.`,
+      duration: 5000,
+    })
+    setShowRejectDialog(false)
+    setCurrentApplicant(null)
   }
 
-  const viewDetails = (applicant: TutorApplication) => {
+  const viewDetails = (applicant: any) => {
     setCurrentApplicant(applicant)
     setShowDetailsModal(true)
   }
 
-  const ApplicantCard = ({ applicant }: { applicant: TutorApplication }) => (
+  const ApplicantCard = ({ applicant }: { applicant: (typeof applicants)[0] }) => (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader className="pb-4">
         <div className="flex items-start space-x-4">
           <Avatar className="w-16 h-16">
-            <AvatarImage src={applicant.avatar || "/placeholder.svg"} alt={applicant.name || 'Applicant'} />
+            <AvatarImage src={applicant.avatar || "/placeholder.svg"} alt={applicant.name} />
             <AvatarFallback className="text-lg font-semibold">
               {applicant.name
-                ? applicant.name.split(" ").map((n) => n[0]).join("")
-                : 'N/A'}
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">{applicant.name || 'Name not provided'}</CardTitle>
+              <CardTitle className="text-xl">{applicant.name}</CardTitle>
               <Badge variant="secondary" className="ml-2">
                 <Clock className="w-3 h-3 mr-1" />
-                {applicant.status ? applicant.status.charAt(0).toUpperCase() + applicant.status.slice(1) : 'Pending'}
+                {applicant.status.charAt(0).toUpperCase() + applicant.status.slice(1)}
               </Badge>
             </div>
-            <CardDescription className="text-base mt-1">{applicant.subject_name || 'Subject not specified'}</CardDescription>
+            <CardDescription className="text-base mt-1">{applicant.subject_name}</CardDescription>
             <div className="flex items-center space-x-4 mt-2">
               <div className="flex items-center text-sm text-muted-foreground">
                 <User className="w-4 h-4 mr-1" />
-                ID: {applicant.user_id || 'N/A'} • {applicant.yearLevel || 'Year not specified'}
+                ID: {applicant.user_id} • {applicant.yearLevel}
               </div>
               <div className="flex items-center text-sm text-muted-foreground">
                 <Calendar className="w-4 h-4 mr-1" />
-                Applied: {applicant.application_date ? new Date(applicant.application_date).toLocaleDateString() : 'Date not available'}
+                Applied: {new Date(applicant.application_date).toLocaleDateString()}
               </div>
             </div>
           </div>
@@ -229,11 +211,11 @@ export default function PendingApplicants() {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center space-x-2">
             <BookOpen className="w-4 h-4 text-muted-foreground" />
-            <span>GPA: {applicant.gpa || 'Not provided'}</span>
+            <span>GPA: {applicant.gpa}</span>
           </div>
           <div className="flex items-center space-x-2">
             <GraduationCap className="w-4 h-4 text-muted-foreground" />
-            <span>{applicant.tutor_information?.program || 'Program not specified'}</span>
+            <span>{applicant.tutor_information.program}</span>
           </div>
         </div>
 
@@ -241,7 +223,7 @@ export default function PendingApplicants() {
         <div className="space-y-2">
           <Label className="text-sm font-medium">Subject Expertise</Label>
           <Badge variant="outline" className="text-sm">
-            {applicant.subject_name || 'Subject not specified'}
+            {applicant.subject_name}
           </Badge>
         </div>
 
@@ -249,7 +231,7 @@ export default function PendingApplicants() {
         <div className="space-y-2">
           <Label className="text-sm font-medium">Specialties & Experience</Label>
           <p className="text-sm text-muted-foreground line-clamp-3">
-            {applicant.tutor_information?.specialties || 'No specialties or experience provided'}
+            {applicant.tutor_information.specialties}
           </p>
         </div>
 
@@ -279,11 +261,7 @@ export default function PendingApplicants() {
           <p className="text-muted-foreground">Review and approve tutor applications</p>
         </div>
         <Badge variant="secondary" className="px-3 py-1">
-          {loading ? (
-            <Loader2 className="w-4 h-4 animate-spin mr-1" />
-          ) : (
-            `${applicants.length} Pending`
-          )}
+          {applicants.length} Pending
         </Badge>
       </div>
 
@@ -298,30 +276,11 @@ export default function PendingApplicants() {
         </Button>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin mr-2" />
-          <span>Loading applications...</span>
-        </div>
-      ) : error ? (
-        <div className="text-center py-12">
-          <div className="text-red-500 mb-2">Error loading applications</div>
-          <Button onClick={fetchTutorApplications} variant="outline">
-            Try Again
-          </Button>
-        </div>
-      ) : applicants.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-muted-foreground mb-2">No pending applications found</div>
-          <p className="text-sm text-muted-foreground">Applications will appear here when students apply to become tutors.</p>
-        </div>
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {applicants.map((applicant) => (
-            <ApplicantCard key={applicant.application_id} applicant={applicant} />
-          ))}
-        </div>
-      )}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {applicants.map((applicant) => (
+          <ApplicantCard key={applicant.application_id} applicant={applicant} />
+        ))}
+      </div>
 
       {/* Details Modal */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
@@ -341,19 +300,19 @@ export default function PendingApplicants() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Email</Label>
-                  <p className="text-sm">{currentApplicant.email || 'Not available'}</p>
+                  <p className="text-sm">{currentApplicant.email}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Student ID</Label>
-                  <p className="text-sm">{currentApplicant.studentId || 'Not available'}</p>
+                  <p className="text-sm">{currentApplicant.studentId}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Year Level</Label>
-                  <p className="text-sm">{currentApplicant.yearLevel || 'Not available'}</p>
+                  <p className="text-sm">{currentApplicant.yearLevel}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">GPA</Label>
-                  <p className="text-sm">{currentApplicant.gpa || 'Not available'}</p>
+                  <p className="text-sm">{currentApplicant.gpa}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Application Date</Label>
@@ -363,17 +322,17 @@ export default function PendingApplicants() {
               
               <div>
                 <Label className="text-sm font-medium">Subject to Tutor</Label>
-                <p className="text-sm">{currentApplicant.subject_name || 'Subject not specified'}</p>
+                <p className="text-sm">{currentApplicant.subject_name}</p>
               </div>
               
               <div>
                 <Label className="text-sm font-medium">Program</Label>
-                <p className="text-sm">{currentApplicant.tutor_information?.program || 'Program not specified'}</p>
+                <p className="text-sm">{currentApplicant.tutor_information.program}</p>
               </div>
               
               <div>
                 <Label className="text-sm font-medium">Specialties & Experience</Label>
-                <p className="text-sm text-muted-foreground">{currentApplicant.tutor_information?.specialties || 'No specialties or experience provided'}</p>
+                <p className="text-sm text-muted-foreground">{currentApplicant.tutor_information.specialties}</p>
               </div>
             </div>
           )}

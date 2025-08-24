@@ -105,7 +105,7 @@ export default function Sidebar() {
                   <NavItem href="/learning-resources" icon={FileText}>
                     Learning Resources
                   </NavItem>
-                  {(userRole === "student" || userRole === "faculty") && (
+                  {(userRole === "student" || userRole === "tutor" || userRole === "faculty") && (
                     <>
                       <NavItem href="/quizzes" icon={Brain}>
                         Quizzes
@@ -118,7 +118,7 @@ export default function Sidebar() {
                 </div>
               </div>
 
-              {(userRole === "student" || userRole === "faculty" || userRole === "admin") && (
+              {(userRole === "student" || userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
                 <div>
                   <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Community

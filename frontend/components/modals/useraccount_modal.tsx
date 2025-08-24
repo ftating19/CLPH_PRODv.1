@@ -175,6 +175,7 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="Student">Student</SelectItem>
+									<SelectItem value="Tutor">Tutor</SelectItem>
 									<SelectItem value="Faculty">Faculty</SelectItem>
 									<SelectItem value="Admin">Admin</SelectItem>
 								</SelectContent>

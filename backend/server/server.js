@@ -5,6 +5,14 @@ require('dotenv').config({ path: '../.env' })
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
 const { generateTemporaryPassword, sendWelcomeEmail, testEmailConnection } = require('../services/emailService')
+const { 
+  getAllTutorApplications, 
+  getTutorApplicationsByStatus, 
+  getTutorApplicationById, 
+  createTutorApplication, 
+  updateTutorApplicationStatus, 
+  deleteTutorApplication 
+} = require('../queries/tutorApplications')
 
 const app = express()
 app.use(cors())
@@ -545,6 +553,254 @@ app.put('/api/update-profile/:id', async (req, res) => {
       error: 'A server error occurred. Please try again later.',
       errorType: 'SERVER_ERROR'
     });
+  }
+});
+
+// ===== TUTOR APPLICATION ENDPOINTS =====
+
+// Get all tutor applications (with optional status filter)
+app.get('/api/tutor-applications', async (req, res) => {
+  try {
+    console.log('=== TUTOR APPLICATIONS ENDPOINT HIT ===');
+    console.log('Request query:', req.query);
+    
+    const { status } = req.query;
+    
+    console.log('Fetching tutor applications', status ? `with status: ${status}` : '(all statuses)');
+
+    // Get a database connection
+    const pool = await db.getPool();
+    console.log('Database connection obtained');
+
+    let applications;
+    if (status) {
+      applications = await getTutorApplicationsByStatus(pool, status);
+    } else {
+      applications = await getAllTutorApplications(pool);
+    }
+
+    console.log(`Found ${applications.length} applications`);
+
+    // Transform the data to match frontend expectations
+    const transformedApplications = applications.map(app => ({
+      application_id: app.application_id,
+      user_id: app.user_id,
+      name: app.name || `${app.first_name || ''} ${app.last_name || ''}`.trim(),
+      email: app.email,
+      subject_id: app.subject_id,
+      subject_name: app.subject_name,
+      application_date: app.application_date,
+      status: app.status,
+      validated_by: app.validated_by,
+      tutor_information: app.tutor_information || '',
+      program: app.program || '',
+      specialties: app.specialties || ''
+    }));
+
+    console.log(`✅ Found ${transformedApplications.length} tutor applications`);
+    
+    res.status(200).json({ 
+      success: true,
+      applications: transformedApplications,
+      total: transformedApplications.length
+    });
+  } catch (err) {
+    console.error('Error fetching tutor applications:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get a specific tutor application by ID
+app.get('/api/tutor-applications/:id', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    
+    console.log(`Fetching tutor application ${applicationId}`);
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    const application = await getTutorApplicationById(pool, applicationId);
+
+    if (!application) {
+      return res.status(404).json({ error: 'Tutor application not found' });
+    }
+
+    // Transform the data to match frontend expectations
+    const transformedApplication = {
+      application_id: application.application_id,
+      user_id: application.user_id,
+      name: application.name || `${application.first_name || ''} ${application.last_name || ''}`.trim(),
+      email: application.email,
+      subject_id: application.subject_id,
+      subject_name: application.subject_name,
+      application_date: application.application_date,
+      status: application.status,
+      validated_by: application.validated_by,
+      tutor_information: application.tutor_information || '',
+      program: application.program || '',
+      specialties: application.specialties || ''
+    };
+
+    console.log(`✅ Found tutor application ${applicationId}`);
+    
+    res.status(200).json({ 
+      success: true,
+      application: transformedApplication
+    });
+  } catch (err) {
+    console.error('Error fetching tutor application:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a new tutor application
+app.post('/api/tutor-applications', async (req, res) => {
+  try {
+    console.log('Creating new tutor application:', req.body);
+
+    const { 
+      user_id, 
+      name, 
+      subject_id, 
+      subject_name, 
+      tutor_information, 
+      program, 
+      specialties 
+    } = req.body;
+
+    // Validate required fields
+    if (!user_id || !name || !subject_id || !subject_name) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: user_id, name, subject_id, and subject_name are required' 
+      });
+    }
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Create the application
+    const result = await createTutorApplication(pool, {
+      user_id,
+      name,
+      subject_id,
+      subject_name,
+      tutor_information,
+      program,
+      specialties
+    });
+
+    console.log(`✅ Tutor application created with ID: ${result.insertId}`);
+    
+    res.status(201).json({ 
+      success: true,
+      message: 'Tutor application submitted successfully',
+      application_id: result.insertId
+    });
+  } catch (err) {
+    console.error('Error creating tutor application:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Approve a tutor application
+app.put('/api/tutor-applications/:id/approve', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    const { validatedby } = req.body;
+    
+    console.log(`Approving tutor application ${applicationId} by user ${validatedby}`);
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Check if application exists
+    const application = await getTutorApplicationById(pool, applicationId);
+    if (!application) {
+      return res.status(404).json({ error: 'Tutor application not found' });
+    }
+
+    // Update application status to approved
+    const result = await updateTutorApplicationStatus(pool, applicationId, 'approved', validatedby || '1');
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Failed to update application status' });
+    }
+
+    console.log(`✅ Tutor application ${applicationId} approved successfully`);
+    
+    res.status(200).json({ 
+      success: true,
+      message: 'Tutor application approved successfully'
+    });
+  } catch (err) {
+    console.error('Error approving tutor application:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reject a tutor application
+app.put('/api/tutor-applications/:id/reject', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    const { validatedby } = req.body;
+    
+    console.log(`Rejecting tutor application ${applicationId} by user ${validatedby}`);
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Check if application exists
+    const application = await getTutorApplicationById(pool, applicationId);
+    if (!application) {
+      return res.status(404).json({ error: 'Tutor application not found' });
+    }
+
+    // Update application status to rejected
+    const result = await updateTutorApplicationStatus(pool, applicationId, 'rejected', validatedby || '1');
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Failed to update application status' });
+    }
+
+    console.log(`✅ Tutor application ${applicationId} rejected successfully`);
+    
+    res.status(200).json({ 
+      success: true,
+      message: 'Tutor application rejected successfully'
+    });
+  } catch (err) {
+    console.error('Error rejecting tutor application:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a tutor application (admin only)
+app.delete('/api/tutor-applications/:id', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    
+    console.log(`Deleting tutor application ${applicationId}`);
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Delete the application
+    const result = await deleteTutorApplication(pool, applicationId);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Tutor application not found' });
+    }
+
+    console.log(`✅ Tutor application ${applicationId} deleted successfully`);
+    
+    res.status(200).json({ 
+      success: true,
+      message: 'Tutor application deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting tutor application:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
