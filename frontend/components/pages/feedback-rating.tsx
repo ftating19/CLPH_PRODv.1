@@ -44,7 +44,7 @@ export default function FeedbackRating() {
         <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
           <CardHeader>
             <CardTitle>Rate the Platform</CardTitle>
-            <CardDescription>Share your experience with the CICT Peer Learning Hub</CardDescription>
+            <CardDescription>Share your experience with the CICT PEER LEARNING HUB</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <StarRating rating={systemRating} setRating={setSystemRating} label="Overall Platform Rating" />

@@ -85,7 +85,7 @@ export default function Sidebar() {
           <div className="h-16 px-6 flex items-center border-b border-gray-200 dark:border-[#1F1F23]">
             <div className="flex items-center gap-3">
               <GraduationCap className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              <span className="text-lg font-semibold text-gray-900 dark:text-white">CICT Hub</span>
+              <span className="text-lg font-semibold text-gray-900 dark:text-white">CICT PEER LEARNING HUB</span>
             </div>
           </div>
 

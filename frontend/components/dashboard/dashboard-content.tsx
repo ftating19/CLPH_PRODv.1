@@ -15,7 +15,7 @@ export default function DashboardContent() {
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl p-6 border border-blue-100 dark:border-blue-900/20">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to CICT Peer Learning Hub</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to CICT PEER LEARNING HUB</h1>
         <p className="text-gray-600 dark:text-gray-300 mb-4">
           Connect, collaborate, and excel in your academic journey with peer-to-peer learning.
         </p>

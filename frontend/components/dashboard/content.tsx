@@ -7,7 +7,7 @@ export default function () {
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to CICT Peer Learning Hub</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to CICT PEER LEARNING HUB</h1>
         <p className="text-gray-600 dark:text-gray-300">
           Connect with peers, access learning resources, and enhance your academic journey through collaborative
           learning.

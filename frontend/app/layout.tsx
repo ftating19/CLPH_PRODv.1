@@ -8,7 +8,7 @@ import { UserProvider } from "@/contexts/UserContext"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "CICT Peer Learning Hub",
+  title: "CICT PEER LEARNING HUB",
   description: "A collaborative platform for interactive learning",
     generator: 'v0.app'
 }

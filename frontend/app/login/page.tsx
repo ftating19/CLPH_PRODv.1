@@ -281,7 +281,7 @@ export default function LoginPage() {
           {/* Left Side - Branding */}
           <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-indigo-800 flex-col justify-center items-center p-12 text-white">
             <div className="max-w-md text-center">
-            <h1 className="text-4xl font-bold mb-6">CICT Peer Learning Hub</h1>
+            <h1 className="text-4xl font-bold mb-6">CICT PEER LEARNING HUB</h1>
             <p className="text-xl text-blue-100 mb-8">
               Empowering students through collaborative learning and peer-to-peer knowledge sharing
             </p>
@@ -308,7 +308,7 @@ export default function LoginPage() {
             <Card className="shadow-lg border-0 bg-white h-full max-h-[550px] flex flex-col">
               <CardHeader className="text-center pb-4 flex-shrink-0">
                 <div className="lg:hidden mb-4">
-                  <h1 className="text-xl font-bold text-gray-900 mb-1">CICT Peer Learning Hub</h1>
+                  <h1 className="text-xl font-bold text-gray-900 mb-1">CICT PEER LEARNING HUB</h1>
                   <p className="text-xs text-gray-600">A Collaborative Platform for Interactive Learning</p>
                 </div>
                 <CardTitle className="text-2xl font-bold text-gray-900">Welcome Back</CardTitle>

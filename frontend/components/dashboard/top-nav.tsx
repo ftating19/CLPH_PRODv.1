@@ -46,7 +46,7 @@ export default function TopNav() {
   };
 
   const breadcrumbs: BreadcrumbItem[] = [
-    { label: "CICT Hub", href: "#" },
+    { label: "CICT PEER LEARNING HUB", href: "#" },
     { label: "Dashboard", href: "#" },
   ]
 
