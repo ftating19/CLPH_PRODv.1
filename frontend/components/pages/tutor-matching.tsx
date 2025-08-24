@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Star, Clock, BookOpen, Calendar, User, Search, Filter, MapPin, GraduationCap } from "lucide-react"
+import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap } from "lucide-react"
 
 export default function TutorMatching() {
   const [selectedTutor, setSelectedTutor] = useState<string | null>(null)
@@ -158,10 +158,6 @@ export default function TutorMatching() {
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                 <span className="text-sm font-medium ml-1">{tutor.rating}</span>
                 <span className="text-sm text-muted-foreground ml-1">({tutor.reviews} reviews)</span>
-              </div>
-              <div className="flex items-center text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4 mr-1" />
-                {tutor.location}
               </div>
             </div>
           </div>
