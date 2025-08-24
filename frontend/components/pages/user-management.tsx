@@ -352,54 +352,56 @@ export default function UserManagement() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 {filteredUsers.map((user) => (
                   <div key={user.user_id} className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-4 flex-1">
-                        <Avatar className="w-12 h-12">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="flex items-center space-x-4 flex-1 min-w-0">
+                        <Avatar className="w-12 h-12 flex-shrink-0">
                           <AvatarFallback className="bg-gradient-to-br from-blue-400 to-blue-600 text-white font-semibold">
                             {getUserInitials(user.first_name, user.last_name)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate">
+                          <h3 className="font-medium truncate text-sm sm:text-base">
                             {user.first_name} {user.middle_name && `${user.middle_name} `}{user.last_name}
                           </h3>
                           <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-                          <div className="flex items-center space-x-4 mt-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-2">
                             <div className="flex items-center space-x-1">
-                              <Mail className="h-3 w-3 text-muted-foreground" />
+                              <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                               <span className="text-xs text-muted-foreground">
                                 {user.status === 'Active' ? 'Verified' : user.status}
                               </span>
                             </div>
-                            <div className="flex items-center space-x-1">
+                            <div className="flex items-center space-x-1 min-w-0">
                               <span className="text-xs text-muted-foreground truncate">
-                                {user.program}
+                                Program: {user.program}
                               </span>
                             </div>
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end space-y-2 ml-4">
+                      <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:space-y-2 sm:ml-4 flex-shrink-0">
+                        <div className="flex items-center gap-2 sm:flex-col sm:items-end sm:gap-2">
+                          <Badge variant={getBadgeVariant(user.role)} className="text-xs">
+                            {user.role}
+                          </Badge>
+                          <p className="text-xs text-muted-foreground whitespace-nowrap">
+                            Joined {formatDate(user.created_at)}
+                          </p>
+                          {user.first_login === 0 && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                              First login pending
+                            </p>
+                          )}
+                        </div>
                         <UserActionsDropdown 
                           user={user} 
                           onViewDetails={handleViewUserDetails}
                           onEditUser={handleEditUser}
                           onDeactivateUser={handleDeactivateUser}
                         />
-                        <Badge variant={getBadgeVariant(user.role)} className="text-xs">
-                          {user.role}
-                        </Badge>
-                        <p className="text-xs text-muted-foreground text-right">
-                          Joined {formatDate(user.created_at)}
-                        </p>
-                        {user.first_login === 0 && (
-                          <p className="text-xs text-amber-600 dark:text-amber-400">
-                            First login pending
-                          </p>
-                        )}
                       </div>
                     </div>
                   </div>
