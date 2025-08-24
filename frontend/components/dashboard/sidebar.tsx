@@ -17,6 +17,7 @@ import {
   Clock,
   BookOpen,
   Layers,
+  Library,
 } from "lucide-react"
 
 import { Home } from "lucide-react"
@@ -165,6 +166,9 @@ export default function Sidebar() {
                     </NavItem>
                     <NavItem href="/flashcards" icon={Layers}>
                       Manage Flashcards
+                    </NavItem>
+                    <NavItem href="/manage-subjects" icon={Library}>
+                      Manage Subjects
                     </NavItem>
                   </div>
                 </div>
