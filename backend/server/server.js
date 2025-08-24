@@ -13,6 +13,16 @@ const {
   updateTutorApplicationStatus, 
   deleteTutorApplication 
 } = require('../queries/tutorApplications')
+const { 
+  getAllTutors, 
+  getTutorsByStatus, 
+  getTutorsBySubject, 
+  getApprovedTutors, 
+  getTutorById, 
+  createTutor, 
+  updateTutorStatus, 
+  deleteTutor 
+} = require('../queries/tutors')
 
 const app = express()
 app.use(cors())
@@ -720,6 +730,8 @@ app.put('/api/tutor-applications/:id/approve', async (req, res) => {
       return res.status(404).json({ error: 'Tutor application not found' });
     }
 
+    console.log(`Found application for user ${application.user_id}`);
+
     // Update application status to approved
     const result = await updateTutorApplicationStatus(pool, applicationId, 'approved', validatedby || '1');
 
@@ -727,11 +739,70 @@ app.put('/api/tutor-applications/:id/approve', async (req, res) => {
       return res.status(404).json({ error: 'Failed to update application status' });
     }
 
+    // Update user role to "Tutor" in users table
+    console.log(`Updating user ${application.user_id} role to Tutor`);
+    await pool.query(
+      'UPDATE users SET role = ? WHERE user_id = ?',
+      ['Tutor', application.user_id]
+    );
+
+    // Add approved tutor to tutors table for easier querying
+    console.log(`Adding approved tutor to tutors table`);
+    try {
+      // Check if tutor already exists for this subject
+      const [existingTutor] = await pool.query(
+        'SELECT application_id FROM tutors WHERE user_id = ? AND subject_id = ?',
+        [application.user_id, application.subject_id]
+      );
+
+      if (existingTutor.length > 0) {
+        console.log(`Tutor already exists in tutors table for this subject, updating instead`);
+        // Update existing entry
+        await pool.query(
+          `UPDATE tutors SET 
+           name = ?, subject_name = ?, application_date = ?, status = ?, 
+           validated_by = ?, tutor_information = ?, program = ?, specialties = ?
+           WHERE user_id = ? AND subject_id = ?`,
+          [
+            application.name,
+            application.subject_name,
+            application.application_date,
+            'approved',
+            validatedby || '1',
+            application.tutor_information,
+            application.program,
+            application.specialties,
+            application.user_id,
+            application.subject_id
+          ]
+        );
+      } else {
+        // Create new entry
+        await createTutor(pool, {
+          user_id: application.user_id,
+          name: application.name,
+          subject_id: application.subject_id,
+          subject_name: application.subject_name,
+          application_date: application.application_date,
+          status: 'approved',
+          validated_by: validatedby || '1',
+          tutor_information: application.tutor_information,
+          program: application.program,
+          specialties: application.specialties
+        });
+      }
+      console.log(`✅ Tutor data synchronized to tutors table successfully`);
+    } catch (tutorError) {
+      console.log(`Error synchronizing tutor data: ${tutorError.message}`);
+      // Don't fail the approval if tutors table sync fails
+    }
+
     console.log(`✅ Tutor application ${applicationId} approved successfully`);
+    console.log(`✅ User ${application.user_id} role updated to Tutor`);
     
     res.status(200).json({ 
       success: true,
-      message: 'Tutor application approved successfully'
+      message: 'Tutor application approved successfully. User role updated to Tutor.'
     });
   } catch (err) {
     console.error('Error approving tutor application:', err);
@@ -756,11 +827,39 @@ app.put('/api/tutor-applications/:id/reject', async (req, res) => {
       return res.status(404).json({ error: 'Tutor application not found' });
     }
 
+    console.log(`Found application for user ${application.user_id}`);
+
     // Update application status to rejected
     const result = await updateTutorApplicationStatus(pool, applicationId, 'rejected', validatedby || '1');
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Failed to update application status' });
+    }
+
+    // Check if user has any other approved applications
+    const [approvedApps] = await pool.query(
+      'SELECT COUNT(*) as count FROM tutorapplications WHERE user_id = ? AND status = "approved"',
+      [application.user_id]
+    );
+
+    // If no approved applications remain, revert role to Student
+    if (approvedApps[0].count === 0) {
+      console.log(`No approved applications remain for user ${application.user_id}, reverting role to Student`);
+      await pool.query(
+        'UPDATE users SET role = ? WHERE user_id = ?',
+        ['Student', application.user_id]
+      );
+
+      // Also remove from tutors table if exists
+      try {
+        await pool.query(
+          'DELETE FROM tutors WHERE user_id = ? AND subject_id = ?',
+          [application.user_id, application.subject_id]
+        );
+        console.log(`✅ Removed tutor from tutors table`);
+      } catch (deleteError) {
+        console.log(`Note: Error removing tutor from tutors table: ${deleteError.message}`);
+      }
     }
 
     console.log(`✅ Tutor application ${applicationId} rejected successfully`);
@@ -800,6 +899,156 @@ app.delete('/api/tutor-applications/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('Error deleting tutor application:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ===== TUTOR ENDPOINTS (for tutor matching) =====
+
+// Get all approved tutors for matching
+app.get('/api/tutors', async (req, res) => {
+  try {
+    console.log('=== TUTORS ENDPOINT HIT ===');
+    console.log('Request query:', req.query);
+    
+    const { status, subject_id } = req.query;
+    
+    // Get a database connection
+    const pool = await db.getPool();
+    console.log('Database connection obtained');
+
+    let tutors;
+    if (subject_id) {
+      console.log(`Fetching tutors for subject: ${subject_id}`);
+      tutors = await getTutorsBySubject(pool, subject_id);
+    } else if (status) {
+      console.log(`Fetching tutors with status: ${status}`);
+      tutors = await getTutorsByStatus(pool, status);
+    } else {
+      console.log('Fetching all approved tutors');
+      tutors = await getApprovedTutors(pool);
+    }
+
+    console.log(`Found ${tutors.length} tutors`);
+
+    // Transform the data to match frontend expectations
+    const transformedTutors = tutors.map(tutor => ({
+      application_id: tutor.application_id,
+      user_id: tutor.user_id,
+      name: tutor.name,
+      email: tutor.email,
+      subject_id: tutor.subject_id,
+      subject_name: tutor.subject_name,
+      application_date: tutor.application_date,
+      status: tutor.status,
+      validated_by: tutor.validated_by,
+      tutor_information: tutor.tutor_information || '',
+      program: tutor.program || '',
+      specialties: tutor.specialties || ''
+    }));
+
+    console.log(`✅ Found ${transformedTutors.length} tutors`);
+    
+    res.status(200).json({ 
+      success: true,
+      tutors: transformedTutors,
+      total: transformedTutors.length
+    });
+  } catch (err) {
+    console.error('Error fetching tutors:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get a specific tutor by ID
+app.get('/api/tutors/:id', async (req, res) => {
+  try {
+    const tutorId = parseInt(req.params.id);
+    
+    console.log(`Fetching tutor ${tutorId}`);
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    const tutor = await getTutorById(pool, tutorId);
+
+    if (!tutor) {
+      return res.status(404).json({ error: 'Tutor not found' });
+    }
+
+    // Transform the data to match frontend expectations
+    const transformedTutor = {
+      application_id: tutor.application_id,
+      user_id: tutor.user_id,
+      name: tutor.name,
+      email: tutor.email,
+      subject_id: tutor.subject_id,
+      subject_name: tutor.subject_name,
+      application_date: tutor.application_date,
+      status: tutor.status,
+      validated_by: tutor.validated_by,
+      tutor_information: tutor.tutor_information || '',
+      program: tutor.program || '',
+      specialties: tutor.specialties || ''
+    };
+
+    console.log(`✅ Found tutor ${tutorId}`);
+    
+    res.status(200).json({ 
+      success: true,
+      tutor: transformedTutor
+    });
+  } catch (err) {
+    console.error('Error fetching tutor:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Create a new tutor entry
+app.post('/api/tutors', async (req, res) => {
+  try {
+    console.log('Creating new tutor:', req.body);
+
+    const { 
+      user_id, 
+      name, 
+      subject_id, 
+      subject_name, 
+      tutor_information, 
+      program, 
+      specialties 
+    } = req.body;
+
+    // Validate required fields
+    if (!user_id || !name || !subject_id || !subject_name) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: user_id, name, subject_id, and subject_name are required' 
+      });
+    }
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Create the tutor
+    const result = await createTutor(pool, {
+      user_id,
+      name,
+      subject_id,
+      subject_name,
+      tutor_information,
+      program,
+      specialties
+    });
+
+    console.log(`✅ Tutor created with ID: ${result.insertId}`);
+    
+    res.status(201).json({ 
+      success: true,
+      message: 'Tutor created successfully',
+      tutor_id: result.insertId
+    });
+  } catch (err) {
+    console.error('Error creating tutor:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

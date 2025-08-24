@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,14 +23,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap } from "lucide-react"
+import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Loader2 } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
+
+// TypeScript interface for tutor data
+interface Tutor {
+  application_id: number
+  user_id: number
+  name: string
+  email?: string
+  subject_id: number
+  subject_name: string
+  application_date: string
+  status: string
+  validated_by: string
+  tutor_information: string
+  program: string
+  specialties: string
+}
 
 export default function TutorMatching() {
   const [selectedTutor, setSelectedTutor] = useState<string | null>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [showApplyModal, setShowApplyModal] = useState(false)
+  const [tutors, setTutors] = useState<Tutor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { currentUser } = useUser()
   const { toast } = useToast()
 
@@ -38,8 +57,42 @@ export default function TutorMatching() {
   const [applicationForm, setApplicationForm] = useState({
     subject_id: "",
     program: "",
-    specialties: ""
+    specialties: "",
+    tutor_information: ""
   })
+
+  // Fetch tutors from API
+  const fetchTutors = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch('http://localhost:4000/api/tutors')
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setTutors(data.tutors || [])
+      } else {
+        throw new Error('Failed to fetch tutors')
+      }
+    } catch (err) {
+      console.error('Error fetching tutors:', err)
+      setError('Failed to load tutors. Please try again later.')
+      setTutors([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Load tutors on component mount
+  useEffect(() => {
+    fetchTutors()
+  }, [])
 
   // Available subjects (based on manage-subjects data)
   const subjects = [
@@ -79,7 +132,7 @@ export default function TutorMatching() {
       return
     }
 
-    if (!applicationForm.subject_id || !applicationForm.program || !applicationForm.specialties.trim()) {
+    if (!applicationForm.subject_id || !applicationForm.program || !applicationForm.specialties.trim() || !applicationForm.tutor_information.trim()) {
       toast({
         title: "Error", 
         description: "Please fill in all required fields",
@@ -95,34 +148,49 @@ export default function TutorMatching() {
       name: `${currentUser.first_name} ${currentUser.middle_name ? currentUser.middle_name + ' ' : ''}${currentUser.last_name}`,
       subject_id: parseInt(applicationForm.subject_id),
       subject_name: selectedSubject?.name || "",
-      application_date: new Date().toISOString().split('T')[0],
-      status: "pending",
-      validatedby: null,
-      tutor_information: {
-        program: applicationForm.program,
-        specialties: applicationForm.specialties
-      }
+      tutor_information: applicationForm.tutor_information,
+      program: applicationForm.program,
+      specialties: applicationForm.specialties
     }
 
+    console.log('Submitting tutor application:', applicationData)
+
     try {
-      // In a real app, this would be an API call
-      console.log("Tutor application submitted:", applicationData)
-      
-      toast({
-        title: "Application Submitted",
-        description: "Your tutor application has been submitted successfully. You will be notified once it's reviewed.",
-        variant: "default"
+      const response = await fetch('http://localhost:4000/api/tutor-applications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(applicationData)
       })
 
-      // Reset form and close modal
-      setApplicationForm({
-        subject_id: "",
-        program: "",
-        specialties: ""
-      })
-      setShowApplyModal(false)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: "Application Submitted",
+          description: "Your tutor application has been submitted successfully. You will be notified once it's reviewed.",
+          variant: "default"
+        })
+
+        // Reset form and close modal
+        setApplicationForm({
+          subject_id: "",
+          program: "",
+          specialties: "",
+          tutor_information: ""
+        })
+        setShowApplyModal(false)
+      } else {
+        throw new Error(result.message || 'Failed to submit application')
+      }
 
     } catch (error) {
+      console.error('Error submitting application:', error)
       toast({
         title: "Error",
         description: "Failed to submit application. Please try again.",
@@ -131,244 +199,92 @@ export default function TutorMatching() {
     }
   }
 
-  const tutors = [
-    {
-      id: "1",
-      name: "Sarah Chen",
-      avatar: "/placeholder.svg?height=100&width=100&text=SC",
-      program: "BS Computer Science",
-      college: "CICT",
-      yearLevel: "4th Year",
-      courses: ["Data Structures & Algorithms", "Object-Oriented Programming", "Database Systems", "Software Engineering"],
-      specialties: ["Java", "Python", "C++", "Web Development"],
-      rating: 4.9,
-      reviews: 127,
-      reviewSummary: {
-        excellent: 98,
-        good: 24,
-        average: 5,
-        poor: 0
-      },
-      availability: "Available",
-      experience: "3 years tutoring experience",
-      location: "Manila Campus",
-      gpa: "3.85",
-      description: "Senior CS student specializing in algorithms and data structures. Helped 50+ students improve their programming skills with hands-on coding sessions.",
-      languages: ["English", "Filipino"],
-      responseTime: "Usually responds within 1 hour",
-      successRate: "96%",
-    },
-    {
-      id: "2",
-      name: "Mark Rodriguez",
-      avatar: "/placeholder.svg?height=100&width=100&text=MR",
-      program: "BS Mathematics",
-      college: "CICT",
-      yearLevel: "3rd Year",
-      courses: ["Calculus I & II", "Linear Algebra", "Statistics & Probability", "Discrete Mathematics"],
-      specialties: ["Calculus", "Statistics", "Problem Solving", "Mathematical Proofs"],
-      rating: 4.8,
-      reviews: 89,
-      reviewSummary: {
-        excellent: 72,
-        good: 15,
-        average: 2,
-        poor: 0
-      },
-      availability: "Busy until 3PM",
-      experience: "2 years tutoring experience",
-      location: "Quezon City Campus",
-      gpa: "3.92",
-      description: "Mathematics major with strong background in calculus and statistics. Patient teaching style with proven results in helping students understand complex concepts.",
-      languages: ["English", "Filipino"],
-      responseTime: "Usually responds within 2 hours",
-      successRate: "94%",
-    },
-    {
-      id: "3",
-      name: "Lisa Wang",
-      avatar: "/placeholder.svg?height=100&width=100&text=LW",
-      program: "MS Information Systems",
-      college: "CICT",
-      yearLevel: "Graduate Student",
-      courses: ["Database Design", "Data Mining", "System Analysis", "Advanced SQL"],
-      specialties: ["SQL", "Database Design", "MongoDB", "Data Analytics"],
-      rating: 5.0,
-      reviews: 156,
-      reviewSummary: {
-        excellent: 152,
-        good: 4,
-        average: 0,
-        poor: 0
-      },
-      availability: "Available",
-      experience: "4 years tutoring experience",
-      location: "Manila Campus",
-      gpa: "3.96",
-      description: "Graduate student and teaching assistant. Expert in database design and optimization with industry experience at tech companies.",
-      languages: ["English", "Filipino", "Mandarin"],
-      responseTime: "Usually responds within 30 minutes",
-      successRate: "98%",
-    },
-    {
-      id: "4",
-      name: "Alex Kim",
-      avatar: "/placeholder.svg?height=100&width=100&text=AK",
-      program: "BS Information Technology",
-      college: "CICT",
-      yearLevel: "4th Year",
-      courses: ["Mobile App Development", "iOS Programming", "Android Development", "UI/UX Design"],
-      specialties: ["Flutter", "React Native", "iOS Development", "Android Development"],
-      rating: 4.7,
-      reviews: 73,
-      reviewSummary: {
-        excellent: 58,
-        good: 12,
-        average: 3,
-        poor: 0
-      },
-      availability: "Available",
-      experience: "2.5 years tutoring experience",
-      location: "Online Only",
-      gpa: "3.78",
-      description: "Mobile development enthusiast with published apps on both iOS and Android stores. Specializes in cross-platform development.",
-      languages: ["English", "Korean"],
-      responseTime: "Usually responds within 1 hour",
-      successRate: "95%",
-    },
-  ]
-
-  const TutorCard = ({ tutor }: { tutor: (typeof tutors)[0] }) => (
+  const TutorCard = ({ tutor }: { tutor: Tutor }) => (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader className="pb-4">
         <div className="flex items-start space-x-4">
           <Avatar className="w-16 h-16">
-            <AvatarImage src={tutor.avatar || "/placeholder.svg"} alt={tutor.name} />
+            <AvatarImage src="/placeholder.svg" alt={tutor.name || 'Tutor'} />
             <AvatarFallback className="text-lg font-semibold">
               {tutor.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
+                ? tutor.name.split(" ").map((n) => n[0]).join("")
+                : 'T'}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">{tutor.name}</CardTitle>
-              <Badge variant={tutor.availability === "Available" ? "default" : "secondary"} className="ml-2">
-                {tutor.availability}
+              <CardTitle className="text-xl">{tutor.name || 'Name not provided'}</CardTitle>
+              <Badge variant={tutor.status === "approved" ? "default" : "secondary"} className="ml-2">
+                {tutor.status === "approved" ? "Available" : "Unavailable"}
               </Badge>
             </div>
             <CardDescription className="text-base mt-1">
-              {tutor.program} • {tutor.yearLevel}
+              {tutor.program || 'Program not specified'}
             </CardDescription>
             <div className="flex items-center space-x-4 mt-2">
-              <div className="flex items-center">
-                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="text-sm font-medium ml-1">{tutor.rating}</span>
-                <span className="text-sm text-muted-foreground ml-1">({tutor.reviews} reviews)</span>
+              <div className="flex items-center text-sm text-muted-foreground">
+                <User className="w-4 h-4 mr-1" />
+                ID: {tutor.user_id || 'N/A'}
+              </div>
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Calendar className="w-4 h-4 mr-1" />
+                Since: {tutor.application_date ? new Date(tutor.application_date).toLocaleDateString() : 'Date not available'}
               </div>
             </div>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Tutor Information */}
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center space-x-2">
-            <GraduationCap className="w-4 h-4 text-muted-foreground" />
-            <span>{tutor.college}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <BookOpen className="w-4 h-4 text-muted-foreground" />
-            <span>GPA: {tutor.gpa}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Clock className="w-4 h-4 text-muted-foreground" />
-            <span>{tutor.experience}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <User className="w-4 h-4 text-muted-foreground" />
-            <span>{tutor.successRate} success rate</span>
-          </div>
+        {/* Subject Information */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Subject Expertise</Label>
+          <Badge variant="outline" className="text-sm">
+            {tutor.subject_name || 'Subject not specified'}
+          </Badge>
         </div>
 
-        {/* Courses Offered */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Courses Offered</Label>
-          <div className="flex flex-wrap gap-1">
-            {tutor.courses.slice(0, 3).map((course) => (
-              <Badge key={course} variant="outline" className="text-xs">
-                {course}
-              </Badge>
-            ))}
-            {tutor.courses.length > 3 && (
-              <Badge variant="outline" className="text-xs">
-                +{tutor.courses.length - 3} more
-              </Badge>
-            )}
+        {/* Program */}
+        {tutor.program && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Program</Label>
+            <div className="flex items-center space-x-2">
+              <GraduationCap className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm">{tutor.program}</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Specialties */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Specialties</Label>
-          <div className="flex flex-wrap gap-1">
-            {tutor.specialties.map((specialty) => (
-              <Badge key={specialty} variant="secondary" className="text-xs">
-                {specialty}
-              </Badge>
-            ))}
+        {tutor.specialties && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Specialties</Label>
+            <p className="text-sm text-muted-foreground line-clamp-3">
+              {tutor.specialties}
+            </p>
           </div>
-        </div>
+        )}
 
-        {/* Reviews Summary */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Reviews Breakdown</Label>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Excellent:</span>
-              <span className="font-medium">{tutor.reviewSummary.excellent}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Good:</span>
-              <span className="font-medium">{tutor.reviewSummary.good}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Average:</span>
-              <span className="font-medium">{tutor.reviewSummary.average}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Poor:</span>
-              <span className="font-medium">{tutor.reviewSummary.poor}</span>
-            </div>
+        {/* Additional Information */}
+        {tutor.tutor_information && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Additional Information</Label>
+            <p className="text-sm text-muted-foreground line-clamp-3">
+              {tutor.tutor_information}
+            </p>
           </div>
-        </div>
-
-        {/* Languages */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Languages</Label>
-          <div className="flex flex-wrap gap-1">
-            {tutor.languages.map((language) => (
-              <Badge key={language} variant="outline" className="text-xs">
-                {language}
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        {/* Response Time */}
-        <div className="text-sm">
-          <span className="text-muted-foreground">{tutor.responseTime}</span>
-        </div>
-
-        <p className="text-sm text-muted-foreground">{tutor.description}</p>
+        )}
 
         <div className="flex items-center justify-end pt-4 border-t">
           <div className="flex space-x-2">
-            <Button size="sm" variant="outline" onClick={() => setSelectedTutor(tutor.id)}>
+            <Button size="sm" variant="outline" onClick={() => setSelectedTutor(tutor.application_id.toString())}>
               View Profile
             </Button>
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => setShowBookingModal(true)}>
+            <Button 
+              size="sm" 
+              className="bg-blue-600 hover:bg-blue-700" 
+              onClick={() => setShowBookingModal(true)}
+              disabled={tutor.status !== 'approved'}
+            >
               <Calendar className="w-4 h-4 mr-2" />
               Book Session
             </Button>
@@ -469,9 +385,20 @@ export default function TutorMatching() {
                   <Label htmlFor="specialties">Specialties *</Label>
                   <Textarea 
                     id="specialties"
-                    placeholder="Describe your specific areas of expertise, skills, and specializations (e.g., Java Programming, Algorithm Design, Data Analysis, etc.)"
+                    placeholder="List your specific skills and areas of expertise (e.g., Java Programming, Algorithm Design, Data Analysis, etc.)"
                     value={applicationForm.specialties}
                     onChange={(e) => setApplicationForm(prev => ({...prev, specialties: e.target.value}))}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="tutor_information">Teaching Experience & Additional Information *</Label>
+                  <Textarea 
+                    id="tutor_information"
+                    placeholder="Describe your teaching/tutoring experience, achievements, and any additional information that makes you a great tutor (e.g., tutoring experience, academic achievements, projects, etc.)"
+                    value={applicationForm.tutor_information}
+                    onChange={(e) => setApplicationForm(prev => ({...prev, tutor_information: e.target.value}))}
                     rows={4}
                   />
                 </div>
@@ -522,9 +449,32 @@ export default function TutorMatching() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {tutors.map((tutor) => (
-          <TutorCard key={tutor.id} tutor={tutor} />
-        ))}
+        {loading ? (
+          <div className="col-span-2 flex items-center justify-center py-12">
+            <div className="flex items-center space-x-2">
+              <Loader2 className="w-6 h-6 animate-spin" />
+              <span>Loading tutors...</span>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="col-span-2 text-center py-12">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={fetchTutors} variant="outline">
+              Try Again
+            </Button>
+          </div>
+        ) : tutors.length === 0 ? (
+          <div className="col-span-2 text-center py-12">
+            <p className="text-muted-foreground mb-4">No tutors available at the moment.</p>
+            <Button onClick={fetchTutors} variant="outline">
+              Refresh
+            </Button>
+          </div>
+        ) : (
+          tutors.map((tutor) => (
+            <TutorCard key={tutor.application_id} tutor={tutor} />
+          ))
+        )}
       </div>
 
       {/* Booking Modal */}
