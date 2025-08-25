@@ -52,6 +52,7 @@ interface Quiz {
   questions: Question[]
   questionCount?: number // Add optional question count from database
   duration: string
+  duration_unit?: string // Add optional duration unit
   difficulty: string
   description: string
   completedTimes: number
@@ -75,14 +76,15 @@ export default function Quizzes() {
   const { createAttempt } = useQuizAttempts()
 
   // Convert database quiz to component Quiz format
-  const quizList = quizzes.map(dbQuiz => ({
+  const quizList = quizzes.map((dbQuiz: any) => ({
     id: dbQuiz.quizzes_id,
     quiz_id: dbQuiz.quizzes_id,
     title: dbQuiz.title,
     subject: dbQuiz.subject_name,
     questions: [], // Will be loaded separately when needed
     questionCount: dbQuiz.item_counts || 0, // Add question count from database
-    duration: `${dbQuiz.duration || 15} min`,
+    duration: `${dbQuiz.duration || 15}`, // Remove hardcoded "min" - will be formatted by formatDuration
+    duration_unit: dbQuiz.duration_unit || 'minutes', // Add duration unit from database
     difficulty: dbQuiz.difficulty || 'Medium',
     description: dbQuiz.description || 'Test your knowledge in this subject area',
     completedTimes: 0, // TODO: Get from attempts
@@ -95,6 +97,7 @@ export default function Quizzes() {
   const [quizSubject, setQuizSubject] = useState("")
   const [quizDescription, setQuizDescription] = useState("")
   const [quizDuration, setQuizDuration] = useState("")
+  const [quizDurationUnit, setQuizDurationUnit] = useState("minutes") // Add duration unit state
   const [quizDifficulty, setQuizDifficulty] = useState("")
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([])
 
@@ -108,6 +111,19 @@ export default function Quizzes() {
 
   // Get user role from context, default to 'student' if not available
   const userRole = currentUser?.role?.toLowerCase() || 'student'
+
+  // Helper function to format duration for display
+  const formatDuration = (minutes: number, preferredUnit?: string) => {
+    if (preferredUnit === "hours" && minutes >= 60) {
+      const hours = minutes / 60
+      return hours % 1 === 0 ? `${hours} hr` : `${hours.toFixed(1)} hr`
+    } else if (minutes >= 60 && !preferredUnit) {
+      const hours = Math.floor(minutes / 60)
+      const remainingMinutes = minutes % 60
+      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`
+    }
+    return `${minutes} min`
+  }
 
   const startQuiz = (quiz: Quiz) => {
     setSelectedQuiz(quiz)
@@ -146,6 +162,18 @@ export default function Quizzes() {
         return
       }
 
+      // Convert duration to minutes if needed
+      let durationInMinutes = parseInt(quizDuration) || 15
+      if (quizDurationUnit === "hours") {
+        durationInMinutes = durationInMinutes * 60 // Convert hours to minutes
+      }
+
+      console.log('=== FRONTEND DEBUG ===');
+      console.log('Quiz Duration Input:', quizDuration);
+      console.log('Quiz Duration Unit:', quizDurationUnit);
+      console.log('Duration in Minutes:', durationInMinutes);
+      console.log('=====================');
+
       // Create quiz in database
       const quizData = {
         title: quizTitle,
@@ -153,10 +181,15 @@ export default function Quizzes() {
         description: quizDescription,
         created_by: currentUser?.user_id || 1, // TODO: Get actual user ID
         quiz_type: "practice",
-        duration: parseInt(quizDuration) || 15,
+        duration: durationInMinutes, // Always store in minutes
+        duration_unit: quizDurationUnit, // Store the original unit for reference
         difficulty: quizDifficulty,
         item_counts: quizQuestions.length
       }
+
+      console.log('=== QUIZ DATA BEING SENT ===');
+      console.log(JSON.stringify(quizData, null, 2));
+      console.log('===========================');
 
       const response = await fetch('http://localhost:4000/api/quizzes', {
         method: currentQuiz ? 'PUT' : 'POST',
@@ -249,6 +282,7 @@ export default function Quizzes() {
         setQuizSubject("")
         setQuizDescription("")
         setQuizDuration("")
+        setQuizDurationUnit("minutes")
         setQuizDifficulty("")
         setQuizQuestions([])
         setCurrentQuiz(null)
@@ -351,7 +385,28 @@ export default function Quizzes() {
     setQuizTitle(quiz.title)
     setQuizSubject(quiz.subject)
     setQuizDescription(quiz.description)
-    setQuizDuration(quiz.duration)
+    
+    // Handle duration and duration unit
+    const durationStr = quiz.duration.toString()
+    const durationNum = parseInt(durationStr) || 0
+    
+    // Check if quiz has duration_unit from database, otherwise infer from duration
+    if (quiz.duration_unit) {
+      setQuizDuration(durationNum.toString())
+      setQuizDurationUnit(quiz.duration_unit)
+    } else {
+      // For existing quizzes without duration_unit, assume minutes but check if it makes sense to display as hours
+      if (durationNum >= 120 && durationNum % 60 === 0) {
+        // If duration is 2+ hours and divisible by 60, display as hours
+        setQuizDuration((durationNum / 60).toString())
+        setQuizDurationUnit("hours")
+      } else {
+        // Otherwise display as minutes
+        setQuizDuration(durationNum.toString())
+        setQuizDurationUnit("minutes")
+      }
+    }
+    
     setQuizDifficulty(quiz.difficulty)
     
     // Load questions from database for existing quiz
@@ -405,7 +460,7 @@ export default function Quizzes() {
           </div>
           <div className="flex items-center space-x-2">
             <Clock className="w-4 h-4 text-muted-foreground" />
-            <span>{quiz.duration}</span>
+            <span>{formatDuration(parseInt(quiz.duration) || 0)}</span>
           </div>
           <div className="flex items-center space-x-2">
             <Trophy className="w-4 h-4 text-muted-foreground" />
@@ -531,12 +586,25 @@ export default function Quizzes() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="duration">Duration</Label>
-                        <Input 
-                          id="duration" 
-                          placeholder="15 min"
-                          value={quizDuration}
-                          onChange={(e) => setQuizDuration(e.target.value)}
-                        />
+                        <div className="flex space-x-2">
+                          <Input 
+                            id="duration" 
+                            type="number"
+                            placeholder="15"
+                            value={quizDuration}
+                            onChange={(e) => setQuizDuration(e.target.value)}
+                            className="flex-1"
+                          />
+                          <Select value={quizDurationUnit} onValueChange={setQuizDurationUnit}>
+                            <SelectTrigger className="w-[100px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="minutes">Min</SelectItem>
+                              <SelectItem value="hours">Hr</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="difficulty">Difficulty</Label>
@@ -747,6 +815,7 @@ export default function Quizzes() {
                   setQuizSubject("")
                   setQuizDescription("")
                   setQuizDuration("")
+                  setQuizDurationUnit("minutes")
                   setQuizDifficulty("")
                   setQuizQuestions([])
                 }}>
