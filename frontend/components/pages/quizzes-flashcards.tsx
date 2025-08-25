@@ -5,65 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { BookOpen, Brain, Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { BookOpen, Brain, Clock, Trophy, ChevronLeft, ChevronRight, RotateCcw, Loader2 } from "lucide-react"
+import { useQuizzes, useQuizQuestions, useQuizAttempts } from "@/hooks/use-quizzes"
 
-const quizzes = [
-  {
-    id: 1,
-    title: "Data Structures Fundamentals",
-    subject: "Computer Science",
-    questions: 10,
-    duration: "15 min",
-    difficulty: "Beginner",
-    description: "Test your knowledge of arrays, linked lists, and basic data structures",
-  },
-  {
-    id: 2,
-    title: "Database Design Principles",
-    subject: "Information Systems",
-    questions: 15,
-    duration: "20 min",
-    difficulty: "Intermediate",
-    description: "Explore normalization, relationships, and database optimization",
-  },
-  {
-    id: 3,
-    title: "Network Security Basics",
-    subject: "Cybersecurity",
-    questions: 12,
-    duration: "18 min",
-    difficulty: "Intermediate",
-    description: "Learn about encryption, firewalls, and security protocols",
-  },
-  {
-    id: 4,
-    title: "Web Development HTML/CSS",
-    subject: "Web Development",
-    questions: 8,
-    duration: "12 min",
-    difficulty: "Beginner",
-    description: "Master the fundamentals of HTML structure and CSS styling",
-  },
-  {
-    id: 5,
-    title: "JavaScript ES6 Features",
-    subject: "Programming",
-    questions: 20,
-    duration: "25 min",
-    difficulty: "Advanced",
-    description: "Deep dive into modern JavaScript features and syntax",
-  },
-  {
-    id: 6,
-    title: "Software Engineering Principles",
-    subject: "Software Engineering",
-    questions: 14,
-    duration: "22 min",
-    difficulty: "Intermediate",
-    description: "Understand SOLID principles, design patterns, and best practices",
-  },
-]
-
+// Keep flashcard sets as sample data for now
 const flashcardSets = [
   {
     id: 1,
@@ -95,24 +42,6 @@ const flashcardSets = [
   },
 ]
 
-const sampleQuestions = [
-  {
-    question: "What is the time complexity of searching in a balanced binary search tree?",
-    options: ["O(1)", "O(log n)", "O(n)", "O(n²)"],
-    correct: 1,
-  },
-  {
-    question: "Which data structure follows LIFO (Last In, First Out) principle?",
-    options: ["Queue", "Stack", "Array", "Linked List"],
-    correct: 1,
-  },
-  {
-    question: "What does SQL stand for?",
-    options: ["Simple Query Language", "Structured Query Language", "Standard Query Language", "System Query Language"],
-    correct: 1,
-  },
-]
-
 const sampleFlashcards = [
   { front: "Algorithm", back: "A step-by-step procedure for solving a problem or completing a task" },
   {
@@ -136,6 +65,13 @@ export default function QuizzesFlashcards() {
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([])
   const [score, setScore] = useState<number | null>(null)
 
+  // Database hooks
+  const { quizzes, loading: quizzesLoading, error: quizzesError } = useQuizzes()
+  const { questions, loading: questionsLoading, error: questionsError } = useQuizQuestions(
+    selectedQuiz?.quizzes_id || null
+  )
+  const { createAttempt } = useQuizAttempts()
+
   const startQuiz = (quiz: any) => {
     setSelectedQuiz(quiz)
     setQuizStarted(true)
@@ -150,15 +86,34 @@ export default function QuizzesFlashcards() {
     setSelectedAnswers(newAnswers)
   }
 
-  const nextQuestion = () => {
-    if (currentQuestion < sampleQuestions.length - 1) {
+  const nextQuestion = async () => {
+    if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1)
     } else {
       // Calculate score
       const correctAnswers = selectedAnswers.reduce((acc, answer, index) => {
-        return acc + (answer === sampleQuestions[index].correct ? 1 : 0)
+        if (questions[index]) {
+          // Check if the selected answer matches the correct answer
+          const selectedChoice = questions[index].choices[answer]
+          return acc + (selectedChoice === questions[index].answer ? 1 : 0)
+        }
+        return acc
       }, 0)
-      setScore(Math.round((correctAnswers / sampleQuestions.length) * 100))
+      
+      const finalScore = Math.round((correctAnswers / questions.length) * 100)
+      setScore(finalScore)
+
+      // Save quiz attempt to database
+      try {
+        await createAttempt({
+          quizzes_id: selectedQuiz.quizzes_id,
+          user_id: 1, // TODO: Get actual user ID from auth context
+          name: "Anonymous User", // TODO: Get actual user name from auth context
+          score: finalScore
+        })
+      } catch (err) {
+        console.error('Failed to save quiz attempt:', err)
+      }
     }
   }
 
@@ -196,6 +151,31 @@ export default function QuizzesFlashcards() {
     setShowAnswer(false)
   }
 
+  const getDifficultyVariant = (difficulty: string) => {
+    switch (difficulty?.toLowerCase()) {
+      case 'beginner':
+      case 'easy':
+        return 'secondary'
+      case 'intermediate':
+      case 'medium':
+        return 'default'
+      case 'advanced':
+      case 'hard':
+        return 'destructive'
+      default:
+        return 'outline'
+    }
+  }
+
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) {
+      return `${minutes} min`
+    }
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -226,44 +206,82 @@ export default function QuizzesFlashcards() {
       {activeTab === "quizzes" && (
         <div>
           {!selectedQuiz ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {quizzes.map((quiz) => (
-                <Card key={quiz.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{quiz.title}</CardTitle>
-                      <Badge
-                        variant={
-                          quiz.difficulty === "Beginner"
-                            ? "secondary"
-                            : quiz.difficulty === "Intermediate"
-                              ? "default"
-                              : "destructive"
-                        }
-                      >
-                        {quiz.difficulty}
-                      </Badge>
-                    </div>
-                    <CardDescription>{quiz.subject}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{quiz.description}</p>
-                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
-                      <span className="flex items-center space-x-1">
-                        <Brain className="h-4 w-4" />
-                        <span>{quiz.questions} questions</span>
-                      </span>
-                      <span className="flex items-center space-x-1">
-                        <Clock className="h-4 w-4" />
-                        <span>{quiz.duration}</span>
-                      </span>
-                    </div>
-                    <Button onClick={() => startQuiz(quiz)} className="w-full">
-                      Start Quiz
-                    </Button>
+            <div>
+              {quizzesError && (
+                <Alert className="mb-6">
+                  <AlertDescription>
+                    Error loading quizzes: {quizzesError}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {quizzesLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...Array(6)].map((_, i) => (
+                    <Card key={i}>
+                      <CardHeader>
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                      </CardHeader>
+                      <CardContent>
+                        <Skeleton className="h-4 w-full mb-2" />
+                        <Skeleton className="h-4 w-2/3 mb-4" />
+                        <div className="flex justify-between mb-4">
+                          <Skeleton className="h-4 w-16" />
+                          <Skeleton className="h-4 w-12" />
+                        </div>
+                        <Skeleton className="h-10 w-full" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {quizzes.map((quiz) => (
+                    <Card key={quiz.quizzes_id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{quiz.title}</CardTitle>
+                          <Badge variant={getDifficultyVariant(quiz.difficulty)}>
+                            {quiz.difficulty || 'Medium'}
+                          </Badge>
+                        </div>
+                        <CardDescription>{quiz.subject_name}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                          {quiz.description || 'Test your knowledge in this subject area'}
+                        </p>
+                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
+                          <span className="flex items-center space-x-1">
+                            <Brain className="h-4 w-4" />
+                            <span>{quiz.item_counts || 10} questions</span>
+                          </span>
+                          <span className="flex items-center space-x-1">
+                            <Clock className="h-4 w-4" />
+                            <span>{formatDuration(quiz.duration || 15)}</span>
+                          </span>
+                        </div>
+                        <Button onClick={() => startQuiz(quiz)} className="w-full">
+                          Start Quiz
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              
+              {!quizzesLoading && quizzes.length === 0 && !quizzesError && (
+                <Card>
+                  <CardContent className="text-center py-8">
+                    <Brain className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Quizzes Available</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Check back later for new quizzes to test your knowledge.
+                    </p>
                   </CardContent>
                 </Card>
-              ))}
+              )}
             </div>
           ) : (
             <Card className="max-w-2xl mx-auto">
@@ -275,12 +293,36 @@ export default function QuizzesFlashcards() {
                     Reset
                   </Button>
                 </div>
-                {score === null && (
-                  <Progress value={(currentQuestion / sampleQuestions.length) * 100} className="w-full" />
+                {score === null && questions.length > 0 && (
+                  <Progress value={(currentQuestion / questions.length) * 100} className="w-full" />
                 )}
               </CardHeader>
               <CardContent>
-                {score !== null ? (
+                {questionsLoading ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                      <span className="ml-2">Loading questions...</span>
+                    </div>
+                  </div>
+                ) : questionsError ? (
+                  <Alert>
+                    <AlertDescription>
+                      Error loading questions: {questionsError}
+                    </AlertDescription>
+                  </Alert>
+                ) : questions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Brain className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Questions Available</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      This quiz doesn't have any questions yet.
+                    </p>
+                    <Button onClick={resetQuiz} className="mt-4">
+                      Back to Quizzes
+                    </Button>
+                  </div>
+                ) : score !== null ? (
                   <div className="text-center space-y-4">
                     <Trophy className="h-16 w-16 mx-auto text-yellow-500" />
                     <h3 className="text-2xl font-bold">Quiz Complete!</h3>
@@ -291,12 +333,11 @@ export default function QuizzesFlashcards() {
                   <div className="space-y-6">
                     <div className="flex items-center justify-between text-sm text-gray-500">
                       <span>
-                        Question {currentQuestion + 1} of {sampleQuestions.length}
+                        Question {currentQuestion + 1} of {questions.length}
                       </span>
                     </div>
-                    <h3 className="text-xl font-semibold">{sampleQuestions[currentQuestion].question}</h3>
                     <div className="space-y-3">
-                      {sampleQuestions[currentQuestion].options.map((option, index) => (
+                      {questions[currentQuestion]?.choices?.map((option, index) => (
                         <Button
                           key={index}
                           variant={selectedAnswers[currentQuestion] === index ? "default" : "outline"}
@@ -312,7 +353,7 @@ export default function QuizzesFlashcards() {
                       disabled={selectedAnswers[currentQuestion] === undefined}
                       className="w-full"
                     >
-                      {currentQuestion === sampleQuestions.length - 1 ? "Finish Quiz" : "Next Question"}
+                      {currentQuestion === questions.length - 1 ? "Finish Quiz" : "Next Question"}
                     </Button>
                   </div>
                 )}

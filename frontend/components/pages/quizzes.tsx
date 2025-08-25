@@ -28,6 +28,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
+import { useQuizzes, useQuizQuestions, useQuizAttempts } from "@/hooks/use-quizzes"
+import { useSubjects } from "@/hooks/use-subjects"
 
 // Question types
 type QuestionType = "multiple-choice" | "true-false" | "short-answer" | "essay"
@@ -44,6 +46,7 @@ interface Question {
 
 interface Quiz {
   id: number
+  quiz_id?: number // For database compatibility
   title: string
   subject: string
   questions: Question[]
@@ -55,119 +58,35 @@ interface Quiz {
   lastAttempt: string | null
 }
 
-const quizzes: Quiz[] = [
-  {
-    id: 1,
-    title: "Data Structures Fundamentals",
-    subject: "Computer Science",
-    questions: [
-      {
-        id: "q1",
-        type: "multiple-choice",
-        question: "Which data structure follows Last In First Out (LIFO) principle?",
-        options: ["Queue", "Stack", "Array", "Linked List"],
-        correctAnswer: "Stack",
-        explanation: "A stack follows LIFO principle where the last element added is the first one to be removed.",
-        points: 5
-      },
-      {
-        id: "q2",
-        type: "multiple-choice",
-        question: "What is the time complexity of accessing an element in an array?",
-        options: ["O(1)", "O(n)", "O(log n)", "O(n²)"],
-        correctAnswer: "O(1)",
-        explanation: "Array elements can be accessed directly using their index in constant time.",
-        points: 5
-      }
-    ],
-    duration: "15 min",
-    difficulty: "Beginner",
-    description: "Test your knowledge of arrays, linked lists, and basic data structures",
-    completedTimes: 3,
-    bestScore: 85,
-    lastAttempt: "2024-08-20",
-  },
-  {
-    id: 2,
-    title: "Database Design Principles",
-    subject: "Information Systems",
-    questions: [
-      {
-        id: "q1",
-        type: "multiple-choice",
-        question: "What is the first normal form (1NF)?",
-        options: ["No repeating groups", "No partial dependencies", "No transitive dependencies", "All of the above"],
-        correctAnswer: "No repeating groups",
-        explanation: "First normal form requires that each column contains atomic values and there are no repeating groups.",
-        points: 5
-      }
-    ],
-    duration: "20 min",
-    difficulty: "Intermediate",
-    description: "Explore normalization, relationships, and database optimization",
-    completedTimes: 1,
-    bestScore: 92,
-    lastAttempt: "2024-08-19",
-  },
-  {
-    id: 3,
-    title: "Network Security Basics",
-    subject: "Cybersecurity",
-    questions: [],
-    duration: "18 min",
-    difficulty: "Intermediate",
-    description: "Learn about encryption, firewalls, and security protocols",
-    completedTimes: 2,
-    bestScore: 78,
-    lastAttempt: "2024-08-18",
-  },
-  {
-    id: 4,
-    title: "Web Development HTML/CSS",
-    subject: "Web Development",
-    questions: [],
-    duration: "12 min",
-    difficulty: "Beginner",
-    description: "Master the fundamentals of HTML structure and CSS styling",
-    completedTimes: 5,
-    bestScore: 95,
-    lastAttempt: "2024-08-17",
-  },
-  {
-    id: 5,
-    title: "JavaScript ES6 Features",
-    subject: "Programming",
-    questions: [],
-    duration: "25 min",
-    difficulty: "Advanced",
-    description: "Advanced JavaScript concepts including promises, async/await, and modules",
-    completedTimes: 0,
-    bestScore: null,
-    lastAttempt: null,
-  },
-  {
-    id: 6,
-    title: "Algorithm Complexity",
-    subject: "Computer Science",
-    questions: [],
-    duration: "22 min",
-    difficulty: "Advanced",
-    description: "Big O notation, time complexity, and algorithm analysis",
-    completedTimes: 1,
-    bestScore: 71,
-    lastAttempt: "2024-08-16",
-  },
-]
-
 export default function Quizzes() {
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showQuestionDialog, setShowQuestionDialog] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
   const [currentQuiz, setCurrentQuiz] = useState<Quiz | null>(null)
-  const [quizList, setQuizList] = useState<Quiz[]>(quizzes)
   const { currentUser } = useUser()
   const { toast } = useToast()
+
+  // Database hooks
+  const { quizzes, loading: quizzesLoading, error: quizzesError, refetch: refetchQuizzes } = useQuizzes()
+  const { subjects, loading: subjectsLoading } = useSubjects()
+  const { questions, loading: questionsLoading } = useQuizQuestions(currentQuiz?.id || currentQuiz?.quiz_id || null)
+  const { createAttempt } = useQuizAttempts()
+
+  // Convert database quiz to component Quiz format
+  const quizList = quizzes.map(dbQuiz => ({
+    id: dbQuiz.quizzes_id,
+    quiz_id: dbQuiz.quizzes_id,
+    title: dbQuiz.title,
+    subject: dbQuiz.subject_name,
+    questions: [], // Will be loaded separately when needed
+    duration: `${dbQuiz.duration || 15} min`,
+    difficulty: dbQuiz.difficulty || 'Medium',
+    description: dbQuiz.description || 'Test your knowledge in this subject area',
+    completedTimes: 0, // TODO: Get from attempts
+    bestScore: null, // TODO: Get from attempts
+    lastAttempt: null, // TODO: Get from attempts
+  }))
 
   // Form states for quiz creation
   const [quizTitle, setQuizTitle] = useState("")
@@ -194,7 +113,7 @@ export default function Quizzes() {
     console.log("Starting quiz:", quiz.title)
   }
 
-  const handleCreateQuiz = () => {
+  const handleCreateQuiz = async () => {
     if (!quizTitle.trim() || !quizSubject.trim() || !quizDescription.trim()) {
       toast({
         title: "Error",
@@ -213,31 +132,59 @@ export default function Quizzes() {
       return
     }
 
-    const newQuiz: Quiz = {
-      id: currentQuiz ? currentQuiz.id : Date.now(),
-      title: quizTitle,
-      subject: quizSubject,
-      description: quizDescription,
-      duration: quizDuration,
-      difficulty: quizDifficulty,
-      questions: quizQuestions,
-      completedTimes: currentQuiz?.completedTimes || 0,
-      bestScore: currentQuiz?.bestScore || null,
-      lastAttempt: currentQuiz?.lastAttempt || null
-    }
+    try {
+      // Find subject ID by name
+      const subject = subjects.find(s => s.subject_name === quizSubject)
+      if (!subject) {
+        toast({
+          title: "Error",
+          description: "Invalid subject selected",
+          variant: "destructive"
+        })
+        return
+      }
 
-    if (currentQuiz) {
-      setQuizList(prev => prev.map(q => q.id === currentQuiz.id ? newQuiz : q))
-      toast({
-        title: "Success",
-        description: "Quiz updated successfully"
+      // Create quiz in database
+      const quizData = {
+        title: quizTitle,
+        subject_id: subject.subject_id,
+        description: quizDescription,
+        created_by: currentUser?.user_id || 1, // TODO: Get actual user ID
+        quiz_type: "practice",
+        duration: parseInt(quizDuration) || 15,
+        difficulty: quizDifficulty,
+        item_counts: quizQuestions.length
+      }
+
+      const response = await fetch('http://localhost:4000/api/quizzes', {
+        method: currentQuiz ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(currentQuiz ? { ...quizData, id: currentQuiz.id } : quizData)
       })
-    } else {
-      setQuizList(prev => [...prev, newQuiz])
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Refresh quizzes list
+        await refetchQuizzes()
+        
+        toast({
+          title: "Success",
+          description: currentQuiz ? "Quiz updated successfully" : "Quiz created successfully"
+        })
+      } else {
+        throw new Error(result.error || 'Failed to save quiz')
+      }
+    } catch (error) {
+      console.error('Error saving quiz:', error)
       toast({
-        title: "Success", 
-        description: "Quiz created successfully"
+        title: "Error",
+        description: "Failed to save quiz. Please try again.",
+        variant: "destructive"
       })
+      return
     }
 
     // Reset form
@@ -457,12 +404,18 @@ export default function Quizzes() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject</Label>
-                      <Input 
-                        id="subject" 
-                        placeholder="Enter subject"
-                        value={quizSubject}
-                        onChange={(e) => setQuizSubject(e.target.value)}
-                      />
+                      <Select value={quizSubject} onValueChange={setQuizSubject}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select subject" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {subjects.map((subject) => (
+                            <SelectItem key={subject.subject_id} value={subject.subject_name}>
+                              {subject.subject_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="description">Description</Label>
@@ -723,7 +676,7 @@ export default function Quizzes() {
         ))}
       </div>
 
-      {quizzes.length === 0 && (
+      {quizList.length === 0 && !quizzesLoading && (
         <div className="text-center py-12">
           <Brain className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium text-muted-foreground mb-2">No quizzes available</h3>

@@ -13,6 +13,34 @@ const {
   deleteSubject 
 } = require('../queries/subjects')
 const { 
+  getAllQuizzes, 
+  getQuizById, 
+  getQuizzesBySubject, 
+  createQuiz, 
+  updateQuiz, 
+  deleteQuiz, 
+  getUserQuizAttempts 
+} = require('../queries/quizzes')
+const { 
+  getQuestionsByQuizId, 
+  getQuestionById, 
+  createQuestion, 
+  updateQuestion, 
+  deleteQuestion, 
+  deleteQuestionsByQuizId 
+} = require('../queries/questions')
+const { 
+  getAllQuizAttempts, 
+  getQuizAttemptById, 
+  getQuizAttemptsByUser, 
+  getQuizAttemptsByQuiz, 
+  createQuizAttempt, 
+  updateQuizAttempt, 
+  deleteQuizAttempt, 
+  getUserBestScore, 
+  getQuizStatistics 
+} = require('../queries/quizAttempts')
+const { 
   getAllTutorApplications, 
   getTutorApplicationsByStatus, 
   getTutorApplicationById, 
@@ -1363,6 +1391,859 @@ app.delete('/api/subjects/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('Error deleting subject:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ===== QUIZZES API ENDPOINTS =====
+
+// Get all quizzes
+app.get('/api/quizzes', async (req, res) => {
+  try {
+    console.log('Fetching all quizzes');
+    
+    const pool = await db.getPool();
+    const quizzes = await getAllQuizzes(pool);
+    
+    console.log(`✅ Found ${quizzes.length} quizzes`);
+    
+    res.json({
+      success: true,
+      quizzes: quizzes,
+      total: quizzes.length
+    });
+  } catch (err) {
+    console.error('Error fetching quizzes:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get quiz by ID
+app.get('/api/quizzes/:id', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    
+    if (!quizId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID is required' 
+      });
+    }
+    
+    console.log(`Fetching quiz with ID: ${quizId}`);
+    
+    const pool = await db.getPool();
+    const quiz = await getQuizById(pool, quizId);
+    
+    if (!quiz) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Quiz not found' 
+      });
+    }
+    
+    console.log(`✅ Quiz found: ${quiz.title}`);
+    
+    res.json({
+      success: true,
+      quiz: quiz
+    });
+  } catch (err) {
+    console.error('Error fetching quiz by ID:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get quizzes by subject
+app.get('/api/quizzes/subject/:subjectId', async (req, res) => {
+  try {
+    const subjectId = parseInt(req.params.subjectId);
+    
+    if (!subjectId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid subject ID is required' 
+      });
+    }
+    
+    console.log(`Fetching quizzes for subject ID: ${subjectId}`);
+    
+    const pool = await db.getPool();
+    const quizzes = await getQuizzesBySubject(pool, subjectId);
+    
+    console.log(`✅ Found ${quizzes.length} quizzes for subject`);
+    
+    res.json({
+      success: true,
+      quizzes: quizzes,
+      total: quizzes.length
+    });
+  } catch (err) {
+    console.error('Error fetching quizzes by subject:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Create new quiz
+app.post('/api/quizzes', async (req, res) => {
+  try {
+    const { title, subject_id, description, created_by, quiz_type, duration, difficulty, item_counts } = req.body;
+    
+    if (!title || !subject_id || !created_by) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Title, subject_id, and created_by are required' 
+      });
+    }
+    
+    console.log(`Creating new quiz: ${title}`);
+    
+    const pool = await db.getPool();
+    const newQuiz = await createQuiz(pool, {
+      title,
+      subject_id,
+      description,
+      created_by,
+      quiz_type,
+      duration,
+      difficulty,
+      item_counts
+    });
+    
+    console.log(`✅ Quiz created successfully: ${title}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Quiz created successfully',
+      quiz: newQuiz
+    });
+  } catch (err) {
+    console.error('Error creating quiz:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Update quiz
+app.put('/api/quizzes/:id', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    const { title, subject_id, description, quiz_type, duration, difficulty, item_counts } = req.body;
+    
+    if (!quizId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID is required' 
+      });
+    }
+    
+    if (!title || !subject_id) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Title and subject_id are required' 
+      });
+    }
+    
+    console.log(`Updating quiz ID: ${quizId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if quiz exists
+    const existingQuiz = await getQuizById(pool, quizId);
+    if (!existingQuiz) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Quiz not found' 
+      });
+    }
+    
+    const updatedQuiz = await updateQuiz(pool, quizId, {
+      title,
+      subject_id,
+      description,
+      quiz_type,
+      duration,
+      difficulty,
+      item_counts
+    });
+    
+    console.log(`✅ Quiz updated successfully: ${title}`);
+    
+    res.json({
+      success: true,
+      message: 'Quiz updated successfully',
+      quiz: updatedQuiz
+    });
+  } catch (err) {
+    console.error('Error updating quiz:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete quiz
+app.delete('/api/quizzes/:id', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    
+    if (!quizId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID is required' 
+      });
+    }
+    
+    console.log(`Deleting quiz ID: ${quizId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if quiz exists
+    const existingQuiz = await getQuizById(pool, quizId);
+    if (!existingQuiz) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Quiz not found' 
+      });
+    }
+    
+    await deleteQuiz(pool, quizId);
+    
+    console.log(`✅ Quiz deleted successfully: ${existingQuiz.title}`);
+    
+    res.json({
+      success: true,
+      message: 'Quiz deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting quiz:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get user quiz attempts
+app.get('/api/quizzes/:id/attempts/:userId', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    const userId = parseInt(req.params.userId);
+    
+    if (!quizId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID and user ID are required' 
+      });
+    }
+    
+    console.log(`Fetching attempts for quiz ${quizId} by user ${userId}`);
+    
+    const pool = await db.getPool();
+    const attempts = await getUserQuizAttempts(pool, quizId, userId);
+    
+    console.log(`✅ Found ${attempts.length} attempts`);
+    
+    res.json({
+      success: true,
+      attempts: attempts,
+      total: attempts.length
+    });
+  } catch (err) {
+    console.error('Error fetching user quiz attempts:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ===== QUESTIONS API ENDPOINTS =====
+
+// Get questions for a quiz
+app.get('/api/questions/quiz/:quizId', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.quizId);
+    
+    if (!quizId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID is required' 
+      });
+    }
+    
+    console.log(`Fetching questions for quiz ID: ${quizId}`);
+    
+    const pool = await db.getPool();
+    const questions = await getQuestionsByQuizId(pool, quizId);
+    
+    console.log(`✅ Found ${questions.length} questions`);
+    
+    res.json({
+      success: true,
+      questions: questions,
+      total: questions.length
+    });
+  } catch (err) {
+    console.error('Error fetching questions by quiz ID:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get question by ID
+app.get('/api/questions/:id', async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.id);
+    
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid question ID is required' 
+      });
+    }
+    
+    console.log(`Fetching question with ID: ${questionId}`);
+    
+    const pool = await db.getPool();
+    const question = await getQuestionById(pool, questionId);
+    
+    if (!question) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Question not found' 
+      });
+    }
+    
+    console.log(`✅ Question found`);
+    
+    res.json({
+      success: true,
+      question: question
+    });
+  } catch (err) {
+    console.error('Error fetching question by ID:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Create new question
+app.post('/api/questions', async (req, res) => {
+  try {
+    const { quiz_id, question_text, question_type, choices, correct_answer, explanation, points } = req.body;
+    
+    if (!quiz_id || !question_text || !question_type || !correct_answer) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'quiz_id, question_text, question_type, and correct_answer are required' 
+      });
+    }
+    
+    console.log(`Creating new question for quiz ID: ${quiz_id}`);
+    
+    const pool = await db.getPool();
+    const newQuestion = await createQuestion(pool, {
+      quiz_id,
+      question_text,
+      question_type,
+      choices,
+      correct_answer,
+      explanation,
+      points
+    });
+    
+    console.log(`✅ Question created successfully`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Question created successfully',
+      question: newQuestion
+    });
+  } catch (err) {
+    console.error('Error creating question:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Update question
+app.put('/api/questions/:id', async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.id);
+    const { question_text, question_type, choices, correct_answer, explanation, points } = req.body;
+    
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid question ID is required' 
+      });
+    }
+    
+    if (!question_text || !question_type || !correct_answer) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'question_text, question_type, and correct_answer are required' 
+      });
+    }
+    
+    console.log(`Updating question ID: ${questionId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if question exists
+    const existingQuestion = await getQuestionById(pool, questionId);
+    if (!existingQuestion) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Question not found' 
+      });
+    }
+    
+    const updatedQuestion = await updateQuestion(pool, questionId, {
+      question_text,
+      question_type,
+      choices,
+      correct_answer,
+      explanation,
+      points
+    });
+    
+    console.log(`✅ Question updated successfully`);
+    
+    res.json({
+      success: true,
+      message: 'Question updated successfully',
+      question: updatedQuestion
+    });
+  } catch (err) {
+    console.error('Error updating question:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete question
+app.delete('/api/questions/:id', async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.id);
+    
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid question ID is required' 
+      });
+    }
+    
+    console.log(`Deleting question ID: ${questionId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if question exists
+    const existingQuestion = await getQuestionById(pool, questionId);
+    if (!existingQuestion) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Question not found' 
+      });
+    }
+    
+    await deleteQuestion(pool, questionId);
+    
+    console.log(`✅ Question deleted successfully`);
+    
+    res.json({
+      success: true,
+      message: 'Question deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting question:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete all questions for a quiz
+app.delete('/api/questions/quiz/:quizId', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.quizId);
+    
+    if (!quizId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID is required' 
+      });
+    }
+    
+    console.log(`Deleting all questions for quiz ID: ${quizId}`);
+    
+    const pool = await db.getPool();
+    await deleteQuestionsByQuizId(pool, quizId);
+    
+    console.log(`✅ All questions deleted for quiz`);
+    
+    res.json({
+      success: true,
+      message: 'All questions deleted for quiz'
+    });
+  } catch (err) {
+    console.error('Error deleting questions by quiz ID:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ===== QUIZ ATTEMPTS API ENDPOINTS =====
+
+// Get all quiz attempts
+app.get('/api/quiz-attempts', async (req, res) => {
+  try {
+    console.log('Fetching all quiz attempts');
+    
+    const pool = await db.getPool();
+    const attempts = await getAllQuizAttempts(pool);
+    
+    console.log(`✅ Found ${attempts.length} quiz attempts`);
+    
+    res.json({
+      success: true,
+      attempts: attempts,
+      total: attempts.length
+    });
+  } catch (err) {
+    console.error('Error fetching quiz attempts:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get quiz attempt by ID
+app.get('/api/quiz-attempts/:id', async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id);
+    
+    if (!attemptId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid attempt ID is required' 
+      });
+    }
+    
+    console.log(`Fetching quiz attempt with ID: ${attemptId}`);
+    
+    const pool = await db.getPool();
+    const attempt = await getQuizAttemptById(pool, attemptId);
+    
+    if (!attempt) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Quiz attempt not found' 
+      });
+    }
+    
+    console.log(`✅ Quiz attempt found`);
+    
+    res.json({
+      success: true,
+      attempt: attempt
+    });
+  } catch (err) {
+    console.error('Error fetching quiz attempt by ID:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get quiz attempts by user
+app.get('/api/quiz-attempts/user/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid user ID is required' 
+      });
+    }
+    
+    console.log(`Fetching quiz attempts for user ID: ${userId}`);
+    
+    const pool = await db.getPool();
+    const attempts = await getQuizAttemptsByUser(pool, userId);
+    
+    console.log(`✅ Found ${attempts.length} attempts for user`);
+    
+    res.json({
+      success: true,
+      attempts: attempts,
+      total: attempts.length
+    });
+  } catch (err) {
+    console.error('Error fetching quiz attempts by user:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get quiz attempts by quiz
+app.get('/api/quiz-attempts/quiz/:quizId', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.quizId);
+    
+    if (!quizId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID is required' 
+      });
+    }
+    
+    console.log(`Fetching attempts for quiz ID: ${quizId}`);
+    
+    const pool = await db.getPool();
+    const attempts = await getQuizAttemptsByQuiz(pool, quizId);
+    
+    console.log(`✅ Found ${attempts.length} attempts for quiz`);
+    
+    res.json({
+      success: true,
+      attempts: attempts,
+      total: attempts.length
+    });
+  } catch (err) {
+    console.error('Error fetching quiz attempts by quiz:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Create new quiz attempt
+app.post('/api/quiz-attempts', async (req, res) => {
+  try {
+    const { quiz_id, user_id, name, score, answers } = req.body;
+    
+    if (!quiz_id || !user_id || !name || score === undefined) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'quiz_id, user_id, name, and score are required' 
+      });
+    }
+    
+    console.log(`Creating new quiz attempt for user ${user_id} on quiz ${quiz_id}`);
+    
+    const pool = await db.getPool();
+    const newAttempt = await createQuizAttempt(pool, {
+      quiz_id,
+      user_id,
+      name,
+      score,
+      answers
+    });
+    
+    console.log(`✅ Quiz attempt created successfully`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Quiz attempt created successfully',
+      attempt: newAttempt
+    });
+  } catch (err) {
+    console.error('Error creating quiz attempt:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Update quiz attempt
+app.put('/api/quiz-attempts/:id', async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id);
+    const { score, answers } = req.body;
+    
+    if (!attemptId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid attempt ID is required' 
+      });
+    }
+    
+    if (score === undefined) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Score is required' 
+      });
+    }
+    
+    console.log(`Updating quiz attempt ID: ${attemptId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if attempt exists
+    const existingAttempt = await getQuizAttemptById(pool, attemptId);
+    if (!existingAttempt) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Quiz attempt not found' 
+      });
+    }
+    
+    const updatedAttempt = await updateQuizAttempt(pool, attemptId, {
+      score,
+      answers
+    });
+    
+    console.log(`✅ Quiz attempt updated successfully`);
+    
+    res.json({
+      success: true,
+      message: 'Quiz attempt updated successfully',
+      attempt: updatedAttempt
+    });
+  } catch (err) {
+    console.error('Error updating quiz attempt:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete quiz attempt
+app.delete('/api/quiz-attempts/:id', async (req, res) => {
+  try {
+    const attemptId = parseInt(req.params.id);
+    
+    if (!attemptId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid attempt ID is required' 
+      });
+    }
+    
+    console.log(`Deleting quiz attempt ID: ${attemptId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if attempt exists
+    const existingAttempt = await getQuizAttemptById(pool, attemptId);
+    if (!existingAttempt) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Quiz attempt not found' 
+      });
+    }
+    
+    await deleteQuizAttempt(pool, attemptId);
+    
+    console.log(`✅ Quiz attempt deleted successfully`);
+    
+    res.json({
+      success: true,
+      message: 'Quiz attempt deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting quiz attempt:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get user's best score for a quiz
+app.get('/api/quiz-attempts/best-score/:quizId/:userId', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.quizId);
+    const userId = parseInt(req.params.userId);
+    
+    if (!quizId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID and user ID are required' 
+      });
+    }
+    
+    console.log(`Fetching best score for user ${userId} on quiz ${quizId}`);
+    
+    const pool = await db.getPool();
+    const bestScore = await getUserBestScore(pool, quizId, userId);
+    
+    console.log(`✅ Best score retrieved`);
+    
+    res.json({
+      success: true,
+      bestScore: bestScore
+    });
+  } catch (err) {
+    console.error('Error fetching user best score:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get quiz statistics
+app.get('/api/quiz-attempts/statistics/:quizId', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.quizId);
+    
+    if (!quizId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID is required' 
+      });
+    }
+    
+    console.log(`Fetching statistics for quiz ID: ${quizId}`);
+    
+    const pool = await db.getPool();
+    const stats = await getQuizStatistics(pool, quizId);
+    
+    console.log(`✅ Quiz statistics retrieved`);
+    
+    res.json({
+      success: true,
+      statistics: stats
+    });
+  } catch (err) {
+    console.error('Error fetching quiz statistics:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
