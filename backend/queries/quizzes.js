@@ -169,6 +169,7 @@ const createQuiz = async (pool, quizData) => {
     const {
       title,
       subject_id,
+      subject_name, // Get subject_name directly from frontend
       description,
       created_by,
       quiz_type,
@@ -182,16 +183,22 @@ const createQuiz = async (pool, quizData) => {
     console.log('=== CREATE QUIZ DEBUG ===');
     console.log('Quiz data received:', JSON.stringify(quizData, null, 2));
     console.log('Subject ID:', subject_id);
+    console.log('Subject Name from frontend:', subject_name);
     console.log('Duration:', duration, 'minutes');
     console.log('Duration Unit from frontend:', duration_unit);
     console.log('Duration Unit type:', typeof duration_unit);
     console.log('========================');
     
-    // Fetch subject name from subjects table
-    console.log('🔍 Fetching subject name for subject_id:', subject_id);
-    const [subjectRows] = await pool.query('SELECT subject_name FROM subjects WHERE subject_id = ?', [subject_id]);
-    const subject_name = subjectRows.length > 0 ? subjectRows[0].subject_name : null;
-    console.log('📋 Subject name from database:', subject_name);
+    // Use subject_name directly from frontend, with fallback to database lookup if null
+    let finalSubjectName = subject_name;
+    if (!finalSubjectName) {
+      console.log('⚠️ Subject name not provided from frontend, fetching from database...');
+      const [subjectRows] = await pool.query('SELECT subject_name FROM subjects WHERE subject_id = ?', [subject_id]);
+      finalSubjectName = subjectRows.length > 0 ? subjectRows[0].subject_name : null;
+      console.log('📋 Subject name from database fallback:', finalSubjectName);
+    } else {
+      console.log('✅ Using subject name from frontend:', finalSubjectName);
+    }
     
     // Use 'minutes' as fallback only if duration_unit is undefined/null
     const finalDurationUnit = duration_unit || 'minutes';
@@ -200,7 +207,7 @@ const createQuiz = async (pool, quizData) => {
     console.log('Values being inserted:');
     console.log('1. title:', title);
     console.log('2. subject_id:', subject_id);
-    console.log('3. subject_name:', subject_name);
+    console.log('3. subject_name (final):', finalSubjectName);
     console.log('4. description:', description);
     console.log('5. created_by:', created_by);
     console.log('6. quiz_type:', quiz_type);
@@ -218,18 +225,18 @@ const createQuiz = async (pool, quizData) => {
           created_by, quiz_type, duration, duration_unit, difficulty, item_counts
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
-        title, subject_id, subject_name, description,
+        title, subject_id, finalSubjectName, description,
         created_by, quiz_type, duration, finalDurationUnit, difficulty, item_counts
       ]);
       
       console.log('✅ Quiz inserted successfully with ID:', result.insertId);
-      console.log('✅ Subject name saved as:', subject_name);
+      console.log('✅ Subject name saved as:', finalSubjectName);
       console.log('✅ Duration unit saved as:', finalDurationUnit);
       
       return {
         quizzes_id: result.insertId,
         ...quizData,
-        subject_name: subject_name
+        subject_name: finalSubjectName
       };
     } catch (insertError) {
       console.error('❌ SQL INSERT ERROR:', insertError);
@@ -243,12 +250,12 @@ const createQuiz = async (pool, quizData) => {
             created_by, quiz_type, duration, difficulty, item_counts
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
-          title, subject_id, subject_name, description,
+          title, subject_id, finalSubjectName, description,
           created_by, quiz_type, duration, difficulty, item_counts
         ]);
         
         console.log('✅ Quiz inserted successfully with ID (fallback 1):', result.insertId);
-        console.log('✅ Subject name saved as:', subject_name);
+        console.log('✅ Subject name saved as:', finalSubjectName);
         
         // Try to update duration_unit separately
         try {
@@ -263,7 +270,7 @@ const createQuiz = async (pool, quizData) => {
         return {
           quizzes_id: result.insertId,
           ...quizData,
-          subject_name: subject_name
+          subject_name: finalSubjectName
         };
       } catch (fallback1Error) {
         console.error('❌ FALLBACK 1 ERROR:', fallback1Error);

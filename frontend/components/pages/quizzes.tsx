@@ -178,6 +178,7 @@ export default function Quizzes() {
       const quizData = {
         title: quizTitle,
         subject_id: subject.subject_id,
+        subject_name: subject.subject_name, // Send subject_name directly from dropdown
         description: quizDescription,
         created_by: currentUser?.user_id || 1, // TODO: Get actual user ID
         quiz_type: "practice",
@@ -189,6 +190,7 @@ export default function Quizzes() {
 
       console.log('=== QUIZ DATA BEING SENT ===');
       console.log(JSON.stringify(quizData, null, 2));
+      console.log('Subject Name being sent:', subject.subject_name);
       console.log('===========================');
 
       const response = await fetch('http://localhost:4000/api/quizzes', {
