@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit } from "lucide-react"
+import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit, X, ChevronLeft, ChevronRight } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useQuizzes, useQuizQuestions, useQuizAttempts } from "@/hooks/use-quizzes"
@@ -66,6 +66,14 @@ export default function Quizzes() {
   const [showQuestionDialog, setShowQuestionDialog] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
   const [currentQuiz, setCurrentQuiz] = useState<Quiz | null>(null)
+  
+  // Quiz taking states
+  const [takingQuiz, setTakingQuiz] = useState<Quiz | null>(null)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [selectedAnswers, setSelectedAnswers] = useState<{[key: number]: string}>({})
+  const [quizStartTime, setQuizStartTime] = useState<Date | null>(null)
+  const [isPreviewMode, setIsPreviewMode] = useState(false)
+  const [elapsedTime, setElapsedTime] = useState(0) // in seconds
   const { currentUser } = useUser()
   const { toast } = useToast()
 
@@ -112,6 +120,28 @@ export default function Quizzes() {
   // Get user role from context, default to 'student' if not available
   const userRole = currentUser?.role?.toLowerCase() || 'student'
 
+  // Timer effect for quiz duration
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (takingQuiz && quizStartTime && !isPreviewMode) {
+      interval = setInterval(() => {
+        const now = new Date()
+        const elapsed = Math.floor((now.getTime() - quizStartTime.getTime()) / 1000)
+        setElapsedTime(elapsed)
+      }, 1000)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [takingQuiz, quizStartTime, isPreviewMode])
+
+  // Helper function to format time
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
   // Helper function to format duration for display
   const formatDuration = (minutes: number, preferredUnit?: string) => {
     if (preferredUnit === "hours" && minutes >= 60) {
@@ -125,10 +155,114 @@ export default function Quizzes() {
     return `${minutes} min`
   }
 
-  const startQuiz = (quiz: Quiz) => {
-    setSelectedQuiz(quiz)
-    // Here you would implement the quiz taking functionality
-    console.log("Starting quiz:", quiz.title)
+  const startQuiz = async (quiz: Quiz, isPreview: boolean = false) => {
+    try {
+      // Load questions for the quiz
+      const response = await fetch(`http://localhost:4000/api/questions/quiz/${quiz.quiz_id || quiz.id}`)
+      const data = await response.json()
+      
+      if (!data.success || !data.questions || data.questions.length === 0) {
+        toast({
+          title: "Error",
+          description: "This quiz has no questions available.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Set up quiz taking state
+      setTakingQuiz({
+        ...quiz,
+        questions: data.questions
+      })
+      setCurrentQuestionIndex(0)
+      setSelectedAnswers({})
+      setQuizStartTime(new Date())
+      setIsPreviewMode(isPreview)
+      
+      console.log(isPreview ? "Previewing quiz:" : "Starting quiz:", quiz.title)
+    } catch (error) {
+      console.error('Error loading quiz questions:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load quiz questions.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleAnswerSelect = (questionIndex: number, answer: string) => {
+    setSelectedAnswers(prev => ({
+      ...prev,
+      [questionIndex]: answer
+    }))
+  }
+
+  const nextQuestion = () => {
+    if (takingQuiz && currentQuestionIndex < takingQuiz.questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1)
+    }
+  }
+
+  const previousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1)
+    }
+  }
+
+  const finishQuiz = () => {
+    if (!takingQuiz || !quizStartTime) return
+
+    const endTime = new Date()
+    const timeSpent = Math.round((endTime.getTime() - quizStartTime.getTime()) / 1000 / 60) // minutes
+
+    if (isPreviewMode) {
+      // For preview, just show results without saving
+      toast({
+        title: "Preview Complete",
+        description: `You previewed ${takingQuiz.questions.length} questions in ${timeSpent} minutes.`,
+      })
+    } else {
+      // For actual quiz, calculate score and save results
+      let correctAnswers = 0
+      takingQuiz.questions.forEach((question, index) => {
+        if (selectedAnswers[index] === question.correctAnswer) {
+          correctAnswers++
+        }
+      })
+
+      const score = Math.round((correctAnswers / takingQuiz.questions.length) * 100)
+      
+      // TODO: Save quiz attempt to database
+      console.log('Quiz Results:', {
+        quiz_id: takingQuiz.id,
+        score: score,
+        time_spent: timeSpent,
+        answers: selectedAnswers
+      })
+
+      toast({
+        title: "Quiz Complete!",
+        description: `You scored ${score}% (${correctAnswers}/${takingQuiz.questions.length}) in ${timeSpent} minutes.`,
+      })
+    }
+
+    // Reset quiz taking state
+    setTakingQuiz(null)
+    setCurrentQuestionIndex(0)
+    setSelectedAnswers({})
+    setQuizStartTime(null)
+    setIsPreviewMode(false)
+    setElapsedTime(0)
+  }
+
+  const exitQuiz = () => {
+    setTakingQuiz(null)
+    setCurrentQuestionIndex(0)
+    setSelectedAnswers({})
+    setQuizStartTime(null)
+    setIsPreviewMode(false)
+    setElapsedTime(0)
   }
 
   const handleCreateQuiz = async () => {
@@ -493,7 +627,7 @@ export default function Quizzes() {
               </Button>
               <Button 
                 size="sm"
-                onClick={() => startQuiz(quiz)}
+                onClick={() => startQuiz(quiz, true)} // Preview mode for admin
               >
                 <Play className="w-4 h-4 mr-2" />
                 Preview
@@ -503,7 +637,7 @@ export default function Quizzes() {
             <>
               <Button 
                 className="flex-1" 
-                onClick={() => startQuiz(quiz)}
+                onClick={() => startQuiz(quiz, false)} // Take quiz for student
                 disabled={(quiz.questionCount || 0) === 0}
               >
                 <Play className="w-4 h-4 mr-2" />
@@ -870,6 +1004,216 @@ export default function Quizzes() {
           )}
         </div>
       )}
+
+      {/* Quiz Taking Interface - Dialog Popup */}
+      <Dialog open={!!takingQuiz} onOpenChange={() => exitQuiz()}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl font-bold">
+                  {takingQuiz?.title}
+                </DialogTitle>
+                <DialogDescription>
+                  {isPreviewMode 
+                    ? `Preview Mode • Question ${currentQuestionIndex + 1} of ${takingQuiz?.questions.length}`
+                    : `Quiz Mode • Question ${currentQuestionIndex + 1} of ${takingQuiz?.questions.length}`
+                  }
+                </DialogDescription>
+              </div>
+              <div className="flex items-center space-x-4">
+                {!isPreviewMode && takingQuiz && (
+                  <div className="bg-blue-100 dark:bg-blue-900 px-3 py-1 rounded-lg">
+                    <div className="text-xs text-blue-600 dark:text-blue-300 font-medium">
+                      Time Elapsed
+                    </div>
+                    <div className="text-lg font-bold text-blue-800 dark:text-blue-200">
+                      {formatTime(elapsedTime)}
+                    </div>
+                  </div>
+                )}
+                {takingQuiz && (
+                  <div className="bg-green-100 dark:bg-green-900 px-3 py-1 rounded-lg">
+                    <div className="text-xs text-green-600 dark:text-green-300 font-medium">
+                      Duration Limit
+                    </div>
+                    <div className="text-lg font-bold text-green-800 dark:text-green-200">
+                      {formatDuration(parseInt(takingQuiz.duration) || 0, takingQuiz.duration_unit)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <Progress 
+              value={takingQuiz ? ((currentQuestionIndex + 1) / takingQuiz.questions.length) * 100 : 0} 
+              className="w-full"
+            />
+          </DialogHeader>
+
+          {/* Current Question */}
+          {takingQuiz && takingQuiz.questions[currentQuestionIndex] && (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">
+                    Question {currentQuestionIndex + 1}: {takingQuiz.questions[currentQuestionIndex].question}
+                  </CardTitle>
+                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                    <span>Points: {takingQuiz.questions[currentQuestionIndex].points}</span>
+                    <span>Type: {takingQuiz.questions[currentQuestionIndex].type}</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {/* Multiple Choice Questions */}
+                  {takingQuiz.questions[currentQuestionIndex].type === "multiple-choice" && (
+                    <div className="space-y-3">
+                      <div className="text-sm font-medium text-muted-foreground mb-3">
+                        {isPreviewMode ? "Answer Options:" : "Select your answer:"}
+                      </div>
+                      
+                      {takingQuiz.questions[currentQuestionIndex].options?.map((option, optionIndex) => (
+                        <div key={optionIndex} className={`flex items-center space-x-3 p-3 border rounded-lg ${
+                          isPreviewMode 
+                            ? "bg-muted/30" 
+                            : selectedAnswers[currentQuestionIndex] === option 
+                              ? "bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700"
+                              : "hover:bg-muted cursor-pointer"
+                        }`}>
+                          {isPreviewMode ? (
+                            // Preview mode - show letter indicators like manage quiz
+                            <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium bg-white dark:bg-gray-800">
+                              {String.fromCharCode(65 + optionIndex)}
+                            </div>
+                          ) : (
+                            // Quiz mode - show radio buttons
+                            <input
+                              type="radio"
+                              id={`option-${optionIndex}`}
+                              name={`question-${currentQuestionIndex}`}
+                              value={option}
+                              checked={selectedAnswers[currentQuestionIndex] === option}
+                              onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
+                              className="w-4 h-4"
+                            />
+                          )}
+                          <Label 
+                            htmlFor={isPreviewMode ? undefined : `option-${optionIndex}`}
+                            className={`flex-1 ${isPreviewMode ? "" : "cursor-pointer"}`}
+                            onClick={isPreviewMode ? undefined : () => handleAnswerSelect(currentQuestionIndex, option)}
+                          >
+                            {option}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* True/False Questions */}
+                  {takingQuiz.questions[currentQuestionIndex].type === "true-false" && (
+                    <div className="space-y-3">
+                      <div className="text-sm font-medium text-muted-foreground mb-3">
+                        {isPreviewMode ? "Answer Options:" : "Select your answer:"}
+                      </div>
+                      
+                      {["True", "False"].map((option, optionIndex) => (
+                        <div key={option} className={`flex items-center space-x-3 p-3 border rounded-lg ${
+                          isPreviewMode 
+                            ? "bg-muted/30" 
+                            : selectedAnswers[currentQuestionIndex] === option 
+                              ? "bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700"
+                              : "hover:bg-muted cursor-pointer"
+                        }`}>
+                          {isPreviewMode ? (
+                            // Preview mode - show T/F indicators
+                            <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium bg-white dark:bg-gray-800">
+                              {option.charAt(0)}
+                            </div>
+                          ) : (
+                            // Quiz mode - show radio buttons
+                            <input
+                              type="radio"
+                              id={`tf-${option}`}
+                              name={`question-${currentQuestionIndex}`}
+                              value={option}
+                              checked={selectedAnswers[currentQuestionIndex] === option}
+                              onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
+                              className="w-4 h-4"
+                            />
+                          )}
+                          <Label 
+                            htmlFor={isPreviewMode ? undefined : `tf-${option}`}
+                            className={`flex-1 ${isPreviewMode ? "" : "cursor-pointer"}`}
+                            onClick={isPreviewMode ? undefined : () => handleAnswerSelect(currentQuestionIndex, option)}
+                          >
+                            {option}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Show explanation in preview mode */}
+                  {isPreviewMode && takingQuiz.questions[currentQuestionIndex].explanation && (
+                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                      <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
+                        Explanation:
+                      </h4>
+                      <p className="text-blue-800 dark:text-blue-200">
+                        {takingQuiz.questions[currentQuestionIndex].explanation}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Show correct answer in preview mode (at the bottom) */}
+                  {isPreviewMode && (
+                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                      <div className="text-sm font-medium text-green-900 dark:text-green-100">
+                        Correct Answer: {takingQuiz.questions[currentQuestionIndex].correctAnswer}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={previousQuestion}
+                  disabled={currentQuestionIndex === 0}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Previous
+                </Button>
+
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline"
+                    onClick={exitQuiz}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    {isPreviewMode ? "Close Preview" : "Exit Quiz"}
+                  </Button>
+                  
+                  {currentQuestionIndex === takingQuiz.questions.length - 1 ? (
+                    <Button onClick={finishQuiz}>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {isPreviewMode ? "Finish Preview" : "Submit Quiz"}
+                    </Button>
+                  ) : (
+                    <Button onClick={nextQuestion}>
+                      Next
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
