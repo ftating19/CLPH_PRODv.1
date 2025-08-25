@@ -27,6 +27,7 @@ import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, L
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSubjects } from "@/hooks/use-subjects"
+import { CICT_PROGRAMS } from "@/lib/constants"
 
 // TypeScript interface for tutor data
 interface Tutor {
@@ -96,14 +97,8 @@ export default function TutorMatching() {
     fetchTutors()
   }, [])
 
-  // Available programs
-  const programs = [
-    "Bachelor of Science in Information Systems",
-    "Bachelor of Science in Information Technology", 
-    "Bachelor of Science in Computer Science",
-    "Bachelor of Library and Information Science",
-    "Bachelor of Science in Entertainment and Multimedia Computing"
-  ]
+  // Available programs (using constants)
+  const programs = CICT_PROGRAMS
 
   const handleApplicationSubmit = async () => {
     if (!currentUser) {

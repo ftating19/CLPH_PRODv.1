@@ -14,6 +14,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useSubjects } from "@/hooks/use-subjects";
 import { useUser } from "@/contexts/UserContext";
+import { CICT_PROGRAMS } from "@/lib/constants";
 
 interface ApplyAsTutorModalProps {
   open: boolean;
@@ -34,13 +35,7 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
   const [isLoading, setIsLoading] = useState(false);
 
   // Available programs
-  const programs = [
-    "Bachelor of Science in Information Systems",
-    "Bachelor of Science in Information Technology", 
-    "Bachelor of Science in Computer Science",
-    "Bachelor of Library and Information Science",
-    "Bachelor of Science in Entertainment and Multimedia Computing"
-  ];
+  const programs = CICT_PROGRAMS;
 
   useEffect(() => {
     if (open && currentUser) {

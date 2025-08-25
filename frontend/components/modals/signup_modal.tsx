@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CICT_PROGRAMS } from "@/lib/constants";
 
 interface SignupModalProps {
 	open: boolean;
@@ -214,11 +215,11 @@ export default function SignupModal({ open, onClose, onSubmit }: SignupModalProp
 									<SelectValue placeholder="Select your program" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="Bachelor of Science in Information Systems">Bachelor of Science in Information Systems</SelectItem>
-									<SelectItem value="Bachelor of Science in Information Technology">Bachelor of Science in Information Technology</SelectItem>
-									<SelectItem value="Bachelor of Science in Computer Science">Bachelor of Science in Computer Science</SelectItem>
-									<SelectItem value="Bachelor of Library and Information Science">Bachelor of Library and Information Science</SelectItem>
-									<SelectItem value="Bachelor of Science in Entertainment and Multimedia Computing">Bachelor of Science in Entertainment and Multimedia Computing</SelectItem>
+									{CICT_PROGRAMS.map((program) => (
+										<SelectItem key={program} value={program}>
+											{program}
+										</SelectItem>
+									))}
 								</SelectContent>
 							</Select>
 						</div>

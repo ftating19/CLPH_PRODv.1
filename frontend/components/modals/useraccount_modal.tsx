@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { CICT_PROGRAMS, USER_ROLES } from "@/lib/constants";
 
 interface UserAccountModalProps {
 	open: boolean;
@@ -159,11 +160,11 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 									<SelectValue placeholder="Select a program" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="Bachelor of Science in Information Systems">Bachelor of Science in Information Systems</SelectItem>
-									<SelectItem value="Bachelor of Science in Information Technology">Bachelor of Science in Information Technology</SelectItem>
-									<SelectItem value="Bachelor of Science in Computer Science">Bachelor of Science in Computer Science</SelectItem>
-									<SelectItem value="Bachelor of Library and Information Science">Bachelor of Library and Information Science</SelectItem>
-									<SelectItem value="Bachelor of Science in Entertainment and Multimedia Computing">Bachelor of Science in Entertainment and Multimedia Computing</SelectItem>
+									{CICT_PROGRAMS.map((program) => (
+										<SelectItem key={program} value={program}>
+											{program}
+										</SelectItem>
+									))}
 								</SelectContent>
 							</Select>
 						</div>
@@ -174,10 +175,11 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 									<SelectValue placeholder="Select a role" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="Student">Student</SelectItem>
-									<SelectItem value="Tutor">Tutor</SelectItem>
-									<SelectItem value="Faculty">Faculty</SelectItem>
-									<SelectItem value="Admin">Admin</SelectItem>
+									{USER_ROLES.map((role) => (
+										<SelectItem key={role} value={role}>
+											{role}
+										</SelectItem>
+									))}
 								</SelectContent>
 							</Select>
 						</div>

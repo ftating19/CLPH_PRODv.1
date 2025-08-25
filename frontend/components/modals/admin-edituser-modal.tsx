@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator"
 import { Save, X, User, Mail, GraduationCap, Shield } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
+import { CICT_PROGRAMS, USER_ROLES, ACCOUNT_STATUSES } from "@/lib/constants"
 
 interface User {
   user_id: number;
@@ -286,14 +287,22 @@ export default function EditUserModal({ user, isOpen, onClose, onUserUpdated }: 
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="program">Program *</Label>
-                <Input
-                  id="program"
+                <Select
                   value={formData.program}
-                  onChange={(e) => handleInputChange('program', e.target.value)}
-                  required
+                  onValueChange={(value) => handleInputChange('program', value)}
                   disabled={loading}
-                  placeholder="e.g., Computer Science, Mathematics, etc."
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CICT_PROGRAMS.map((program) => (
+                      <SelectItem key={program} value={program}>
+                        {program}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -307,10 +316,11 @@ export default function EditUserModal({ user, isOpen, onClose, onUserUpdated }: 
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Student">Student</SelectItem>
-                      <SelectItem value="Faculty">Faculty</SelectItem>
-                      <SelectItem value="Tutor">Tutor</SelectItem>
-                      <SelectItem value="Admin">Admin</SelectItem>
+                      {USER_ROLES.map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {role}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -325,10 +335,11 @@ export default function EditUserModal({ user, isOpen, onClose, onUserUpdated }: 
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Active">Active</SelectItem>
-                      <SelectItem value="Inactive">Inactive</SelectItem>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Suspended">Suspended</SelectItem>
+                      {ACCOUNT_STATUSES.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
