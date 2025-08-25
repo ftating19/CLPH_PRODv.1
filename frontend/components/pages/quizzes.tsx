@@ -50,6 +50,7 @@ interface Quiz {
   title: string
   subject: string
   questions: Question[]
+  questionCount?: number // Add optional question count from database
   duration: string
   difficulty: string
   description: string
@@ -80,6 +81,7 @@ export default function Quizzes() {
     title: dbQuiz.title,
     subject: dbQuiz.subject_name,
     questions: [], // Will be loaded separately when needed
+    questionCount: dbQuiz.item_counts || 0, // Add question count from database
     duration: `${dbQuiz.duration || 15} min`,
     difficulty: dbQuiz.difficulty || 'Medium',
     description: dbQuiz.description || 'Test your knowledge in this subject area',
@@ -148,6 +150,7 @@ export default function Quizzes() {
       const quizData = {
         title: quizTitle,
         subject_id: subject.subject_id,
+        subject_name: subject.subject_name,
         description: quizDescription,
         created_by: currentUser?.user_id || 1, // TODO: Get actual user ID
         quiz_type: "practice",
@@ -167,12 +170,94 @@ export default function Quizzes() {
       const result = await response.json()
 
       if (result.success) {
+        const createdQuizId = currentQuiz ? currentQuiz.id : result.quiz.quizzes_id
+        
+        // Save all questions to the database
+        if (quizQuestions.length > 0) {
+          console.log(`Saving ${quizQuestions.length} questions for quiz ID:`, createdQuizId)
+          
+          // If updating an existing quiz, delete old questions first
+          if (currentQuiz) {
+            try {
+              await fetch(`http://localhost:4000/api/questions/quiz/${createdQuizId}`, {
+                method: 'DELETE'
+              })
+              console.log('Deleted old questions for quiz:', createdQuizId)
+            } catch (deleteError) {
+              console.error('Error deleting old questions:', deleteError)
+            }
+          }
+
+          // Add all questions
+          for (const [index, question] of quizQuestions.entries()) {
+            try {
+              const questionData = {
+                quiz_id: createdQuizId,
+                question_text: question.question,
+                question_type: question.type,
+                choices: question.options || [],
+                correct_answer: question.correctAnswer,
+                explanation: question.explanation || null,
+                points: question.points || 1
+              }
+
+              console.log(`Saving question ${index + 1}:`, questionData)
+
+              const questionResponse = await fetch('http://localhost:4000/api/questions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(questionData)
+              })
+
+              const questionResult = await questionResponse.json()
+              console.log(`Question ${index + 1} save result:`, questionResult)
+              
+              if (!questionResult.success) {
+                console.error('Failed to save question:', questionResult.error)
+              }
+            } catch (questionError) {
+              console.error('Error saving question:', questionError)
+            }
+          }
+          console.log('Finished saving all questions')
+        }
+
+        // Update the quiz with the correct item count
+        if (!currentQuiz) {
+          try {
+            await fetch(`http://localhost:4000/api/quizzes/${createdQuizId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                ...quizData,
+                item_counts: quizQuestions.length
+              })
+            })
+          } catch (updateError) {
+            console.error('Error updating quiz item count:', updateError)
+          }
+        }
+        
         // Refresh quizzes list
         await refetchQuizzes()
         
+        // Reset form
+        setQuizTitle("")
+        setQuizSubject("")
+        setQuizDescription("")
+        setQuizDuration("")
+        setQuizDifficulty("")
+        setQuizQuestions([])
+        setCurrentQuiz(null)
+        setShowCreateDialog(false)
+        
         toast({
           title: "Success",
-          description: currentQuiz ? "Quiz updated successfully" : "Quiz created successfully"
+          description: currentQuiz ? "Quiz updated successfully" : `Quiz created successfully with ${quizQuestions.length} questions`
         })
       } else {
         throw new Error(result.error || 'Failed to save quiz')
@@ -187,15 +272,8 @@ export default function Quizzes() {
       return
     }
 
-    // Reset form
-    setQuizTitle("")
-    setQuizSubject("")
-    setQuizDescription("")
-    setQuizDuration("")
-    setQuizDifficulty("")
-    setQuizQuestions([])
-    setCurrentQuiz(null)
-    setShowCreateDialog(false)
+    // Reset form (moved after success toast)
+    // (this was moved above in the success block)
   }
 
   const handleAddQuestion = () => {
@@ -269,14 +347,39 @@ export default function Quizzes() {
     })
   }
 
-  const handleManageQuiz = (quiz: Quiz) => {
+  const handleManageQuiz = async (quiz: Quiz) => {
     setCurrentQuiz(quiz)
     setQuizTitle(quiz.title)
     setQuizSubject(quiz.subject)
     setQuizDescription(quiz.description)
     setQuizDuration(quiz.duration)
     setQuizDifficulty(quiz.difficulty)
-    setQuizQuestions(quiz.questions)
+    
+    // Load questions from database for existing quiz
+    try {
+      const response = await fetch(`http://localhost:4000/api/questions/quiz/${quiz.id}`)
+      const data = await response.json()
+      
+      if (data.success && data.questions) {
+        // Convert database questions to frontend format
+        const convertedQuestions = data.questions.map((dbQuestion: any) => ({
+          id: `db-${dbQuestion.question_id}`,
+          type: dbQuestion.question_type || 'multiple-choice',
+          question: dbQuestion.question || dbQuestion.question_text || '',
+          options: dbQuestion.choices || [],
+          correctAnswer: dbQuestion.answer || '',
+          explanation: dbQuestion.explanation || '',
+          points: dbQuestion.points || 1
+        }))
+        setQuizQuestions(convertedQuestions)
+      } else {
+        setQuizQuestions([])
+      }
+    } catch (error) {
+      console.error('Error loading quiz questions:', error)
+      setQuizQuestions([])
+    }
+    
     setShowCreateDialog(true)
   }
 
@@ -299,7 +402,7 @@ export default function Quizzes() {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center space-x-2">
             <BookOpen className="w-4 h-4 text-muted-foreground" />
-            <span>{quiz.questions.length} questions</span>
+            <span>{quiz.questionCount || 0} questions</span>
           </div>
           <div className="flex items-center space-x-2">
             <Clock className="w-4 h-4 text-muted-foreground" />
@@ -345,7 +448,7 @@ export default function Quizzes() {
               <Button 
                 className="flex-1" 
                 onClick={() => startQuiz(quiz)}
-                disabled={quiz.questions.length === 0}
+                disabled={(quiz.questionCount || 0) === 0}
               >
                 <Play className="w-4 h-4 mr-2" />
                 {quiz.completedTimes > 0 ? "Retake Quiz" : "Start Quiz"}
@@ -357,7 +460,7 @@ export default function Quizzes() {
           )}
         </div>
         
-        {quiz.questions.length === 0 && (
+        {(quiz.questionCount || 0) === 0 && (
           <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
             No questions added yet. {userRole === "admin" ? "Click 'Manage Quiz' to add questions." : "This quiz is not available yet."}
           </div>

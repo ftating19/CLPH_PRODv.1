@@ -114,6 +114,13 @@ const createQuiz = async (pool, quizData) => {
       item_counts
     } = quizData;
     
+    // Add debugging
+    console.log('=== CREATE QUIZ DEBUG ===');
+    console.log('Quiz data received:', quizData);
+    console.log('Subject ID:', subject_id);
+    console.log('Subject Name:', subject_name);
+    console.log('========================');
+    
     const [result] = await pool.query(`
       INSERT INTO quizzes (
         title, subject_id, subject_name, description, 
@@ -123,6 +130,8 @@ const createQuiz = async (pool, quizData) => {
       title, subject_id, subject_name, description,
       created_by, quiz_type, duration, difficulty, item_counts
     ]);
+    
+    console.log('✅ Quiz inserted with ID:', result.insertId);
     
     return {
       quizzes_id: result.insertId,

@@ -1499,7 +1499,14 @@ app.get('/api/quizzes/subject/:subjectId', async (req, res) => {
 // Create new quiz
 app.post('/api/quizzes', async (req, res) => {
   try {
-    const { title, subject_id, description, created_by, quiz_type, duration, difficulty, item_counts } = req.body;
+    const { title, subject_id, subject_name, description, created_by, quiz_type, duration, difficulty, item_counts } = req.body;
+    
+    // Add debugging to see what data is received
+    console.log('=== QUIZ CREATION DEBUG ===');
+    console.log('Request body:', req.body);
+    console.log('Subject ID:', subject_id);
+    console.log('Subject Name:', subject_name);
+    console.log('===========================');
     
     if (!title || !subject_id || !created_by) {
       return res.status(400).json({ 
@@ -1514,6 +1521,7 @@ app.post('/api/quizzes', async (req, res) => {
     const newQuiz = await createQuiz(pool, {
       title,
       subject_id,
+      subject_name,
       description,
       created_by,
       quiz_type,
@@ -1763,11 +1771,11 @@ app.post('/api/questions', async (req, res) => {
     
     const pool = await db.getPool();
     const newQuestion = await createQuestion(pool, {
-      quiz_id,
+      quiz_id,  // This will be mapped to quizzes_id in the function
       question_text,
       question_type,
       choices,
-      correct_answer,
+      correct_answer,  // This will be mapped to answer in the function
       explanation,
       points
     });
