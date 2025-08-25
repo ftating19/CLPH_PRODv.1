@@ -1202,39 +1202,41 @@ export default function Quizzes() {
                 </div>
               )}
 
-              {/* Navigation Buttons */}
-              <div className="flex justify-between pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={previousQuestion}
-                  disabled={currentQuestionIndex === 0}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-2" />
-                  Previous
-                </Button>
-
-                <div className="flex space-x-2">
+              {/* Navigation Buttons - Always show when quiz is loaded */}
+              {takingQuiz && (
+                <div className="flex justify-between pt-4">
                   <Button 
-                    variant="outline"
-                    onClick={exitQuiz}
+                    variant="outline" 
+                    onClick={previousQuestion}
+                    disabled={currentQuestionIndex === 0}
                   >
-                    <X className="w-4 h-4 mr-2" />
-                    {isPreviewMode ? "Close Preview" : "Exit Quiz"}
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    Previous
                   </Button>
-                  
-                  {currentQuestionIndex === takingQuiz.questions.length - 1 ? (
-                    <Button onClick={finishQuiz}>
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      {isPreviewMode ? "Finish Preview" : "Submit Quiz"}
+
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant="outline"
+                      onClick={exitQuiz}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      {isPreviewMode ? "Close Preview" : "Exit Quiz"}
                     </Button>
-                  ) : (
-                    <Button onClick={nextQuestion}>
-                      Next
-                      <ChevronRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  )}
+                    
+                    {currentQuestionIndex === (takingQuiz?.questions?.length || 0) - 1 ? (
+                      <Button onClick={finishQuiz}>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        {isPreviewMode ? "Finish Preview" : "Submit Quiz"}
+                      </Button>
+                    ) : (
+                      <Button onClick={nextQuestion}>
+                        Next
+                        <ChevronRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </DialogContent>
