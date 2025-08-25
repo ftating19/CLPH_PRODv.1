@@ -158,8 +158,11 @@ export default function Quizzes() {
   const startQuiz = async (quiz: Quiz, isPreview: boolean = false) => {
     try {
       // Load questions for the quiz
+      console.log('Loading questions for quiz:', quiz)
       const response = await fetch(`http://localhost:4000/api/questions/quiz/${quiz.quiz_id || quiz.id}`)
       const data = await response.json()
+      
+      console.log('Questions API response:', data)
       
       if (!data.success || !data.questions || data.questions.length === 0) {
         toast({
@@ -170,10 +173,25 @@ export default function Quizzes() {
         return
       }
 
+      console.log('Processing questions:', data.questions)
+
+      // Transform the questions to match frontend expectations
+      const transformedQuestions = data.questions.map((q: any) => ({
+        id: q.question_id,
+        question: q.question,
+        type: q.type || 'multiple-choice',
+        options: q.choices || q.options || [],
+        correctAnswer: q.answer || q.correct_answer,
+        points: q.points || 1,
+        explanation: q.explanation
+      }))
+
+      console.log('Transformed questions:', transformedQuestions)
+
       // Set up quiz taking state
       setTakingQuiz({
         ...quiz,
-        questions: data.questions
+        questions: transformedQuestions
       })
       setCurrentQuestionIndex(0)
       setSelectedAnswers({})
@@ -181,6 +199,7 @@ export default function Quizzes() {
       setIsPreviewMode(isPreview)
       
       console.log(isPreview ? "Previewing quiz:" : "Starting quiz:", quiz.title)
+      console.log('Quiz with questions set:', { ...quiz, questions: transformedQuestions })
     } catch (error) {
       console.error('Error loading quiz questions:', error)
       toast({
@@ -1052,20 +1071,21 @@ export default function Quizzes() {
             />
           </DialogHeader>
 
-          {/* Current Question */}
-          {takingQuiz && takingQuiz.questions[currentQuestionIndex] && (
+          {/* Quiz Content */}
+          {takingQuiz && (
             <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    Question {currentQuestionIndex + 1}: {takingQuiz.questions[currentQuestionIndex].question}
-                  </CardTitle>
-                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                    <span>Points: {takingQuiz.questions[currentQuestionIndex].points}</span>
-                    <span>Type: {takingQuiz.questions[currentQuestionIndex].type}</span>
-                  </div>
-                </CardHeader>
-                <CardContent>
+              {takingQuiz.questions && takingQuiz.questions[currentQuestionIndex] ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      Question {currentQuestionIndex + 1}: {takingQuiz.questions[currentQuestionIndex].question}
+                    </CardTitle>
+                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                      <span>Points: {takingQuiz.questions[currentQuestionIndex].points}</span>
+                      <span>Type: {takingQuiz.questions[currentQuestionIndex].type}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
                   {/* Multiple Choice Questions */}
                   {takingQuiz.questions[currentQuestionIndex].type === "multiple-choice" && (
                     <div className="space-y-3">
@@ -1166,7 +1186,7 @@ export default function Quizzes() {
                     </div>
                   )}
 
-                  {/* Show correct answer in preview mode (at the bottom) */}
+                  {/* Show correct answer in preview mode */}
                   {isPreviewMode && (
                     <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
                       <div className="text-sm font-medium text-green-900 dark:text-green-100">
@@ -1174,8 +1194,13 @@ export default function Quizzes() {
                       </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No questions available for this quiz.</p>
+                </div>
+              )}
 
               {/* Navigation Buttons */}
               <div className="flex justify-between pt-4">
