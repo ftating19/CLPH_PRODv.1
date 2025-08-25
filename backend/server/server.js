@@ -197,7 +197,7 @@ app.post('/api/signup', async (req, res) => {
       program,
       role,
       status,
-      first_login: 1, // Self-registered users don't need to reset password
+      first_login: 1, // Self-registered users don't need to reset password // kapag 1 ang value yung account is from sign up kapag 0 nag rereset ng password since si admin ang gumawa ng account
     });
 
     res.status(201).json({ message: 'User created successfully' });

@@ -6,3 +6,5 @@ ALTER TABLE users ADD COLUMN first_login TINYINT DEFAULT 1;
 
 -- Update existing users to have first_login = 1 (assuming they've already set passwords)
 UPDATE users SET first_login = 1 WHERE first_login IS NULL;
+
+-- use for table migration in database 
