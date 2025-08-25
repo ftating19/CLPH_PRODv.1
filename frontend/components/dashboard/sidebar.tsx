@@ -99,11 +99,9 @@ export default function Sidebar() {
                   <NavItem href="/dashboard" icon={Home}>
                     Dashboard
                   </NavItem>
-                  {(userRole === "faculty" || userRole === "admin") && (
-                    <NavItem href="/tutor-matching" icon={UserCheck}>
-                      Tutor Matching
-                    </NavItem>
-                  )}
+                  <NavItem href="/tutor-matching" icon={UserCheck}>
+                    Tutor Matching
+                  </NavItem>
                   {(userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
                     <NavItem href="/student-matching" icon={Users}>
                       Student Matching
