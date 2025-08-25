@@ -2075,7 +2075,7 @@ app.post('/api/quiz-attempts', async (req, res) => {
     
     const pool = await db.getPool();
     const newAttempt = await createQuizAttempt(pool, {
-      quiz_id,
+      quizzes_id: quiz_id,  // Map quiz_id to quizzes_id for the database
       user_id,
       name,
       score,

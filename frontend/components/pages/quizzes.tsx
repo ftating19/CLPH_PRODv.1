@@ -17,6 +17,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -74,6 +84,12 @@ export default function Quizzes() {
   const [quizStartTime, setQuizStartTime] = useState<Date | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0) // in seconds
+  
+  // Confirmation and time-up dialogs
+  const [showStartConfirmation, setShowStartConfirmation] = useState(false)
+  const [quizToStart, setQuizToStart] = useState<Quiz | null>(null)
+  const [showTimeUpDialog, setShowTimeUpDialog] = useState(false)
+  const [isTimeUp, setIsTimeUp] = useState(false)
   const { currentUser } = useUser()
   const { toast } = useToast()
 
@@ -128,12 +144,38 @@ export default function Quizzes() {
         const now = new Date()
         const elapsed = Math.floor((now.getTime() - quizStartTime.getTime()) / 1000)
         setElapsedTime(elapsed)
+        
+        // Check if time is up
+        if (takingQuiz.duration && takingQuiz.duration_unit) {
+          const durationInSeconds = getDurationInSeconds(parseInt(takingQuiz.duration), takingQuiz.duration_unit)
+          if (elapsed >= durationInSeconds && !isTimeUp) {
+            setIsTimeUp(true)
+            setShowTimeUpDialog(true)
+          }
+        }
       }, 1000)
     }
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [takingQuiz, quizStartTime, isPreviewMode])
+  }, [takingQuiz, quizStartTime, isPreviewMode, isTimeUp])
+
+  // Helper function to convert duration to seconds
+  const getDurationInSeconds = (duration: number, unit: string) => {
+    switch(unit) {
+      case 'minutes': return duration * 60
+      case 'hours': return duration * 60 * 60
+      default: return duration * 60 // default to minutes
+    }
+  }
+
+  // Helper function to calculate remaining time
+  const getRemainingTime = () => {
+    if (!takingQuiz || !takingQuiz.duration || !takingQuiz.duration_unit) return 0
+    const totalSeconds = getDurationInSeconds(parseInt(takingQuiz.duration), takingQuiz.duration_unit)
+    const remaining = totalSeconds - elapsedTime
+    return Math.max(0, remaining)
+  }
 
   // Helper function to format time
   const formatTime = (seconds: number) => {
@@ -155,7 +197,18 @@ export default function Quizzes() {
     return `${minutes} min`
   }
 
-  const startQuiz = async (quiz: Quiz, isPreview: boolean = false) => {
+  const startQuiz = (quiz: Quiz, isPreview: boolean = false) => {
+    if (isPreview) {
+      // For preview mode, start immediately
+      startQuizDirectly(quiz, isPreview)
+    } else {
+      // For actual quiz, show confirmation dialog
+      setQuizToStart(quiz)
+      setShowStartConfirmation(true)
+    }
+  }
+
+  const startQuizDirectly = async (quiz: Quiz, isPreview: boolean = false) => {
     try {
       // Load questions for the quiz
       console.log('Loading questions for quiz:', quiz)
@@ -229,7 +282,7 @@ export default function Quizzes() {
     }
   }
 
-  const finishQuiz = () => {
+  const finishQuiz = async () => {
     if (!takingQuiz || !quizStartTime) return
 
     const endTime = new Date()
@@ -252,27 +305,48 @@ export default function Quizzes() {
 
       const score = Math.round((correctAnswers / takingQuiz.questions.length) * 100)
       
-      // TODO: Save quiz attempt to database
-      console.log('Quiz Results:', {
-        quiz_id: takingQuiz.id,
-        score: score,
-        time_spent: timeSpent,
-        answers: selectedAnswers
-      })
+      // Save quiz attempt to database
+      try {
+        const attemptData = {
+          quiz_id: takingQuiz.quiz_id || takingQuiz.id,
+          user_id: currentUser?.user_id,
+          name: `${currentUser?.first_name || ''} ${currentUser?.last_name || ''}`.trim(),
+          score: score,
+          answers: selectedAnswers // Include the selected answers
+        }
 
-      toast({
-        title: "Quiz Complete!",
-        description: `You scored ${score}% (${correctAnswers}/${takingQuiz.questions.length}) in ${timeSpent} minutes.`,
-      })
+        console.log('Sending quiz attempt data:', attemptData)
+
+        const response = await fetch('http://localhost:4000/api/quiz-attempts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(attemptData)
+        })
+
+        const result = await response.json()
+
+        if (result.success) {
+          toast({
+            title: "Quiz Completed!",
+            description: `Your score: ${score}% (${correctAnswers}/${takingQuiz.questions.length} correct) in ${timeSpent} minutes.`,
+          })
+        } else {
+          throw new Error(result.error || 'Failed to save quiz attempt')
+        }
+      } catch (error) {
+        console.error('Error saving quiz attempt:', error)
+        toast({
+          title: "Quiz Completed",
+          description: `Your score: ${score}% (${correctAnswers}/${takingQuiz.questions.length} correct), but failed to save results.`,
+          variant: "destructive"
+        })
+      }
     }
 
     // Reset quiz taking state
-    setTakingQuiz(null)
-    setCurrentQuestionIndex(0)
-    setSelectedAnswers({})
-    setQuizStartTime(null)
-    setIsPreviewMode(false)
-    setElapsedTime(0)
+    exitQuiz()
   }
 
   const exitQuiz = () => {
@@ -282,6 +356,8 @@ export default function Quizzes() {
     setQuizStartTime(null)
     setIsPreviewMode(false)
     setElapsedTime(0)
+    setIsTimeUp(false)
+    setShowTimeUpDialog(false)
   }
 
   const handleCreateQuiz = async () => {
@@ -1042,12 +1118,12 @@ export default function Quizzes() {
               </div>
               <div className="flex items-center space-x-4">
                 {!isPreviewMode && takingQuiz && (
-                  <div className="bg-blue-100 dark:bg-blue-900 px-3 py-1 rounded-lg">
-                    <div className="text-xs text-blue-600 dark:text-blue-300 font-medium">
-                      Time Elapsed
+                  <div className="bg-red-100 dark:bg-red-900 px-3 py-1 rounded-lg">
+                    <div className="text-xs text-red-600 dark:text-red-300 font-medium">
+                      Time Remaining
                     </div>
-                    <div className="text-lg font-bold text-blue-800 dark:text-blue-200">
-                      {formatTime(elapsedTime)}
+                    <div className="text-lg font-bold text-red-800 dark:text-red-200">
+                      {formatTime(getRemainingTime())}
                     </div>
                   </div>
                 )}
@@ -1241,6 +1317,58 @@ export default function Quizzes() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Quiz Start Confirmation Dialog */}
+      <AlertDialog open={showStartConfirmation} onOpenChange={setShowStartConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Start Quiz</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you ready to start the quiz "{quizToStart?.title}"?
+              <br /><br />
+              <strong>Duration:</strong> {quizToStart?.duration} {quizToStart?.duration_unit}
+              <br />
+              <strong>Questions:</strong> {quizToStart?.questionCount || 'Unknown'} questions
+              <br /><br />
+              Once you start, the timer will begin counting down. Make sure you have enough time to complete the quiz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowStartConfirmation(false)
+              setQuizToStart(null)
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (quizToStart) {
+                startQuizDirectly(quizToStart, false)
+              }
+              setShowStartConfirmation(false)
+              setQuizToStart(null)
+            }}>
+              Start Quiz
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Time Up Dialog */}
+      <AlertDialog open={showTimeUpDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Time's Up!</AlertDialogTitle>
+            <AlertDialogDescription>
+              The time limit for this quiz has been reached. Your answers will be automatically submitted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={finishQuiz}>
+              Submit Quiz
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
