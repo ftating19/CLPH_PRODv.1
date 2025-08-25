@@ -150,7 +150,6 @@ export default function Quizzes() {
       const quizData = {
         title: quizTitle,
         subject_id: subject.subject_id,
-        subject_name: subject.subject_name,
         description: quizDescription,
         created_by: currentUser?.user_id || 1, // TODO: Get actual user ID
         quiz_type: "practice",

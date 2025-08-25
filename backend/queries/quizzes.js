@@ -3,9 +3,18 @@
 // Get all quizzes
 const getAllQuizzes = async (pool) => {
   try {
+    console.log('🔍 Fetching all quizzes...');
     const [rows] = await pool.query(`
       SELECT 
-        q.*,
+        q.quizzes_id,
+        q.title,
+        q.subject_id,
+        q.description,
+        q.created_by,
+        q.quiz_type,
+        q.duration,
+        q.difficulty,
+        q.item_counts,
         s.subject_name,
         s.subject_code,
         u.first_name,
@@ -18,6 +27,9 @@ const getAllQuizzes = async (pool) => {
       GROUP BY q.quizzes_id
       ORDER BY q.quizzes_id DESC
     `);
+    
+    console.log('📊 First quiz result:', rows[0]);
+    console.log('📊 Subject name from subjects table:', rows[0]?.subject_name);
     
     return rows;
   } catch (error) {
@@ -105,7 +117,6 @@ const createQuiz = async (pool, quizData) => {
     const {
       title,
       subject_id,
-      subject_name,
       description,
       created_by,
       quiz_type,
@@ -118,25 +129,41 @@ const createQuiz = async (pool, quizData) => {
     console.log('=== CREATE QUIZ DEBUG ===');
     console.log('Quiz data received:', quizData);
     console.log('Subject ID:', subject_id);
-    console.log('Subject Name:', subject_name);
     console.log('========================');
     
-    const [result] = await pool.query(`
-      INSERT INTO quizzes (
-        title, subject_id, subject_name, description, 
+    console.log('=== SQL INSERTION DEBUG ===');
+    console.log('Values being inserted:');
+    console.log('1. title:', title);
+    console.log('2. subject_id:', subject_id);
+    console.log('3. description:', description);
+    console.log('4. created_by:', created_by);
+    console.log('5. quiz_type:', quiz_type);
+    console.log('6. duration:', duration);
+    console.log('7. difficulty:', difficulty);
+    console.log('8. item_counts:', item_counts);
+    console.log('===========================');
+    
+    try {
+      const [result] = await pool.query(`
+        INSERT INTO quizzes (
+          title, subject_id, description, 
+          created_by, quiz_type, duration, difficulty, item_counts
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        title, subject_id, description,
         created_by, quiz_type, duration, difficulty, item_counts
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      title, subject_id, subject_name, description,
-      created_by, quiz_type, duration, difficulty, item_counts
-    ]);
-    
-    console.log('✅ Quiz inserted with ID:', result.insertId);
-    
-    return {
-      quizzes_id: result.insertId,
-      ...quizData
-    };
+      ]);
+      
+      console.log('✅ Quiz inserted successfully with ID:', result.insertId);
+      
+      return {
+        quizzes_id: result.insertId,
+        ...quizData
+      };
+    } catch (insertError) {
+      console.error('❌ SQL INSERT ERROR:', insertError);
+      throw insertError;
+    }
   } catch (error) {
     console.error('Error creating quiz:', error);
     throw error;
