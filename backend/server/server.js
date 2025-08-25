@@ -4,7 +4,7 @@ require('dotenv').config({ path: '../.env' })
 
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
-const { generateTemporaryPassword, sendWelcomeEmail, testEmailConnection } = require('../services/emailService')
+const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, testEmailConnection } = require('../services/emailService')
 const { 
   getAllSubjects, 
   getSubjectById, 
@@ -834,9 +834,40 @@ app.put('/api/tutor-applications/:id/approve', async (req, res) => {
     console.log(`✅ Tutor application ${applicationId} approved successfully`);
     console.log(`✅ User ${application.user_id} role updated to Tutor`);
     
+    // Send approval email to the user
+    try {
+      console.log(`Sending approval email to ${application.user_id}...`);
+      
+      // Get user details for email
+      const user = await findUserById(pool, application.user_id);
+      
+      // Get subject details for email
+      const subject = await getSubjectById(pool, application.subject_id);
+      
+      if (user && subject) {
+        const emailResult = await sendTutorApprovalEmail(
+          user.email,
+          `${user.first_name} ${user.last_name}`,
+          subject.subject_name,
+          subject.subject_code
+        );
+        
+        if (emailResult.success) {
+          console.log(`✅ Approval email sent successfully to ${user.email}`);
+        } else {
+          console.log(`⚠️ Failed to send approval email: ${emailResult.error}`);
+        }
+      } else {
+        console.log(`⚠️ User or subject not found for email notification`);
+      }
+    } catch (emailError) {
+      console.log(`⚠️ Error sending approval email: ${emailError.message}`);
+      // Don't fail the approval if email fails
+    }
+    
     res.status(200).json({ 
       success: true,
-      message: 'Tutor application approved successfully. User role updated to Tutor.'
+      message: 'Tutor application approved successfully. User role updated to Tutor and approval email sent.'
     });
   } catch (err) {
     console.error('Error approving tutor application:', err);
@@ -898,9 +929,44 @@ app.put('/api/tutor-applications/:id/reject', async (req, res) => {
 
     console.log(`✅ Tutor application ${applicationId} rejected successfully`);
     
+    // Send rejection email to the user
+    try {
+      console.log(`Sending rejection email to user ${application.user_id}...`);
+      
+      // Get user details for email
+      const user = await findUserById(pool, application.user_id);
+      
+      // Get subject details for email
+      const subject = await getSubjectById(pool, application.subject_id);
+      
+      if (user && subject) {
+        // You can add a rejection reason from request body if needed
+        const rejectionReason = req.body.rejectionReason || null;
+        
+        const emailResult = await sendTutorRejectionEmail(
+          user.email,
+          `${user.first_name} ${user.last_name}`,
+          subject.subject_name,
+          subject.subject_code,
+          rejectionReason
+        );
+        
+        if (emailResult.success) {
+          console.log(`✅ Rejection email sent successfully to ${user.email}`);
+        } else {
+          console.log(`⚠️ Failed to send rejection email: ${emailResult.error}`);
+        }
+      } else {
+        console.log(`⚠️ User or subject not found for email notification`);
+      }
+    } catch (emailError) {
+      console.log(`⚠️ Error sending rejection email: ${emailError.message}`);
+      // Don't fail the rejection if email fails
+    }
+    
     res.status(200).json({ 
       success: true,
-      message: 'Tutor application rejected successfully'
+      message: 'Tutor application rejected successfully and notification email sent'
     });
   } catch (err) {
     console.error('Error rejecting tutor application:', err);
