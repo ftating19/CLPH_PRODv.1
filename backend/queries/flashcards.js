@@ -9,6 +9,7 @@ const getAllFlashcards = async (pool) => {
         f.question,
         f.answer,
         f.subject_id,
+        f.sub_id,
         f.created_by,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as creator_name
@@ -34,6 +35,7 @@ const getAllFlashcardsWithProgress = async (pool, userId) => {
         f.question,
         f.answer,
         f.subject_id,
+        f.sub_id,
         f.created_by,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as creator_name,
@@ -67,6 +69,7 @@ const getFlashcardById = async (pool, flashcardId) => {
         f.question,
         f.answer,
         f.subject_id,
+        f.sub_id,
         f.created_by,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as created_by_name
@@ -92,6 +95,7 @@ const getFlashcardsBySubject = async (pool, subjectId) => {
         f.question,
         f.answer,
         f.subject_id,
+        f.sub_id,
         f.created_by,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as created_by_name
@@ -118,6 +122,7 @@ const getFlashcardsByCreator = async (pool, createdBy) => {
         f.question,
         f.answer,
         f.subject_id,
+        f.sub_id,
         f.created_by,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as created_by_name
@@ -138,19 +143,20 @@ const getFlashcardsByCreator = async (pool, createdBy) => {
 // Create new flashcard
 const createFlashcard = async (pool, flashcardData) => {
   try {
-    const { question, answer, subject_id, created_by } = flashcardData;
+    const { question, answer, subject_id, created_by, sub_id } = flashcardData;
 
     const [result] = await pool.query(`
-      INSERT INTO flashcards (question, answer, subject_id, created_by)
-      VALUES (?, ?, ?, ?)
-    `, [question, answer, subject_id, created_by]);
+      INSERT INTO flashcards (question, answer, subject_id, created_by, sub_id)
+      VALUES (?, ?, ?, ?, ?)
+    `, [question, answer, subject_id, created_by, sub_id]);
 
     return {
       flashcard_id: result.insertId,
       question,
       answer,
       subject_id,
-      created_by
+      created_by,
+      sub_id
     };
   } catch (error) {
     console.error('Error creating flashcard:', error);
@@ -161,13 +167,13 @@ const createFlashcard = async (pool, flashcardData) => {
 // Update flashcard
 const updateFlashcard = async (pool, flashcardId, flashcardData) => {
   try {
-    const { question, answer, subject_id } = flashcardData;
+    const { question, answer, subject_id, sub_id } = flashcardData;
 
     const [result] = await pool.query(`
       UPDATE flashcards 
-      SET question = ?, answer = ?, subject_id = ?
+      SET question = ?, answer = ?, subject_id = ?, sub_id = ?
       WHERE flashcard_id = ?
-    `, [question, answer, subject_id, flashcardId]);
+    `, [question, answer, subject_id, sub_id, flashcardId]);
 
     return result.affectedRows > 0;
   } catch (error) {

@@ -132,6 +132,7 @@ export function useCreateFlashcard() {
     answer: string
     subject_id: number
     created_by: number
+    sub_id?: number
   }) => {
     try {
       setCreating(true)

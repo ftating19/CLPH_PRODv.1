@@ -3164,27 +3164,28 @@ app.get('/api/flashcards/creator/:userId', async (req, res) => {
 // Create new flashcard
 app.post('/api/flashcards', async (req, res) => {
   try {
-    const { question, answer, subject_id, created_by } = req.body;
-    
+    const { question, answer, subject_id, created_by, sub_id } = req.body;
+
     if (!question || !answer || !subject_id || !created_by) {
       return res.status(400).json({ 
         success: false,
         error: 'Question, answer, subject_id, and created_by are required' 
       });
     }
-    
-    console.log(`Creating new flashcard: ${question}`);
-    
+
+    console.log(`Creating new flashcard: ${question}, sub_id: ${sub_id}`);
+
     const pool = await db.getPool();
     const flashcard = await createFlashcard(pool, {
       question,
       answer,
       subject_id,
-      created_by
+      created_by,
+      sub_id
     });
-    
+
     console.log(`✅ Flashcard created successfully: ${question}`);
-    
+
     res.status(201).json({
       success: true,
       flashcard: flashcard,

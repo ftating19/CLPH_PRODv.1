@@ -74,11 +74,10 @@ export default function Flashcards() {
   // Permission helper functions
   // Permission logic for Students, Tutors, Faculty, Admin
   const canManageFlashcard = (flashcard: any) => {
-    // Only allow the creator to manage their flashcard, or admin to manage any flashcard
+    // Allow admin to manage any flashcard
     if (!currentUser) return false;
     if (userRole === 'admin') {
-      // Admin can only edit sets they created
-      return Number(flashcard.created_by) === Number(user_id);
+      return true;
     }
     // For student, tutor, faculty: only allow editing own sets
     return Number(flashcard.created_by) === Number(user_id);
@@ -155,10 +154,9 @@ export default function Flashcards() {
     return matchesSearch && matchesSubject && matchesDifficulty
   })
 
-  // Group filtered flashcards by subject to create sets
+  // Group filtered flashcards by sub_id to create sets
   const flashcardGroupedSets = filteredFlashcards.reduce((sets: any[], flashcard: any) => {
-    const existingSet = sets.find(set => set.subject === flashcard.subject_name)
-    
+    const existingSet = sets.find(set => set.sub_id === flashcard.sub_id)
     if (existingSet) {
       existingSet.cards.push({
         id: flashcard.flashcard_id,
@@ -167,12 +165,7 @@ export default function Flashcards() {
         status: flashcard.status || 'not_started',
         completed_at: flashcard.completed_at
       })
-  // Preserve creator info on the set (use first flashcard's creator)
-  existingSet.creator_name = existingSet.creator_name || flashcard.creator_name
-  existingSet.creator_role = existingSet.creator_role || flashcard.creator_role
-  existingSet.created_by = existingSet.created_by || flashcard.created_by
       existingSet.cardCount = existingSet.cards.length
-      
       // Calculate progress percentage for this set
       const completedCards = existingSet.cards.filter((card: any) => card.status === 'completed').length
       existingSet.progress = Math.round((completedCards / existingSet.cardCount) * 100)
@@ -180,17 +173,16 @@ export default function Flashcards() {
     } else {
       const cardStatus = flashcard.status || 'not_started'
       const completedCards = cardStatus === 'completed' ? 1 : 0
-      
       sets.push({
-        id: flashcard.subject_id,
-        title: `${flashcard.subject_name} Cards`,
+        id: flashcard.sub_id,
+        sub_id: flashcard.sub_id,
+        title: `Set #${flashcard.sub_id}`,
         subject: flashcard.subject_name,
-  // carry creator info from the flashcard
-  creator_name: flashcard.creator_name,
-  creator_role: flashcard.creator_role,
-  created_by: flashcard.created_by,
+        creator_name: flashcard.creator_name,
+        creator_role: flashcard.creator_role,
+        created_by: flashcard.created_by,
         cardCount: 1,
-        description: `Study flashcards for ${flashcard.subject_name}`,
+        description: `Flashcard set #${flashcard.sub_id}`,
         difficulty: "Mixed",
         lastStudied: new Date().toISOString().split('T')[0],
         progress: completedCards * 100,
@@ -392,6 +384,13 @@ export default function Flashcards() {
         return
       }
 
+      // Find the max sub_id from all flashcards to increment
+      let maxSubId = 0;
+      if (flashcards && flashcards.length > 0) {
+        maxSubId = Math.max(...flashcards.map((fc: any) => fc.sub_id || 0));
+      }
+      const newSubId = maxSubId + 1;
+
       if (editingFlashcardSet) {
         // Update existing flashcard set
         // First, delete all existing flashcards in the set
@@ -403,14 +402,15 @@ export default function Flashcards() {
           }
         }
 
-        // Then create new flashcards
+        // Then create new flashcards with the same sub_id
         for (const [index, flashcard] of flashcardsList.entries()) {
           try {
             await createFlashcard({
               question: flashcard.question.trim(),
               answer: flashcard.answer.trim(),
               subject_id: subject.subject_id,
-              created_by: currentUser?.user_id || 1
+              created_by: currentUser?.user_id || 1,
+              sub_id: editingFlashcardSet.sub_id || newSubId
             })
           } catch (flashcardError) {
             console.error(`Error creating flashcard ${index + 1}:`, flashcardError)
@@ -422,14 +422,15 @@ export default function Flashcards() {
           description: `Updated flashcard set with ${flashcardsList.length} flashcards successfully!`
         })
       } else {
-        // Create new flashcard set
+        // Create new flashcard set with new sub_id
         for (const [index, flashcard] of flashcardsList.entries()) {
           try {
             await createFlashcard({
               question: flashcard.question.trim(),
               answer: flashcard.answer.trim(),
               subject_id: subject.subject_id,
-              created_by: currentUser?.user_id || 1
+              created_by: currentUser?.user_id || 1,
+              sub_id: newSubId
             })
           } catch (flashcardError) {
             console.error(`Error creating flashcard ${index + 1}:`, flashcardError)
@@ -648,7 +649,8 @@ export default function Flashcards() {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <CardTitle className="text-xl">{set.title}</CardTitle>
+              {/* Set name/title hidden */}
+              {/* <CardTitle className="text-xl">{set.title}</CardTitle> */}
               <CardDescription className="text-base mt-1">{set.subject}</CardDescription>
               <Badge variant={set.difficulty === "Beginner" ? "secondary" : set.difficulty === "Intermediate" ? "default" : "destructive"}>
                 {set.difficulty}
