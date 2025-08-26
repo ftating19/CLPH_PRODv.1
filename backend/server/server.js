@@ -13,6 +13,15 @@ const {
   deleteSubject 
 } = require('../queries/subjects')
 const { 
+  getAllFlashcards,
+  getFlashcardById,
+  getFlashcardsBySubject,
+  getFlashcardsByCreator,
+  createFlashcard,
+  updateFlashcard,
+  deleteFlashcard
+} = require('../queries/flashcards')
+const { 
   getAllQuizzes, 
   getQuizById, 
   getQuizzesBySubject, 
@@ -2992,6 +3001,285 @@ app.get('/api/quiz-attempts/statistics/:quizId', async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching quiz statistics:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ============ FLASHCARDS ENDPOINTS ============
+
+// Get all flashcards
+app.get('/api/flashcards', async (req, res) => {
+  try {
+    console.log('Fetching all flashcards');
+    
+    const pool = await db.getPool();
+    const flashcards = await getAllFlashcards(pool);
+    
+    console.log(`✅ Retrieved ${flashcards.length} flashcards`);
+    
+    res.json({
+      success: true,
+      flashcards: flashcards,
+      total: flashcards.length
+    });
+  } catch (err) {
+    console.error('Error fetching flashcards:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get flashcard by ID
+app.get('/api/flashcards/:id', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.id);
+    
+    if (!flashcardId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid flashcard ID is required' 
+      });
+    }
+    
+    console.log(`Fetching flashcard ID: ${flashcardId}`);
+    
+    const pool = await db.getPool();
+    const flashcard = await getFlashcardById(pool, flashcardId);
+    
+    if (!flashcard) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Flashcard not found' 
+      });
+    }
+    
+    console.log(`✅ Flashcard retrieved: ${flashcard.question}`);
+    
+    res.json({
+      success: true,
+      flashcard: flashcard
+    });
+  } catch (err) {
+    console.error('Error fetching flashcard:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get flashcards by subject
+app.get('/api/flashcards/subject/:subjectId', async (req, res) => {
+  try {
+    const subjectId = parseInt(req.params.subjectId);
+    
+    if (!subjectId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid subject ID is required' 
+      });
+    }
+    
+    console.log(`Fetching flashcards for subject ID: ${subjectId}`);
+    
+    const pool = await db.getPool();
+    const flashcards = await getFlashcardsBySubject(pool, subjectId);
+    
+    console.log(`✅ Retrieved ${flashcards.length} flashcards for subject`);
+    
+    res.json({
+      success: true,
+      flashcards: flashcards,
+      total: flashcards.length
+    });
+  } catch (err) {
+    console.error('Error fetching flashcards by subject:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get flashcards by creator
+app.get('/api/flashcards/creator/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid user ID is required' 
+      });
+    }
+    
+    console.log(`Fetching flashcards created by user ID: ${userId}`);
+    
+    const pool = await db.getPool();
+    const flashcards = await getFlashcardsByCreator(pool, userId);
+    
+    console.log(`✅ Retrieved ${flashcards.length} flashcards by creator`);
+    
+    res.json({
+      success: true,
+      flashcards: flashcards,
+      total: flashcards.length
+    });
+  } catch (err) {
+    console.error('Error fetching flashcards by creator:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Create new flashcard
+app.post('/api/flashcards', async (req, res) => {
+  try {
+    const { question, answer, subject_id, created_by } = req.body;
+    
+    if (!question || !answer || !subject_id || !created_by) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Question, answer, subject_id, and created_by are required' 
+      });
+    }
+    
+    console.log(`Creating new flashcard: ${question}`);
+    
+    const pool = await db.getPool();
+    const flashcard = await createFlashcard(pool, {
+      question,
+      answer,
+      subject_id,
+      created_by
+    });
+    
+    console.log(`✅ Flashcard created successfully: ${question}`);
+    
+    res.status(201).json({
+      success: true,
+      flashcard: flashcard,
+      message: 'Flashcard created successfully'
+    });
+  } catch (err) {
+    console.error('Error creating flashcard:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Update flashcard
+app.put('/api/flashcards/:id', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.id);
+    const { question, answer, subject_id } = req.body;
+    
+    if (!flashcardId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid flashcard ID is required' 
+      });
+    }
+    
+    if (!question || !answer || !subject_id) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Question, answer, and subject_id are required' 
+      });
+    }
+    
+    console.log(`Updating flashcard ID: ${flashcardId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if flashcard exists
+    const existingFlashcard = await getFlashcardById(pool, flashcardId);
+    if (!existingFlashcard) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Flashcard not found' 
+      });
+    }
+    
+    const updated = await updateFlashcard(pool, flashcardId, {
+      question,
+      answer,
+      subject_id
+    });
+    
+    if (!updated) {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to update flashcard' 
+      });
+    }
+    
+    console.log(`✅ Flashcard updated successfully: ${question}`);
+    
+    res.json({
+      success: true,
+      message: 'Flashcard updated successfully'
+    });
+  } catch (err) {
+    console.error('Error updating flashcard:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete flashcard
+app.delete('/api/flashcards/:id', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.id);
+    
+    if (!flashcardId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid flashcard ID is required' 
+      });
+    }
+    
+    console.log(`Deleting flashcard ID: ${flashcardId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if flashcard exists
+    const existingFlashcard = await getFlashcardById(pool, flashcardId);
+    if (!existingFlashcard) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Flashcard not found' 
+      });
+    }
+    
+    const deleted = await deleteFlashcard(pool, flashcardId);
+    
+    if (!deleted) {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to delete flashcard' 
+      });
+    }
+    
+    console.log(`✅ Flashcard deleted successfully: ${existingFlashcard.question}`);
+    
+    res.json({
+      success: true,
+      message: 'Flashcard deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting flashcard:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
