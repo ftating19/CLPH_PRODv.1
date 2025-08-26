@@ -264,7 +264,7 @@ export default function Flashcards() {
           <h1 className="text-3xl font-bold">Flashcards</h1>
           <p className="text-muted-foreground">Study with interactive flashcard sets</p>
         </div>
-        {userRole === "admin" && (
+        {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") && (
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
               <Button>
@@ -327,7 +327,7 @@ export default function Flashcards() {
         <div className="text-center py-12">
           <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcard sets yet</h3>
-          {userRole === "admin" ? (
+          {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") ? (
             <>
               <p className="text-sm text-muted-foreground mb-4">
                 Create your first flashcard set to start studying

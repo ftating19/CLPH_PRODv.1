@@ -15,6 +15,13 @@ export const USER_ROLES = [
   "Admin"
 ] as const;
 
+// Role options for creating new users (excludes Tutor)
+export const USER_ROLES_CREATE = [
+  "Student",
+  "Faculty",
+  "Admin"
+] as const;
+
 // Account status options
 export const ACCOUNT_STATUSES = [
   "Active",

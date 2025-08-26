@@ -422,18 +422,22 @@ export default function Quizzes() {
       console.log('Subject Name being sent:', subject.subject_name);
       console.log('===========================');
 
-      const response = await fetch('http://localhost:4000/api/quizzes', {
+      const url = currentQuiz 
+        ? `http://localhost:4000/api/quizzes/${currentQuiz.id || currentQuiz.quiz_id}` 
+        : 'http://localhost:4000/api/quizzes'
+      
+      const response = await fetch(url, {
         method: currentQuiz ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(currentQuiz ? { ...quizData, id: currentQuiz.id } : quizData)
+        body: JSON.stringify(quizData)
       })
 
       const result = await response.json()
 
       if (result.success) {
-        const createdQuizId = currentQuiz ? currentQuiz.id : result.quiz.quizzes_id
+        const createdQuizId = currentQuiz ? (currentQuiz.id || currentQuiz.quiz_id) : result.quiz.quizzes_id
         
         // Save all questions to the database
         if (quizQuestions.length > 0) {
@@ -642,7 +646,8 @@ export default function Quizzes() {
     
     // Load questions from database for existing quiz
     try {
-      const response = await fetch(`http://localhost:4000/api/questions/quiz/${quiz.id}`)
+      const quizId = quiz.id || quiz.quiz_id
+      const response = await fetch(`http://localhost:4000/api/questions/quiz/${quizId}`)
       const data = await response.json()
       
       if (data.success && data.questions) {
@@ -710,7 +715,7 @@ export default function Quizzes() {
         )}
 
         <div className="flex space-x-2 pt-2">
-          {userRole === "admin" ? (
+          {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") ? (
             <>
               <Button 
                 className="flex-1" 
@@ -747,7 +752,7 @@ export default function Quizzes() {
         
         {(quiz.questionCount || 0) === 0 && (
           <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-            No questions added yet. {userRole === "admin" ? "Click 'Manage Quiz' to add questions." : "This quiz is not available yet."}
+            No questions added yet. {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") ? "Click 'Manage Quiz' to add questions." : "This quiz is not available yet."}
           </div>
         )}
       </CardContent>
@@ -761,7 +766,7 @@ export default function Quizzes() {
           <h1 className="text-3xl font-bold">Quizzes</h1>
           <p className="text-muted-foreground">Test your knowledge with interactive quizzes</p>
         </div>
-        {userRole === "admin" && (
+        {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") && (
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
               <Button>
@@ -1082,7 +1087,7 @@ export default function Quizzes() {
         <div className="text-center py-12">
           <Brain className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium text-muted-foreground mb-2">No quizzes available</h3>
-          {userRole === "admin" ? (
+          {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") ? (
             <>
               <p className="text-sm text-muted-foreground mb-4">
                 Create your first quiz to start testing knowledge

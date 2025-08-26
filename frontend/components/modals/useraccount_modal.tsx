@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { CICT_PROGRAMS, USER_ROLES } from "@/lib/constants";
+import { CICT_PROGRAMS, USER_ROLES_CREATE } from "@/lib/constants";
 
 interface UserAccountModalProps {
 	open: boolean;
@@ -175,7 +175,7 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 									<SelectValue placeholder="Select a role" />
 								</SelectTrigger>
 								<SelectContent>
-									{USER_ROLES.map((role) => (
+									{USER_ROLES_CREATE.map((role) => (
 										<SelectItem key={role} value={role}>
 											{role}
 										</SelectItem>
