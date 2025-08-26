@@ -163,8 +163,32 @@ export default function Quizzes() {
 
   // Permission helper functions
   const canManageQuiz = (quiz: any) => {
-    // Allow any role to manage any quiz
-    return true
+    // Only allow the creator to manage their quiz, or admins to manage any quiz
+    return Number(quiz.created_by) === Number(user_id) || userRole === 'admin'
+  }
+
+  const checkQuizPermissionAndManage = (quiz: any) => {
+    if (canManageQuiz(quiz)) {
+      handleManageQuiz(quiz)
+    } else {
+      toast({
+        title: "Access Denied",
+        description: "You can only edit quizzes that you created.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const checkQuizPermissionAndDelete = (quiz: any) => {
+    if (canManageQuiz(quiz)) {
+      handleDeleteQuiz(quiz)
+    } else {
+      toast({
+        title: "Access Denied",
+        description: "You can only delete quizzes that you created.",
+        variant: "destructive",
+      })
+    }
   }
 
   const getCreatorIndicator = (quiz: any) => {
@@ -763,47 +787,54 @@ export default function Quizzes() {
           </div>
         </div>
 
-        <div className="flex space-x-2 pt-2">
-          <Button 
-            className="flex-1" 
-            onClick={() => {
-              // Show first quiz in set or navigate to set view
-              if (set.quizzes.length > 0) {
-                setSelectedQuiz(set.quizzes[0])
-                startQuiz(set.quizzes[0], false)
-              }
-            }}
-          >
-            <Play className="w-4 h-4 mr-2" />
-            Start Quizzes
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-              // Manage first quiz in the set
-              if (set.quizzes.length > 0) {
-                handleManageQuiz(set.quizzes[0])
-              }
-            }}
-          >
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-              // Delete first quiz in the set
-              if (set.quizzes.length > 0) {
-                handleDeleteQuiz(set.quizzes[0])
-              }
-            }}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="sm">
-            <Star className="w-4 h-4" />
-          </Button>
+        {/* Individual Quiz Items in Set */}
+        <div className="space-y-2">
+          {set.quizzes.map((quiz: Quiz) => (
+            <div key={quiz.id} className="p-3 border rounded-lg bg-muted/30">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h4 className="font-medium text-sm">{quiz.title}</h4>
+                  <div className="flex items-center space-x-3 text-xs text-muted-foreground mt-1">
+                    <span>{quiz.questionCount || 0} questions</span>
+                    <span>{formatDuration(parseInt(quiz.duration) || 0, quiz.duration_unit)}</span>
+                    <span>{quiz.difficulty}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Created by: {getCreatorIndicator(quiz)}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Button 
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => startQuiz(quiz, false)}
+                    disabled={(quiz.questionCount || 0) === 0}
+                  >
+                    <Play className="w-3 h-3" />
+                  </Button>
+                  <Button 
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => checkQuizPermissionAndManage(quiz)}
+                  >
+                    <Edit className="w-3 h-3" />
+                  </Button>
+                  <Button 
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => checkQuizPermissionAndDelete(quiz)}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+              {(quiz.questionCount || 0) === 0 && (
+                <div className="text-xs text-amber-600 bg-amber-50 p-1 rounded mt-2">
+                  No questions added yet
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
@@ -860,7 +891,7 @@ export default function Quizzes() {
           <Button 
             className="flex-1" 
             variant="outline"
-            onClick={() => handleManageQuiz(quiz)}
+            onClick={() => checkQuizPermissionAndManage(quiz)}
           >
             <Edit className="w-4 h-4 mr-2" />
             Manage Quiz
@@ -876,7 +907,7 @@ export default function Quizzes() {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => handleDeleteQuiz(quiz)}
+            onClick={() => checkQuizPermissionAndDelete(quiz)}
           >
             <Trash2 className="w-4 h-4" />
           </Button>
