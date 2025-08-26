@@ -17,13 +17,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Layers, Plus, RotateCcw, ChevronLeft, ChevronRight, BookOpen, Brain, Search, Filter, Star, Clock, Trash2, Edit } from "lucide-react"
+import { Layers, Plus, RotateCcw, ChevronLeft, ChevronRight, BookOpen, Brain, Search, Filter, Star, Clock, Trash2, Edit, List, User } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useFlashcards, useCreateFlashcard, useUpdateFlashcard, useDeleteFlashcard } from "@/hooks/use-flashcards"
@@ -38,11 +48,53 @@ export default function Flashcards() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingFlashcard, setEditingFlashcard] = useState<any | null>(null)
 
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("")
+  const [showFilters, setShowFilters] = useState(false)
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all")
+  const [selectedDifficultyFilter, setSelectedDifficultyFilter] = useState<string>("all")
+
   const { currentUser } = useUser()
   const { toast } = useToast()
 
   // Get user role from context, default to 'student' if not available
   const userRole = currentUser?.role?.toLowerCase() || 'student'
+  const user_id = currentUser?.user_id
+
+  // Permission helper functions
+  const canManageFlashcard = (flashcard: any) => {
+    // Only allow the creator to manage their flashcard, or admins to manage any flashcard
+    return Number(flashcard.created_by) === Number(user_id) || userRole === 'admin'
+  }
+
+  const checkFlashcardPermissionAndEdit = (flashcard: any) => {
+    if (canManageFlashcard(flashcard)) {
+      openEditDialog(flashcard)
+    } else {
+      toast({
+        title: "Access Denied",
+        description: "You can only edit flashcards that you created.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const checkFlashcardPermissionAndDelete = (flashcard: any) => {
+    if (canManageFlashcard(flashcard)) {
+      handleDeleteFlashcard(flashcard.flashcard_id)
+    } else {
+      toast({
+        title: "Access Denied",
+        description: "You can only delete flashcards that you created.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const getCreatorIndicator = (flashcard: any) => {
+    if (Number(flashcard.created_by) === Number(user_id)) return "You"
+    return flashcard.creator_name || "Unknown"
+  }
 
   // Form states for flashcard creation
   const [question, setQuestion] = useState("")
@@ -56,8 +108,25 @@ export default function Flashcards() {
   const { updateFlashcard, updating } = useUpdateFlashcard()
   const { deleteFlashcard, deleting } = useDeleteFlashcard()
 
-  // Group flashcards by subject to create sets
-  const flashcardGroupedSets = flashcards.reduce((sets: any[], flashcard: any) => {
+  // Filter flashcards based on search and filter criteria
+  const filteredFlashcards = flashcards.filter((flashcard: any) => {
+    // Search filter
+    const matchesSearch = searchQuery.trim() === "" || 
+      flashcard.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      flashcard.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      flashcard.subject_name.toLowerCase().includes(searchQuery.toLowerCase())
+
+    // Subject filter
+    const matchesSubject = selectedSubjectFilter === "all" || flashcard.subject_name === selectedSubjectFilter
+
+    // Difficulty filter (assuming difficulty is available, otherwise always match)
+    const matchesDifficulty = selectedDifficultyFilter === "all" || (flashcard.difficulty || "Mixed") === selectedDifficultyFilter
+
+    return matchesSearch && matchesSubject && matchesDifficulty
+  })
+
+  // Group filtered flashcards by subject to create sets
+  const flashcardGroupedSets = filteredFlashcards.reduce((sets: any[], flashcard: any) => {
     const existingSet = sets.find(set => set.subject === flashcard.subject_name)
     
     if (existingSet) {
@@ -272,8 +341,6 @@ export default function Flashcards() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">{set.description}</p>
-        
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center space-x-4">
             <div className="flex items-center">
@@ -295,10 +362,59 @@ export default function Flashcards() {
           <Progress value={set.progress} className="h-2" />
         </div>
 
+        {/* Individual Flashcard Items in Set */}
+        <div className="space-y-2">
+          {set.cards.map((card: any) => {
+            // Find the full flashcard data to check permissions
+            const fullFlashcard = filteredFlashcards.find(f => f.flashcard_id === card.id)
+            return (
+              <div key={card.id} className="p-3 border rounded-lg bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-sm truncate">{card.front}</h4>
+                    <p className="text-xs text-muted-foreground truncate mt-1">{card.back}</p>
+                    {fullFlashcard && (
+                      <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
+                        <User className="w-3 h-3" />
+                        <span>Created by: {getCreatorIndicator(fullFlashcard)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Button 
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        if (fullFlashcard) {
+                          checkFlashcardPermissionAndEdit(fullFlashcard)
+                        }
+                      }}
+                    >
+                      <Edit className="w-3 h-3" />
+                    </Button>
+                    <Button 
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        if (fullFlashcard) {
+                          checkFlashcardPermissionAndDelete(fullFlashcard)
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
         <div className="flex space-x-2 pt-2">
           <Button 
             className="flex-1" 
             onClick={() => startStudying(set)}
+            disabled={set.cardCount === 0}
           >
             <Brain className="w-4 h-4 mr-2" />
             Study Now
@@ -306,37 +422,13 @@ export default function Flashcards() {
           <Button variant="outline" size="sm">
             <Star className="w-4 h-4" />
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-              // Edit first card in the set or create new if no cards
-              if (set.cards.length > 0) {
-                const firstCard = set.cards[0];
-                const flashcard = {
-                  flashcard_id: firstCard.id,
-                  question: firstCard.front,
-                      answer: firstCard.back,
-                      subject_name: set.subject
-                    };
-                    openEditDialog(flashcard);
-                  }
-                }}
-              >
-                <Edit className="w-4 h-4" />
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  if (set.cards.length > 0 && confirm(`Are you sure you want to delete all flashcards in ${set.title}?`)) {
-                    set.cards.forEach((card: any) => handleDeleteFlashcard(card.id));
-                  }
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
         </div>
+        
+        {set.cardCount === 0 && (
+          <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+            No flashcards in this set yet.
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -449,33 +541,108 @@ export default function Flashcards() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between space-x-4">
+      <div className="flex items-center space-x-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input placeholder="Search flashcards..." className="pl-10" />
+          <Input 
+            placeholder="Search flashcards by question, answer or subject..." 
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-        <div className="flex items-center space-x-2">
-          <Button 
-            variant={viewMode === "sets" ? "default" : "outline"} 
+        
+        {/* View Mode Toggle */}
+        <div className="flex items-center border rounded-md">
+          <Button
+            variant={viewMode === "sets" ? "default" : "ghost"}
             size="sm"
             onClick={() => setViewMode("sets")}
+            className="rounded-r-none"
           >
             <Layers className="w-4 h-4 mr-2" />
             Sets
           </Button>
-          <Button 
-            variant={viewMode === "list" ? "default" : "outline"} 
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
             size="sm"
             onClick={() => setViewMode("list")}
+            className="rounded-l-none"
           >
-            <BookOpen className="w-4 h-4 mr-2" />
+            <List className="w-4 h-4 mr-2" />
             List
           </Button>
-          <Button variant="outline">
-            <Filter className="w-4 h-4 mr-2" />
-            Filters
-          </Button>
         </div>
+        
+        <Dialog open={showFilters} onOpenChange={setShowFilters}>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <Filter className="w-4 h-4 mr-2" />
+              Filters
+              {(selectedSubjectFilter !== "all" || selectedDifficultyFilter !== "all") && (
+                <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                  {[selectedSubjectFilter, selectedDifficultyFilter].filter(f => f !== "all").length}
+                </span>
+              )}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Filter Flashcards</DialogTitle>
+              <DialogDescription>
+                Filter flashcards by subject and difficulty
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Subject</Label>
+                <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All subjects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subjects</SelectItem>
+                    {subjects.map((subject) => (
+                      <SelectItem key={subject.subject_id} value={subject.subject_name}>
+                        {subject.subject_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Difficulty</Label>
+                <Select value={selectedDifficultyFilter} onValueChange={setSelectedDifficultyFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All difficulties" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Difficulties</SelectItem>
+                    <SelectItem value="Beginner">Beginner</SelectItem>
+                    <SelectItem value="Intermediate">Intermediate</SelectItem>
+                    <SelectItem value="Advanced">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-between pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSelectedSubjectFilter("all")
+                    setSelectedDifficultyFilter("all")
+                  }}
+                >
+                  Clear Filters
+                </Button>
+                <Button onClick={() => setShowFilters(false)}>
+                  Apply Filters
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {viewMode === "sets" ? (
@@ -489,29 +656,50 @@ export default function Flashcards() {
           {flashcardGroupedSets.length === 0 && (
             <div className="text-center py-12">
               <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcards yet</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Create your first flashcard to start studying
-              </p>
-              <Button onClick={() => setShowCreateDialog(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Flashcard
-              </Button>
+              {filteredFlashcards.length === 0 && flashcards.length === 0 ? (
+                <>
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcards yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Create your first flashcard to start studying
+                  </p>
+                  <Button onClick={() => setShowCreateDialog(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Your First Flashcard
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcards match your filters</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Try adjusting your search terms or filters to find flashcards
+                  </p>
+                  <div className="flex justify-center space-x-2">
+                    <Button variant="outline" onClick={() => {
+                      setSearchQuery("")
+                      setSelectedSubjectFilter("all")
+                      setSelectedDifficultyFilter("all")
+                    }}>
+                      Clear All Filters
+                    </Button>
+                    <Button onClick={() => setShowCreateDialog(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create New Flashcard
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </>
       ) : (
         <>
           <div className="space-y-4">
-            {flashcards.map((flashcard: any) => (
+            {filteredFlashcards.map((flashcard: any) => (
               <Card key={flashcard.flashcard_id} className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <Badge variant="secondary">{flashcard.subject_name}</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        by {flashcard.creator_name}
-                      </span>
                     </div>
                     <div className="space-y-2">
                       <div>
@@ -523,19 +711,25 @@ export default function Flashcards() {
                         <p className="text-sm">{flashcard.answer}</p>
                       </div>
                     </div>
+                    
+                    {/* Creator indicator */}
+                    <div className="flex items-center space-x-2 text-xs text-muted-foreground border-t pt-2 mt-2">
+                      <User className="w-3 h-3" />
+                      <span>Created by: {getCreatorIndicator(flashcard)}</span>
+                    </div>
                   </div>
                   <div className="flex items-center space-x-2 ml-4">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => openEditDialog(flashcard)}
+                      onClick={() => checkFlashcardPermissionAndEdit(flashcard)}
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDeleteFlashcard(flashcard.flashcard_id)}
+                      onClick={() => checkFlashcardPermissionAndDelete(flashcard)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -545,17 +739,41 @@ export default function Flashcards() {
             ))}
           </div>
 
-          {flashcards.length === 0 && (
+          {filteredFlashcards.length === 0 && (
             <div className="text-center py-12">
               <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcards yet</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Create your first flashcard to start studying
-              </p>
-              <Button onClick={() => setShowCreateDialog(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Flashcard
-              </Button>
+              {flashcards.length === 0 ? (
+                <>
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcards yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Create your first flashcard to start studying
+                  </p>
+                  <Button onClick={() => setShowCreateDialog(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Your First Flashcard
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcards match your filters</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Try adjusting your search terms or filters to find flashcards
+                  </p>
+                  <div className="flex justify-center space-x-2">
+                    <Button variant="outline" onClick={() => {
+                      setSearchQuery("")
+                      setSelectedSubjectFilter("all")
+                      setSelectedDifficultyFilter("all")
+                    }}>
+                      Clear All Filters
+                    </Button>
+                    <Button onClick={() => setShowCreateDialog(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create New Flashcard
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </>
