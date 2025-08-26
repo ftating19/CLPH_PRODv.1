@@ -2507,24 +2507,23 @@ app.get('/api/questions/:id', async (req, res) => {
 // Create new question
 app.post('/api/questions', async (req, res) => {
   try {
-    const { quiz_id, question_text, question_type, choices, correct_answer, explanation, points } = req.body;
+    const { quizzes_id, question, choices, answer, explanation, points } = req.body;
     
-    if (!quiz_id || !question_text || !question_type || !correct_answer) {
+    if (!quizzes_id || !question || !answer) {
       return res.status(400).json({ 
         success: false,
-        error: 'quiz_id, question_text, question_type, and correct_answer are required' 
+        error: 'quizzes_id, question, and answer are required' 
       });
     }
     
-    console.log(`Creating new question for quiz ID: ${quiz_id}`);
+    console.log(`Creating new question for quiz ID: ${quizzes_id}`);
     
     const pool = await db.getPool();
     const newQuestion = await createQuestion(pool, {
-      quiz_id,  // This will be mapped to quizzes_id in the function
-      question_text,
-      question_type,
+      quizzes_id,
+      question,
       choices,
-      correct_answer,  // This will be mapped to answer in the function
+      answer,
       explanation,
       points
     });

@@ -459,11 +459,10 @@ export default function Quizzes() {
           for (const [index, question] of quizQuestions.entries()) {
             try {
               const questionData = {
-                quiz_id: createdQuizId,
-                question_text: question.question,
-                question_type: question.type,
+                quizzes_id: createdQuizId,  // Changed from quiz_id to quizzes_id
+                question: question.question,  // Changed from question_text to question
                 choices: question.options || [],
-                correct_answer: question.correctAnswer,
+                answer: question.correctAnswer,  // Changed from correct_answer to answer
                 explanation: question.explanation || null,
                 points: question.points || 1
               }

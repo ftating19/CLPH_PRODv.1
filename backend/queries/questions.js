@@ -50,46 +50,36 @@ const getQuestionById = async (pool, questionId) => {
 const createQuestion = async (pool, questionData) => {
   try {
     const {
-      quiz_id,
       quizzes_id,
-      question_text,
-      question_type,
+      question,
       choices,
-      correct_answer,
       answer,
       explanation,
       points
     } = questionData;
     
-    // Use quiz_id if provided, otherwise use quizzes_id for backward compatibility
-    const finalQuizId = quiz_id || quizzes_id;
-    // Use correct_answer if provided, otherwise use answer for backward compatibility
-    const finalAnswer = correct_answer || answer;
-    
     // Convert choices array to JSON string if needed
     const choicesData = Array.isArray(choices) ? JSON.stringify(choices) : choices;
     
-    // Check if we have the additional fields and include them if the table supports them
-    // Using the correct column name 'question' instead of 'question_text'
     const [result] = await pool.query(`
       INSERT INTO questions (
         quizzes_id, question, choices, answer, points, explanation
       ) VALUES (?, ?, ?, ?, ?, ?)
     `, [
-      finalQuizId, 
-      question_text || '', 
+      quizzes_id, 
+      question || '', 
       choicesData, 
-      finalAnswer, 
+      answer, 
       points || 1, 
       explanation || null
     ]);
     
     return {
       question_id: result.insertId,
-      quizzes_id: finalQuizId,
-      question: question_text || '',
+      quizzes_id: quizzes_id,
+      question: question || '',
       choices: Array.isArray(choices) ? choices : JSON.parse(choices || '[]'),
-      answer: finalAnswer,
+      answer: answer,
       points: points || 1,
       explanation: explanation || null
     };
