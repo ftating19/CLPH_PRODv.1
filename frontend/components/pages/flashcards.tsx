@@ -926,26 +926,7 @@ export default function Flashcards() {
         </div>
         
         {/* View Mode Toggle */}
-        <div className="flex items-center border rounded-md">
-          <Button
-            variant={viewMode === "sets" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("sets")}
-            className="rounded-r-none"
-          >
-            <Layers className="w-4 h-4 mr-2" />
-            Sets
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("list")}
-            className="rounded-l-none"
-          >
-            <List className="w-4 h-4 mr-2" />
-            List
-          </Button>
-        </div>
+    {/* Hide list type, only show set type */}
         
         <Dialog open={showFilters} onOpenChange={setShowFilters}>
           <DialogTrigger asChild>
