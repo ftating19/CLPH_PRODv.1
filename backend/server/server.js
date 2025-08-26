@@ -12,8 +12,9 @@ const {
   updateSubject, 
   deleteSubject 
 } = require('../queries/subjects')
-const { 
+const {
   getAllFlashcards,
+  getAllFlashcardsWithProgress,
   getFlashcardById,
   getFlashcardsBySubject,
   getFlashcardsByCreator,
@@ -21,6 +22,19 @@ const {
   updateFlashcard,
   deleteFlashcard
 } = require('../queries/flashcards')
+
+// Import flashcard progress queries
+const {
+  getFlashcardProgressByUser,
+  getFlashcardProgress,
+  getFlashcardsWithProgress,
+  upsertFlashcardProgress,
+  markFlashcardCompleted,
+  resetFlashcardProgress,
+  getFlashcardProgressStats,
+  getFlashcardProgressStatsBySubject,
+  deleteFlashcardProgress
+} = require('../queries/flashcardProgress')
 const { 
   getAllQuizzes, 
   getQuizById, 
@@ -3012,10 +3026,19 @@ app.get('/api/quiz-attempts/statistics/:quizId', async (req, res) => {
 // Get all flashcards
 app.get('/api/flashcards', async (req, res) => {
   try {
-    console.log('Fetching all flashcards');
+    const { user_id } = req.query;
+    console.log('Fetching all flashcards', user_id ? `with progress for user ${user_id}` : '');
     
     const pool = await db.getPool();
-    const flashcards = await getAllFlashcards(pool);
+    let flashcards;
+    
+    if (user_id) {
+      // Get flashcards with progress for specific user
+      flashcards = await getAllFlashcardsWithProgress(pool, parseInt(user_id));
+    } else {
+      // Get all flashcards without progress
+      flashcards = await getAllFlashcards(pool);
+    }
     
     console.log(`✅ Retrieved ${flashcards.length} flashcards`);
     
@@ -3279,6 +3302,251 @@ app.delete('/api/flashcards/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('Error deleting flashcard:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ============ FLASHCARD PROGRESS ENDPOINTS ============
+
+// Get flashcard progress statistics for a user
+app.get('/api/flashcards/progress/stats/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid user ID is required' 
+      });
+    }
+    
+    console.log(`Fetching flashcard progress stats for user ID: ${userId}`);
+    
+    const pool = await db.getPool();
+    const stats = await getFlashcardProgressStats(pool, userId);
+    const statsBySubject = await getFlashcardProgressStatsBySubject(pool, userId);
+    
+    console.log(`✅ Retrieved flashcard progress stats for user ${userId}`);
+    
+    res.json({
+      success: true,
+      stats: stats,
+      statsBySubject: statsBySubject
+    });
+  } catch (err) {
+    console.error('Error fetching flashcard progress stats:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get flashcard progress for a user
+app.get('/api/flashcards/progress/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid user ID is required' 
+      });
+    }
+    
+    console.log(`Fetching flashcard progress for user ID: ${userId}`);
+    
+    const pool = await db.getPool();
+    const progress = await getFlashcardProgressByUser(pool, userId);
+    
+    console.log(`✅ Retrieved ${progress.length} flashcard progress records for user`);
+    
+    res.json({
+      success: true,
+      progress: progress,
+      total: progress.length
+    });
+  } catch (err) {
+    console.error('Error fetching flashcard progress:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get specific flashcard progress for a user
+app.get('/api/flashcards/:flashcardId/progress/:userId', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.flashcardId);
+    const userId = parseInt(req.params.userId);
+    
+    if (!flashcardId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid flashcard ID and user ID are required' 
+      });
+    }
+    
+    console.log(`Fetching progress for flashcard ${flashcardId}, user ${userId}`);
+    
+    const pool = await db.getPool();
+    const progress = await getFlashcardProgress(pool, flashcardId, userId);
+    
+    res.json({
+      success: true,
+      progress: progress
+    });
+  } catch (err) {
+    console.error('Error fetching flashcard progress:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Update flashcard progress
+app.post('/api/flashcards/:flashcardId/progress', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.flashcardId);
+    const { user_id, status } = req.body;
+    
+    if (!flashcardId || !user_id || !status) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Flashcard ID, user_id, and status are required' 
+      });
+    }
+    
+    // Validate status
+    const validStatuses = ['not_started', 'in_progress', 'completed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Status must be one of: ' + validStatuses.join(', ')
+      });
+    }
+    
+    console.log(`Updating flashcard progress: flashcard ${flashcardId}, user ${user_id}, status ${status}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if flashcard exists
+    const existingFlashcard = await getFlashcardById(pool, flashcardId);
+    if (!existingFlashcard) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Flashcard not found' 
+      });
+    }
+    
+    const progress = await upsertFlashcardProgress(pool, {
+      flashcard_id: flashcardId,
+      user_id: parseInt(user_id),
+      status: status
+    });
+    
+    console.log(`✅ Flashcard progress updated successfully`);
+    
+    res.json({
+      success: true,
+      progress: progress,
+      message: 'Flashcard progress updated successfully'
+    });
+  } catch (err) {
+    console.error('Error updating flashcard progress:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Mark flashcard as completed
+app.post('/api/flashcards/:flashcardId/complete', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.flashcardId);
+    const { user_id } = req.body;
+    
+    if (!flashcardId || !user_id) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Flashcard ID and user_id are required' 
+      });
+    }
+    
+    console.log(`Marking flashcard ${flashcardId} as completed for user ${user_id}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if flashcard exists
+    const existingFlashcard = await getFlashcardById(pool, flashcardId);
+    if (!existingFlashcard) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Flashcard not found' 
+      });
+    }
+    
+    const progress = await markFlashcardCompleted(pool, flashcardId, parseInt(user_id));
+    
+    console.log(`✅ Flashcard marked as completed successfully`);
+    
+    res.json({
+      success: true,
+      progress: progress,
+      message: 'Flashcard marked as completed successfully'
+    });
+  } catch (err) {
+    console.error('Error marking flashcard as completed:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Reset flashcard progress
+app.post('/api/flashcards/:flashcardId/reset', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.flashcardId);
+    const { user_id } = req.body;
+    
+    if (!flashcardId || !user_id) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Flashcard ID and user_id are required' 
+      });
+    }
+    
+    console.log(`Resetting flashcard ${flashcardId} progress for user ${user_id}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if flashcard exists
+    const existingFlashcard = await getFlashcardById(pool, flashcardId);
+    if (!existingFlashcard) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Flashcard not found' 
+      });
+    }
+    
+    const progress = await resetFlashcardProgress(pool, flashcardId, parseInt(user_id));
+    
+    console.log(`✅ Flashcard progress reset successfully`);
+    
+    res.json({
+      success: true,
+      progress: progress,
+      message: 'Flashcard progress reset successfully'
+    });
+  } catch (err) {
+    console.error('Error resetting flashcard progress:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 

@@ -43,6 +43,7 @@ import { Layers, Plus, RotateCcw, ChevronLeft, ChevronRight, BookOpen, Brain, Se
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useFlashcards, useCreateFlashcard, useUpdateFlashcard, useDeleteFlashcard } from "@/hooks/use-flashcards"
+import { useUpdateFlashcardProgress, useFlashcardProgress } from "@/hooks/use-flashcard-progress"
 import { useSubjects } from "@/hooks/use-subjects"
 
 export default function Flashcards() {
@@ -117,11 +118,15 @@ export default function Flashcards() {
   const [currentFlashcard, setCurrentFlashcard] = useState<any | null>(null)
 
   // Database hooks
-  const { flashcards, loading: flashcardsLoading, error: flashcardsError, refetch: refetchFlashcards } = useFlashcards()
+  const { flashcards, loading: flashcardsLoading, error: flashcardsError, refetch: refetchFlashcards } = useFlashcards(user_id)
   const { subjects, loading: subjectsLoading } = useSubjects()
   const { createFlashcard, creating } = useCreateFlashcard()
   const { updateFlashcard, updating } = useUpdateFlashcard()
   const { deleteFlashcard, deleting } = useDeleteFlashcard()
+  
+  // Progress hooks
+  const { markCompleted, updating: updatingProgress } = useUpdateFlashcardProgress()
+  const { progress: userProgress, stats: progressStats, refetch: refetchProgress } = useFlashcardProgress(user_id || null)
 
   // Filter flashcards based on search and filter criteria
   const filteredFlashcards = flashcards.filter((flashcard: any) => {
@@ -148,10 +153,20 @@ export default function Flashcards() {
       existingSet.cards.push({
         id: flashcard.flashcard_id,
         front: flashcard.question,
-        back: flashcard.answer
+        back: flashcard.answer,
+        status: flashcard.status || 'not_started',
+        completed_at: flashcard.completed_at
       })
       existingSet.cardCount = existingSet.cards.length
+      
+      // Calculate progress percentage for this set
+      const completedCards = existingSet.cards.filter((card: any) => card.status === 'completed').length
+      existingSet.progress = Math.round((completedCards / existingSet.cardCount) * 100)
+      existingSet.completedCards = completedCards
     } else {
+      const cardStatus = flashcard.status || 'not_started'
+      const completedCards = cardStatus === 'completed' ? 1 : 0
+      
       sets.push({
         id: flashcard.subject_id,
         title: `${flashcard.subject_name} Cards`,
@@ -160,11 +175,14 @@ export default function Flashcards() {
         description: `Study flashcards for ${flashcard.subject_name}`,
         difficulty: "Mixed",
         lastStudied: new Date().toISOString().split('T')[0],
-        progress: 0,
+        progress: completedCards * 100,
+        completedCards: completedCards,
         cards: [{
           id: flashcard.flashcard_id,
           front: flashcard.question,
-          back: flashcard.answer
+          back: flashcard.answer,
+          status: cardStatus,
+          completed_at: flashcard.completed_at
         }]
       })
     }
@@ -221,8 +239,9 @@ export default function Flashcards() {
       setSelectedSubject("")
       setShowCreateDialog(false)
       
-      // Refresh flashcards
+      // Refresh flashcards and progress
       refetchFlashcards()
+      refetchProgress()
     } catch (error) {
       toast({
         title: "Error",
@@ -273,8 +292,9 @@ export default function Flashcards() {
       setEditingFlashcard(null)
       setShowCreateDialog(false)
       
-      // Refresh flashcards
+      // Refresh flashcards and progress
       refetchFlashcards()
+      refetchProgress()
     } catch (error) {
       toast({
         title: "Error",
@@ -294,8 +314,9 @@ export default function Flashcards() {
         duration: 3000,
       })
 
-      // Refresh flashcards
+      // Refresh flashcards and progress
       refetchFlashcards()
+      refetchProgress()
     } catch (error) {
       toast({
         title: "Error",
@@ -403,8 +424,9 @@ export default function Flashcards() {
         })
       }
       
-      // Refresh flashcards list
+      // Refresh flashcards list and progress
       await refetchFlashcards()
+      refetchProgress()
       
       // Reset form
       setFlashcardSetTitle("")
@@ -528,6 +550,77 @@ export default function Flashcards() {
     }
   }
 
+  const handleFinishFlashcard = async () => {
+    if (!selectedSet || !currentUser) return
+    
+    const currentCard = selectedSet.cards[currentCardIndex]
+    
+    try {
+      await markCompleted(currentCard.id, currentUser.user_id)
+      
+      // Update the card status in the current set
+      const updatedCards = [...selectedSet.cards]
+      updatedCards[currentCardIndex] = {
+        ...updatedCards[currentCardIndex],
+        status: 'completed'
+      }
+      
+      setSelectedSet({
+        ...selectedSet,
+        cards: updatedCards
+      })
+      
+      // Refresh progress data
+      refetchProgress()
+      refetchFlashcards()
+      
+      // Auto-advance to next card if available
+      if (currentCardIndex < selectedSet.cards.length - 1) {
+        nextCard()
+      }
+    } catch (error) {
+      console.error('Error marking flashcard as completed:', error)
+    }
+  }
+
+  const handleNextOrComplete = async () => {
+    if (!selectedSet || !currentUser) return;
+    try {
+      const currentCard = selectedSet.cards[currentCardIndex];
+      const isLastCard = currentCardIndex === selectedSet.cards.length - 1;
+      // Mark current card as completed
+      await markCompleted(currentCard.id, currentUser.user_id);
+      // Update the card status in the current set
+      const updatedCards = [...selectedSet.cards];
+      updatedCards[currentCardIndex] = {
+        ...updatedCards[currentCardIndex],
+        status: 'completed'
+      };
+      setSelectedSet({
+        ...selectedSet,
+        cards: updatedCards
+      });
+      refetchProgress();
+      refetchFlashcards();
+      if (isLastCard) {
+        // Show completion message and go back to sets
+        toast({
+          title: "Congratulations!",
+          description: "You've completed this flashcard set! 🎉",
+          duration: 4000
+        });
+        setTimeout(() => {
+          setStudyMode(false);
+        }, 2000);
+      } else {
+        setCurrentCardIndex(currentCardIndex + 1);
+        setIsFlipped(false);
+      }
+    } catch (error) {
+      console.error('Error marking flashcard as completed:', error);
+    }
+  }
+
   const FlashcardSetCard = ({ set }: { set: any }) => (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader>
@@ -535,10 +628,10 @@ export default function Flashcards() {
           <div className="flex-1">
             <CardTitle className="text-xl">{set.title}</CardTitle>
             <CardDescription className="text-base mt-1">{set.subject}</CardDescription>
+            <Badge variant={set.difficulty === "Beginner" ? "secondary" : set.difficulty === "Intermediate" ? "default" : "destructive"}>
+              {set.difficulty}
+            </Badge>
           </div>
-          <Badge variant={set.difficulty === "Beginner" ? "secondary" : set.difficulty === "Intermediate" ? "default" : "destructive"}>
-            {set.difficulty}
-          </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -553,6 +646,11 @@ export default function Flashcards() {
               <span>Last studied: {new Date(set.lastStudied).toLocaleDateString()}</span>
             </div>
           </div>
+          {set.completedCards > 0 && (
+            <div className="flex items-center">
+              <span className="text-green-600 font-medium">{set.completedCards} completed</span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -605,6 +703,7 @@ export default function Flashcards() {
   if (studyMode && selectedSet) {
     const currentCard = selectedSet.cards[currentCardIndex]
     const progress = ((currentCardIndex + 1) / selectedSet.cards.length) * 100
+    const isCompleted = currentCard.status === 'completed'
 
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -618,6 +717,7 @@ export default function Flashcards() {
               <h2 className="text-xl font-semibold">{selectedSet.title}</h2>
               <p className="text-sm text-muted-foreground">
                 Card {currentCardIndex + 1} of {selectedSet.cards.length}
+                {isCompleted && <span className="ml-2 text-green-600 font-medium">✓ Completed</span>}
               </p>
             </div>
             <Button variant="outline" onClick={() => setIsFlipped(false)}>
@@ -634,7 +734,9 @@ export default function Flashcards() {
           </div>
 
           <Card 
-            className="min-h-[300px] cursor-pointer hover:shadow-lg transition-all duration-200"
+            className={`min-h-[300px] cursor-pointer hover:shadow-lg transition-all duration-200 ${
+              isCompleted ? 'border-green-200 bg-green-50' : ''
+            }`}
             onClick={() => setIsFlipped(!isFlipped)}
           >
             <CardContent className="flex items-center justify-center h-full p-8">
@@ -648,6 +750,12 @@ export default function Flashcards() {
                 <div className="text-sm text-muted-foreground">
                   Click to {isFlipped ? "show question" : "reveal answer"}
                 </div>
+                {isCompleted && (
+                  <div className="flex items-center justify-center text-green-600">
+                    <Star className="w-4 h-4 mr-1" />
+                    <span className="text-sm font-medium">Completed</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -675,11 +783,28 @@ export default function Flashcards() {
             </div>
 
             <Button 
-              onClick={nextCard}
-              disabled={currentCardIndex === selectedSet.cards.length - 1}
+              onClick={handleNextOrComplete}
+              disabled={updatingProgress}
+              className={`px-6 py-2 ${
+                currentCardIndex === selectedSet.cards.length - 1 
+                  ? "bg-green-600 hover:bg-green-700" 
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
+              size="lg"
             >
-              Next
-              <ChevronRight className="w-4 h-4 ml-2" />
+              {updatingProgress ? (
+                "Processing..."
+              ) : currentCardIndex === selectedSet.cards.length - 1 ? (
+                <>
+                  <Star className="w-4 h-4 mr-2" />
+                  Complete Set
+                </>
+              ) : (
+                <>
+                  Next & Mark Done
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -797,7 +922,7 @@ export default function Flashcards() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Subjects</SelectItem>
-                    {subjects.map((subject) => (
+                    {subjects.map((subject: any) => (
                       <SelectItem key={subject.subject_id} value={subject.subject_name}>
                         {subject.subject_name}
                       </SelectItem>
@@ -805,7 +930,6 @@ export default function Flashcards() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label>Difficulty</Label>
                 <Select value={selectedDifficultyFilter} onValueChange={setSelectedDifficultyFilter}>
@@ -820,7 +944,6 @@ export default function Flashcards() {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="flex justify-between pt-4">
                 <Button 
                   variant="outline" 
@@ -840,6 +963,8 @@ export default function Flashcards() {
         </Dialog>
       </div>
 
+      {/* Main content below search/filter bar */}
+      <>
       {viewMode === "sets" ? (
         <>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -895,6 +1020,17 @@ export default function Flashcards() {
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <Badge variant="secondary">{flashcard.subject_name}</Badge>
+                      {flashcard.status === 'completed' && (
+                        <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                          <Star className="w-3 h-3 mr-1" />
+                          Completed
+                        </Badge>
+                      )}
+                      {flashcard.status === 'in_progress' && (
+                        <Badge variant="default" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                          In Progress
+                        </Badge>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <div>
@@ -1197,6 +1333,7 @@ export default function Flashcards() {
           )}
         </DialogContent>
       </Dialog>
+    </>
     </div>
-  )
+  );
 }

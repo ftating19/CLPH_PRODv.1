@@ -7,10 +7,14 @@ interface Flashcard {
   subject_id: number
   subject_name: string
   created_by: number
-  created_by_name: string
+  creator_name: string
+  progress_id?: number
+  progress_status?: 'not_started' | 'in_progress' | 'completed'
+  completed_at?: string | null
+  status?: 'not_started' | 'in_progress' | 'completed'
 }
 
-export function useFlashcards() {
+export function useFlashcards(userId?: number | null) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -18,7 +22,12 @@ export function useFlashcards() {
   const fetchFlashcards = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://localhost:4000/api/flashcards')
+      let url = 'http://localhost:4000/api/flashcards'
+      if (userId) {
+        url += `?user_id=${userId}`
+      }
+      
+      const response = await fetch(url)
       const data = await response.json()
       
       if (data.success) {
@@ -37,7 +46,7 @@ export function useFlashcards() {
 
   useEffect(() => {
     fetchFlashcards()
-  }, [])
+  }, [userId])
 
   return { flashcards, loading, error, refetch: fetchFlashcards }
 }
