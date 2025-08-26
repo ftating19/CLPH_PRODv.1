@@ -72,9 +72,16 @@ export default function Flashcards() {
   const user_id = currentUser?.user_id
 
   // Permission helper functions
+  // Permission logic for Students, Tutors, Faculty, Admin
   const canManageFlashcard = (flashcard: any) => {
-    // Only allow the creator to manage their flashcard, or admins to manage any flashcard
-    return Number(flashcard.created_by) === Number(user_id) || userRole === 'admin'
+    // Only allow the creator to manage their flashcard, or admin to manage any flashcard
+    if (!currentUser) return false;
+    if (userRole === 'admin') {
+      // Admin can only edit sets they created
+      return Number(flashcard.created_by) === Number(user_id);
+    }
+    // For student, tutor, faculty: only allow editing own sets
+    return Number(flashcard.created_by) === Number(user_id);
   }
 
   const checkFlashcardPermissionAndEdit = (flashcard: any) => {
@@ -102,8 +109,11 @@ export default function Flashcards() {
   }
 
   const getCreatorIndicator = (flashcard: any) => {
-    if (Number(flashcard.created_by) === Number(user_id)) return "You"
-    return flashcard.creator_name || "Unknown"
+  if (Number(flashcard.created_by) === Number(user_id)) return "You"
+  if (flashcard.creator_name) return flashcard.creator_name
+  if (flashcard.creator_role) return `${flashcard.creator_role}`
+  if (flashcard.created_by) return `User #${flashcard.created_by}`
+  return "Unknown"
   }
 
   // Form states for flashcard creation
@@ -157,6 +167,10 @@ export default function Flashcards() {
         status: flashcard.status || 'not_started',
         completed_at: flashcard.completed_at
       })
+  // Preserve creator info on the set (use first flashcard's creator)
+  existingSet.creator_name = existingSet.creator_name || flashcard.creator_name
+  existingSet.creator_role = existingSet.creator_role || flashcard.creator_role
+  existingSet.created_by = existingSet.created_by || flashcard.created_by
       existingSet.cardCount = existingSet.cards.length
       
       // Calculate progress percentage for this set
@@ -171,6 +185,10 @@ export default function Flashcards() {
         id: flashcard.subject_id,
         title: `${flashcard.subject_name} Cards`,
         subject: flashcard.subject_name,
+  // carry creator info from the flashcard
+  creator_name: flashcard.creator_name,
+  creator_role: flashcard.creator_role,
+  created_by: flashcard.created_by,
         cardCount: 1,
         description: `Study flashcards for ${flashcard.subject_name}`,
         difficulty: "Mixed",
@@ -621,84 +639,117 @@ export default function Flashcards() {
     }
   }
 
-  const FlashcardSetCard = ({ set }: { set: any }) => (
-    <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-xl">{set.title}</CardTitle>
-            <CardDescription className="text-base mt-1">{set.subject}</CardDescription>
-            <Badge variant={set.difficulty === "Beginner" ? "secondary" : set.difficulty === "Intermediate" ? "default" : "destructive"}>
-              {set.difficulty}
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <Layers className="w-4 h-4 mr-1 text-muted-foreground" />
-              <span>{set.cardCount} cards</span>
-            </div>
-            <div className="flex items-center">
-              <Clock className="w-4 h-4 mr-1 text-muted-foreground" />
-              <span>Last studied: {new Date(set.lastStudied).toLocaleDateString()}</span>
+  const FlashcardSetCard = ({ set }: { set: any }) => {
+    const [expanded, setExpanded] = useState(false)
+    const [revealedIndex, setRevealedIndex] = useState<number | null>(null)
+
+    return (
+      <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle className="text-xl">{set.title}</CardTitle>
+              <CardDescription className="text-base mt-1">{set.subject}</CardDescription>
+              <Badge variant={set.difficulty === "Beginner" ? "secondary" : set.difficulty === "Intermediate" ? "default" : "destructive"}>
+                {set.difficulty}
+              </Badge>
+              {/* Show creator name and role */}
+              <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-2">
+                <User className="w-3 h-3" />
+                <span>
+                  Created by: {getCreatorIndicator(set)}
+                </span>
+              </div>
             </div>
           </div>
-          {set.completedCards > 0 && (
-            <div className="flex items-center">
-              <span className="text-green-600 font-medium">{set.completedCards} completed</span>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                <Layers className="w-4 h-4 mr-1 text-muted-foreground" />
+                <span>{set.cardCount} cards</span>
+              </div>
+              <div className="flex items-center">
+                <Clock className="w-4 h-4 mr-1 text-muted-foreground" />
+                <span>Last studied: {new Date(set.lastStudied).toLocaleDateString()}</span>
+              </div>
+            </div>
+            {set.completedCards > 0 && (
+              <div className="flex items-center">
+                <span className="text-green-600 font-medium">{set.completedCards} completed</span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <Label>Progress</Label>
+              <span>{set.progress}%</span>
+            </div>
+            <Progress value={set.progress} className="h-2" />
+          </div>
+
+          {/* Summary info instead of individual flashcards */}
+          <div className="text-center py-4">
+            <div className="text-2xl font-bold text-muted-foreground">{set.cardCount}</div>
+            <div className="text-sm text-muted-foreground">
+              {set.cardCount === 1 ? 'Flashcard' : 'Flashcards'} ready to study
+            </div>
+          </div>
+
+          <div className="flex space-x-2 pt-2">
+            <Button 
+              className="flex-1" 
+              onClick={() => startStudying(set)}
+              disabled={set.cardCount === 0}
+            >
+              <Brain className="w-4 h-4 mr-2" />
+              Study Now
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleEditFlashcardSet(set)}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Set
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)}>
+              <Star className="w-4 h-4 mr-2" />
+              {expanded ? 'Hide flashcards' : 'Show flashcards'}
+            </Button>
+          </div>
+
+          {expanded && (
+            <div className="mt-4 space-y-2 max-h-56 overflow-y-auto">
+              {set.cards.map((card: any, idx: number) => (
+                <div key={card.id} className="p-2 border rounded flex items-start justify-between">
+                  <div>
+                    <div className="text-sm font-medium">{idx + 1}. {card.front}</div>
+                    {revealedIndex === idx && (
+                      <div className="text-xs text-muted-foreground mt-1">{card.back}</div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end space-y-2">
+                    <Button size="sm" variant="outline" onClick={() => setRevealedIndex(revealedIndex === idx ? null : idx)}>
+                      {revealedIndex === idx ? 'Hide' : 'Answer'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-        </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <Label>Progress</Label>
-            <span>{set.progress}%</span>
-          </div>
-          <Progress value={set.progress} className="h-2" />
-        </div>
-
-        {/* Summary info instead of individual flashcards */}
-        <div className="text-center py-4">
-          <div className="text-2xl font-bold text-muted-foreground">{set.cardCount}</div>
-          <div className="text-sm text-muted-foreground">
-            {set.cardCount === 1 ? 'Flashcard' : 'Flashcards'} ready to study
-          </div>
-        </div>
-
-        <div className="flex space-x-2 pt-2">
-          <Button 
-            className="flex-1" 
-            onClick={() => startStudying(set)}
-            disabled={set.cardCount === 0}
-          >
-            <Brain className="w-4 h-4 mr-2" />
-            Study Now
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => handleEditFlashcardSet(set)}
-          >
-            <Edit className="w-4 h-4 mr-2" />
-            Edit Set
-          </Button>
-          <Button variant="outline" size="sm">
-            <Star className="w-4 h-4" />
-          </Button>
-        </div>
-        
-        {set.cardCount === 0 && (
-          <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-            No flashcards in this set yet.
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
+          {set.cardCount === 0 && (
+            <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+              No flashcards in this set yet.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   if (studyMode && selectedSet) {
     const currentCard = selectedSet.cards[currentCardIndex]
