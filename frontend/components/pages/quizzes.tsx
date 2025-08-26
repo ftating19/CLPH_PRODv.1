@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit, X, ChevronLeft, ChevronRight } from "lucide-react"
+import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit, X, ChevronLeft, ChevronRight, Layers, List, User } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useQuizzes, useQuizQuestions, useQuizAttempts } from "@/hooks/use-quizzes"
@@ -84,6 +84,7 @@ export default function Quizzes() {
   const [quizStartTime, setQuizStartTime] = useState<Date | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0) // in seconds
+  const [viewMode, setViewMode] = useState<"sets" | "list">("sets")
   
   // Confirmation and time-up dialogs
   const [showStartConfirmation, setShowStartConfirmation] = useState(false)
@@ -114,7 +115,30 @@ export default function Quizzes() {
     completedTimes: 0, // TODO: Get from attempts
     bestScore: null, // TODO: Get from attempts
     lastAttempt: null, // TODO: Get from attempts
+    created_by: dbQuiz.created_by,
+    creator_name: `${dbQuiz.first_name || ''} ${dbQuiz.last_name || ''}`.trim(),
   }))
+
+  // Group quizzes by subject to create sets
+  const quizGroupedSets = quizList.reduce((sets: any[], quiz: any) => {
+    const existingSet = sets.find(set => set.subject === quiz.subject)
+    
+    if (existingSet) {
+      existingSet.quizzes.push(quiz)
+      existingSet.quizCount = existingSet.quizzes.length
+    } else {
+      sets.push({
+        id: quiz.subject,
+        title: `${quiz.subject} Quizzes`,
+        subject: quiz.subject,
+        quizCount: 1,
+        description: `Test your knowledge in ${quiz.subject}`,
+        difficulty: "Mixed",
+        quizzes: [quiz]
+      })
+    }
+    return sets
+  }, [])
 
   // Form states for quiz creation
   const [quizTitle, setQuizTitle] = useState("")
@@ -135,6 +159,18 @@ export default function Quizzes() {
 
   // Get user role from context, default to 'student' if not available
   const userRole = currentUser?.role?.toLowerCase() || 'student'
+  const user_id = currentUser?.user_id
+
+  // Permission helper functions
+  const canManageQuiz = (quiz: any) => {
+    // Allow any role to manage any quiz
+    return true
+  }
+
+  const getCreatorIndicator = (quiz: any) => {
+    if (Number(quiz.created_by) === Number(user_id)) return "You"
+    return quiz.creator_name || "Unknown"
+  }
 
   // Timer effect for quiz duration
   useEffect(() => {
@@ -614,6 +650,39 @@ export default function Quizzes() {
     })
   }
 
+  const handleDeleteQuiz = async (quiz: Quiz) => {
+    if (confirm(`Are you sure you want to delete the quiz "${quiz.title}"? This action cannot be undone.`)) {
+      try {
+        const response = await fetch(`http://localhost:4000/api/quizzes/${quiz.id || quiz.quiz_id}`, {
+          method: 'DELETE'
+        })
+        
+        const result = await response.json()
+        
+        if (result.success) {
+          toast({
+            title: "Success",
+            description: "Quiz deleted successfully",
+          })
+          refetchQuizzes() // Refresh the quiz list
+        } else {
+          toast({
+            title: "Error",
+            description: result.error || "Failed to delete quiz",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error('Error deleting quiz:', error)
+        toast({
+          title: "Error",
+          description: "Failed to delete quiz",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
   const handleManageQuiz = async (quiz: Quiz) => {
     setCurrentQuiz(quiz)
     setQuizTitle(quiz.title)
@@ -672,6 +741,74 @@ export default function Quizzes() {
     setShowCreateDialog(true)
   }
 
+  const QuizSetCard = ({ set }: { set: any }) => (
+    <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <CardTitle className="text-xl">{set.title}</CardTitle>
+            <CardDescription className="text-base mt-1">{set.subject}</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="w-4 h-4 text-muted-foreground" />
+            <span>{set.quizCount} quizzes</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Brain className="w-4 h-4 text-muted-foreground" />
+            <span>{set.difficulty}</span>
+          </div>
+        </div>
+
+        <div className="flex space-x-2 pt-2">
+          <Button 
+            className="flex-1" 
+            onClick={() => {
+              // Show first quiz in set or navigate to set view
+              if (set.quizzes.length > 0) {
+                setSelectedQuiz(set.quizzes[0])
+                startQuiz(set.quizzes[0], false)
+              }
+            }}
+          >
+            <Play className="w-4 h-4 mr-2" />
+            Start Quizzes
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              // Manage first quiz in the set
+              if (set.quizzes.length > 0) {
+                handleManageQuiz(set.quizzes[0])
+              }
+            }}
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              // Delete first quiz in the set
+              if (set.quizzes.length > 0) {
+                handleDeleteQuiz(set.quizzes[0])
+              }
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm">
+            <Star className="w-4 h-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   const QuizCard = ({ quiz }: { quiz: Quiz }) => (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader>
@@ -707,6 +844,12 @@ export default function Quizzes() {
           </div>
         </div>
 
+        {/* Creator indicator */}
+        <div className="flex items-center space-x-2 text-xs text-muted-foreground border-t pt-2">
+          <User className="w-3 h-3" />
+          <span>Created by: {getCreatorIndicator(quiz)}</span>
+        </div>
+
         {quiz.lastAttempt && (
           <div className="text-xs text-muted-foreground">
             Last attempt: {new Date(quiz.lastAttempt).toLocaleDateString()}
@@ -714,44 +857,37 @@ export default function Quizzes() {
         )}
 
         <div className="flex space-x-2 pt-2">
-          {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") ? (
-            <>
-              <Button 
-                className="flex-1" 
-                variant="outline"
-                onClick={() => handleManageQuiz(quiz)}
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Manage Quiz
-              </Button>
-              <Button 
-                size="sm"
-                onClick={() => startQuiz(quiz, true)} // Preview mode for admin
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Preview
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button 
-                className="flex-1" 
-                onClick={() => startQuiz(quiz, false)} // Take quiz for student
-                disabled={(quiz.questionCount || 0) === 0}
-              >
-                <Play className="w-4 h-4 mr-2" />
-                {quiz.completedTimes > 0 ? "Retake Quiz" : "Start Quiz"}
-              </Button>
-              <Button variant="outline" size="sm">
-                <Star className="w-4 h-4" />
-              </Button>
-            </>
-          )}
+          <Button 
+            className="flex-1" 
+            variant="outline"
+            onClick={() => handleManageQuiz(quiz)}
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Manage Quiz
+          </Button>
+          <Button 
+            size="sm"
+            onClick={() => startQuiz(quiz, false)}
+            disabled={(quiz.questionCount || 0) === 0}
+          >
+            <Play className="w-4 h-4 mr-2" />
+            {quiz.completedTimes > 0 ? "Retake" : "Start"}
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleDeleteQuiz(quiz)}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm">
+            <Star className="w-4 h-4" />
+          </Button>
         </div>
         
         {(quiz.questionCount || 0) === 0 && (
           <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-            No questions added yet. {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") ? "Click 'Manage Quiz' to add questions." : "This quiz is not available yet."}
+            No questions added yet. Click 'Manage Quiz' to add questions.
           </div>
         )}
       </CardContent>
@@ -765,14 +901,13 @@ export default function Quizzes() {
           <h1 className="text-3xl font-bold">Quizzes</h1>
           <p className="text-muted-foreground">Test your knowledge with interactive quizzes</p>
         </div>
-        {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") && (
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Quiz
-              </Button>
-            </DialogTrigger>
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Quiz
+            </Button>
+          </DialogTrigger>
             <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{currentQuiz ? "Manage Quiz" : "Create New Quiz"}</DialogTitle>
@@ -1062,7 +1197,6 @@ export default function Quizzes() {
               </div>
             </DialogContent>
         </Dialog>
-        )}
       </div>
 
       <div className="flex items-center space-x-4">
@@ -1070,37 +1204,64 @@ export default function Quizzes() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input placeholder="Search quizzes by title or subject..." className="pl-10" />
         </div>
+        
+        {/* View Mode Toggle */}
+        <div className="flex items-center border rounded-md">
+          <Button
+            variant={viewMode === "sets" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("sets")}
+            className="rounded-r-none"
+          >
+            <Layers className="w-4 h-4 mr-2" />
+            Sets
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("list")}
+            className="rounded-l-none"
+          >
+            <List className="w-4 h-4 mr-2" />
+            List
+          </Button>
+        </div>
+        
         <Button variant="outline">
           <Filter className="w-4 h-4 mr-2" />
           Filters
         </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {quizList.map((quiz) => (
-          <QuizCard key={quiz.id} quiz={quiz} />
-        ))}
-      </div>
+      {/* Sets View */}
+      {viewMode === "sets" && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {quizGroupedSets.map((set) => (
+            <QuizSetCard key={set.id} set={set} />
+          ))}
+        </div>
+      )}
+
+      {/* List View */}
+      {viewMode === "list" && (
+        <div className="space-y-4">
+          {quizList.map((quiz) => (
+            <QuizCard key={quiz.id} quiz={quiz} />
+          ))}
+        </div>
+      )}
 
       {quizList.length === 0 && !quizzesLoading && (
         <div className="text-center py-12">
           <Brain className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium text-muted-foreground mb-2">No quizzes available</h3>
-          {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") ? (
-            <>
-              <p className="text-sm text-muted-foreground mb-4">
-                Create your first quiz to start testing knowledge
-              </p>
-              <Button onClick={() => setShowCreateDialog(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Quiz
-              </Button>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground mb-4">
-              No quizzes have been created yet. Check back later for new content!
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground mb-4">
+            Create your first quiz to start testing knowledge
+          </p>
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Your First Quiz
+          </Button>
         </div>
       )}
 

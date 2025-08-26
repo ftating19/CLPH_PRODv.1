@@ -306,18 +306,16 @@ export default function Flashcards() {
           <Button variant="outline" size="sm">
             <Star className="w-4 h-4" />
           </Button>
-          {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") && (
-            <>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  // Edit first card in the set or create new if no cards
-                  if (set.cards.length > 0) {
-                    const firstCard = set.cards[0];
-                    const flashcard = {
-                      flashcard_id: firstCard.id,
-                      question: firstCard.front,
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              // Edit first card in the set or create new if no cards
+              if (set.cards.length > 0) {
+                const firstCard = set.cards[0];
+                const flashcard = {
+                  flashcard_id: firstCard.id,
+                  question: firstCard.front,
                       answer: firstCard.back,
                       subject_name: set.subject
                     };
@@ -338,8 +336,6 @@ export default function Flashcards() {
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
-            </>
-          )}
         </div>
       </CardContent>
     </Card>
@@ -447,12 +443,10 @@ export default function Flashcards() {
           <h1 className="text-3xl font-bold">Flashcards</h1>
           <p className="text-muted-foreground">Study with interactive flashcard sets</p>
         </div>
-        {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") && (
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Flashcard
-          </Button>
-        )}
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Create Flashcard
+        </Button>
       </div>
 
       <div className="flex items-center justify-between space-x-4">
@@ -496,21 +490,13 @@ export default function Flashcards() {
             <div className="text-center py-12">
               <Layers className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcards yet</h3>
-              {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") ? (
-                <>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Create your first flashcard to start studying
-                  </p>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Your First Flashcard
-                  </Button>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground mb-4">
-                  No flashcards have been created yet. Check back later for new study materials!
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground mb-4">
+                Create your first flashcard to start studying
+              </p>
+              <Button onClick={() => setShowCreateDialog(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Flashcard
+              </Button>
             </div>
           )}
         </>
@@ -538,24 +524,22 @@ export default function Flashcards() {
                       </div>
                     </div>
                   </div>
-                  {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") && (
-                    <div className="flex items-center space-x-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditDialog(flashcard)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteFlashcard(flashcard.flashcard_id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex items-center space-x-2 ml-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDialog(flashcard)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteFlashcard(flashcard.flashcard_id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
@@ -565,21 +549,13 @@ export default function Flashcards() {
             <div className="text-center py-12">
               <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcards yet</h3>
-              {(userRole === "admin" || userRole === "faculty" || userRole === "tutor" || userRole === "student") ? (
-                <>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Create your first flashcard to start studying
-                  </p>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Your First Flashcard
-                  </Button>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground mb-4">
-                  No flashcards have been created yet. Check back later for new study materials!
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground mb-4">
+                Create your first flashcard to start studying
+              </p>
+              <Button onClick={() => setShowCreateDialog(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Flashcard
+              </Button>
             </div>
           )}
         </>
