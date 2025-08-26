@@ -33,7 +33,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Layers, Plus, RotateCcw, ChevronLeft, ChevronRight, BookOpen, Brain, Search, Filter, Star, Clock, Trash2, Edit, List, User } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Layers, Plus, RotateCcw, ChevronLeft, ChevronRight, BookOpen, Brain, Search, Filter, Star, Clock, Trash2, Edit, List, User, ChevronDown } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useFlashcards, useCreateFlashcard, useUpdateFlashcard, useDeleteFlashcard } from "@/hooks/use-flashcards"
@@ -47,6 +53,9 @@ export default function Flashcards() {
   const [viewMode, setViewMode] = useState<"sets" | "list">("sets")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editingFlashcard, setEditingFlashcard] = useState<any | null>(null)
+  const [showFlashcardDialog, setShowFlashcardDialog] = useState(false)
+  const [editingFlashcardIndex, setEditingFlashcardIndex] = useState<number | null>(null)
+  const [editingFlashcardSet, setEditingFlashcardSet] = useState<any | null>(null)
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("")
@@ -100,6 +109,12 @@ export default function Flashcards() {
   const [question, setQuestion] = useState("")
   const [answer, setAnswer] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("")
+
+  // Multiple flashcards state (for bulk creation)
+  const [flashcardSetTitle, setFlashcardSetTitle] = useState("")
+  const [flashcardSetSubject, setFlashcardSetSubject] = useState("")
+  const [flashcardsList, setFlashcardsList] = useState<Array<{id: string, question: string, answer: string}>>([])
+  const [currentFlashcard, setCurrentFlashcard] = useState<any | null>(null)
 
   // Database hooks
   const { flashcards, loading: flashcardsLoading, error: flashcardsError, refetch: refetchFlashcards } = useFlashcards()
@@ -306,11 +321,197 @@ export default function Flashcards() {
     setSelectedSubject("")
   }
 
+  // Functions for handling multiple flashcards
+  const handleCreateFlashcardSet = async () => {
+    if (!flashcardSetTitle.trim() || !flashcardSetSubject.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in set title and subject.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (flashcardsList.length === 0) {
+      toast({
+        title: "Error", 
+        description: "Please add at least one flashcard",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      // Find subject ID by name
+      const subject = subjects.find(s => s.subject_name === flashcardSetSubject)
+      if (!subject) {
+        toast({
+          title: "Error",
+          description: "Invalid subject selected",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (editingFlashcardSet) {
+        // Update existing flashcard set
+        // First, delete all existing flashcards in the set
+        for (const card of editingFlashcardSet.cards) {
+          try {
+            await deleteFlashcard(card.id)
+          } catch (deleteError) {
+            console.error(`Error deleting flashcard ${card.id}:`, deleteError)
+          }
+        }
+
+        // Then create new flashcards
+        for (const [index, flashcard] of flashcardsList.entries()) {
+          try {
+            await createFlashcard({
+              question: flashcard.question.trim(),
+              answer: flashcard.answer.trim(),
+              subject_id: subject.subject_id,
+              created_by: currentUser?.user_id || 1
+            })
+          } catch (flashcardError) {
+            console.error(`Error creating flashcard ${index + 1}:`, flashcardError)
+          }
+        }
+
+        toast({
+          title: "Success",
+          description: `Updated flashcard set with ${flashcardsList.length} flashcards successfully!`
+        })
+      } else {
+        // Create new flashcard set
+        for (const [index, flashcard] of flashcardsList.entries()) {
+          try {
+            await createFlashcard({
+              question: flashcard.question.trim(),
+              answer: flashcard.answer.trim(),
+              subject_id: subject.subject_id,
+              created_by: currentUser?.user_id || 1
+            })
+          } catch (flashcardError) {
+            console.error(`Error creating flashcard ${index + 1}:`, flashcardError)
+          }
+        }
+
+        toast({
+          title: "Success",
+          description: `Created ${flashcardsList.length} flashcards successfully!`
+        })
+      }
+      
+      // Refresh flashcards list
+      await refetchFlashcards()
+      
+      // Reset form
+      setFlashcardSetTitle("")
+      setFlashcardSetSubject("")
+      setFlashcardsList([])
+      setCurrentFlashcard(null)
+      setEditingFlashcardSet(null)
+      setShowCreateDialog(false)
+      
+    } catch (error) {
+      console.error('Error managing flashcard set:', error)
+      toast({
+        title: "Error",
+        description: "Failed to save flashcard set. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleAddFlashcard = () => {
+    if (!question.trim() || !answer.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter both question and answer.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const newFlashcard = {
+      id: `fc${Date.now()}`,
+      question: question.trim(),
+      answer: answer.trim()
+    }
+
+    if (editingFlashcardIndex !== null) {
+      // Update existing flashcard
+      setFlashcardsList(prev => prev.map((fc, index) => 
+        index === editingFlashcardIndex ? newFlashcard : fc
+      ))
+      setEditingFlashcardIndex(null)
+    } else {
+      // Add new flashcard
+      setFlashcardsList(prev => [...prev, newFlashcard])
+    }
+
+    // Reset flashcard form
+    setQuestion("")
+    setAnswer("")
+    setShowFlashcardDialog(false)
+
+    toast({
+      title: editingFlashcardIndex !== null ? "Flashcard Updated" : "Flashcard Added",
+      description: editingFlashcardIndex !== null ? "Flashcard has been updated." : "New flashcard has been added to the set.",
+    })
+  }
+
+  const handleEditFlashcardInList = (index: number) => {
+    const flashcard = flashcardsList[index]
+    setEditingFlashcardIndex(index)
+    setQuestion(flashcard.question)
+    setAnswer(flashcard.answer)
+    setShowFlashcardDialog(true)
+  }
+
+  const handleDeleteFlashcardFromList = (index: number) => {
+    setFlashcardsList(prev => prev.filter((_, i) => i !== index))
+    toast({
+      title: "Flashcard Removed",
+      description: "Flashcard has been removed from the set.",
+    })
+  }
+
   const startStudying = (set: any) => {
     setSelectedSet(set)
     setCurrentCardIndex(0)
     setIsFlipped(false)
     setStudyMode(true)
+  }
+
+  const handleEditFlashcardSet = (set: any) => {
+    // Check if user can edit this flashcard set
+    if (!currentUser || !canManageFlashcard(set)) {
+      toast({
+        title: "Access Denied",
+        description: "You can only edit flashcard sets that you created.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Set editing mode
+    setEditingFlashcardSet(set)
+    
+    // Set up for editing the flashcard set
+    setCurrentFlashcard({})
+    setFlashcardSetTitle(set.title)
+    setFlashcardSetSubject(set.subject)
+    
+    // Convert set cards to flashcard list format
+    const flashcardList = set.cards.map((card: any) => ({
+      id: card.id.toString(),
+      question: card.front,
+      answer: card.back
+    }))
+    setFlashcardsList(flashcardList)
+    setShowCreateDialog(true)
   }
 
   const nextCard = () => {
@@ -362,52 +563,12 @@ export default function Flashcards() {
           <Progress value={set.progress} className="h-2" />
         </div>
 
-        {/* Individual Flashcard Items in Set */}
-        <div className="space-y-2">
-          {set.cards.map((card: any) => {
-            // Find the full flashcard data to check permissions
-            const fullFlashcard = filteredFlashcards.find(f => f.flashcard_id === card.id)
-            return (
-              <div key={card.id} className="p-3 border rounded-lg bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-sm truncate">{card.front}</h4>
-                    <p className="text-xs text-muted-foreground truncate mt-1">{card.back}</p>
-                    {fullFlashcard && (
-                      <div className="flex items-center space-x-1 text-xs text-muted-foreground mt-1">
-                        <User className="w-3 h-3" />
-                        <span>Created by: {getCreatorIndicator(fullFlashcard)}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Button 
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        if (fullFlashcard) {
-                          checkFlashcardPermissionAndEdit(fullFlashcard)
-                        }
-                      }}
-                    >
-                      <Edit className="w-3 h-3" />
-                    </Button>
-                    <Button 
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        if (fullFlashcard) {
-                          checkFlashcardPermissionAndDelete(fullFlashcard)
-                        }
-                      }}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+        {/* Summary info instead of individual flashcards */}
+        <div className="text-center py-4">
+          <div className="text-2xl font-bold text-muted-foreground">{set.cardCount}</div>
+          <div className="text-sm text-muted-foreground">
+            {set.cardCount === 1 ? 'Flashcard' : 'Flashcards'} ready to study
+          </div>
         </div>
 
         <div className="flex space-x-2 pt-2">
@@ -418,6 +579,14 @@ export default function Flashcards() {
           >
             <Brain className="w-4 h-4 mr-2" />
             Study Now
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleEditFlashcardSet(set)}
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Edit Set
           </Button>
           <Button variant="outline" size="sm">
             <Star className="w-4 h-4" />
@@ -535,10 +704,36 @@ export default function Flashcards() {
           <h1 className="text-3xl font-bold">Flashcards</h1>
           <p className="text-muted-foreground">Study with interactive flashcard sets</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Flashcard
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Flashcard
+              <ChevronDown className="w-4 h-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => {
+              setEditingFlashcard(null)
+              setCurrentFlashcard(null)
+              setShowCreateDialog(true)
+            }}>
+              <BookOpen className="w-4 h-4 mr-2" />
+              Single Flashcard
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              setCurrentFlashcard({})
+              setFlashcardSetTitle("")
+              setFlashcardSetSubject("")
+              setFlashcardsList([])
+              setEditingFlashcardSet(null)
+              setShowCreateDialog(true)
+            }}>
+              <Layers className="w-4 h-4 mr-2" />
+              Flashcard Set
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="flex items-center space-x-4">
@@ -780,60 +975,226 @@ export default function Flashcards() {
       )}
 
       {/* Create/Edit Flashcard Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={closeDialog}>
-        <DialogContent className="max-w-md">
+      <Dialog open={showCreateDialog} onOpenChange={() => {
+        setShowCreateDialog(false)
+        setEditingFlashcard(null)
+        setCurrentFlashcard(null)
+        setQuestion("")
+        setAnswer("")
+        setSelectedSubject("")
+        setFlashcardSetTitle("")
+        setFlashcardSetSubject("")
+        setFlashcardsList([])
+      }}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingFlashcard ? "Edit Flashcard" : "Create New Flashcard"}</DialogTitle>
+            <DialogTitle>
+              {editingFlashcard ? "Edit Flashcard" : 
+               currentFlashcard && Object.keys(currentFlashcard).length === 0 ? 
+                 (editingFlashcardSet ? "Edit Flashcard Set" : "Create Flashcard Set") : 
+               "Create Single Flashcard"}
+            </DialogTitle>
             <DialogDescription>
-              {editingFlashcard ? "Update your flashcard" : "Create a new flashcard to study with"}
+              {editingFlashcard ? "Update your flashcard" : 
+               currentFlashcard && Object.keys(currentFlashcard).length === 0 ? 
+                 (editingFlashcardSet ? "Update multiple flashcards in this set" : "Create multiple flashcards in one go") : 
+               "Create a single flashcard to study with"}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="subject">Subject</Label>
-              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((subject) => (
-                    <SelectItem key={subject.subject_id} value={subject.subject_name}>
-                      {subject.subject_name}
-                    </SelectItem>
+          
+          {/* Single Flashcard Creation/Edit */}
+          {(!currentFlashcard || editingFlashcard) && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="subject">Subject</Label>
+                <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects.map((subject) => (
+                      <SelectItem key={subject.subject_id} value={subject.subject_name}>
+                        {subject.subject_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="question">Question</Label>
+                <Textarea 
+                  id="question" 
+                  placeholder="Enter the question" 
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="answer">Answer</Label>
+                <Textarea 
+                  id="answer" 
+                  placeholder="Enter the answer" 
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => {
+                  setShowCreateDialog(false)
+                  setEditingFlashcard(null)
+                  setQuestion("")
+                  setAnswer("")
+                  setSelectedSubject("")
+                }}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={editingFlashcard ? handleEditFlashcard : handleCreateFlashcard}
+                  disabled={creating || updating}
+                >
+                  {editingFlashcard ? (updating ? "Updating..." : "Update") : (creating ? "Creating..." : "Create")}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Flashcard Set Creation */}
+          {currentFlashcard && Object.keys(currentFlashcard).length === 0 && !editingFlashcard && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Set Details Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Set Details</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="setTitle">Set Title</Label>
+                    <Input 
+                      id="setTitle" 
+                      placeholder="Enter set title"
+                      value={flashcardSetTitle}
+                      onChange={(e) => setFlashcardSetTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="setSubject">Subject</Label>
+                    <Select value={flashcardSetSubject} onValueChange={setFlashcardSetSubject}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subjects.map((subject) => (
+                          <SelectItem key={subject.subject_id} value={subject.subject_name}>
+                            {subject.subject_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Flashcards Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Flashcards ({flashcardsList.length})</h3>
+                  <Dialog open={showFlashcardDialog} onOpenChange={setShowFlashcardDialog}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Flashcard
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>{editingFlashcardIndex !== null ? "Edit Flashcard" : "Add New Flashcard"}</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Question</Label>
+                          <Textarea 
+                            placeholder="Enter the question..."
+                            value={question}
+                            onChange={(e) => setQuestion(e.target.value)}
+                            rows={3}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Answer</Label>
+                          <Textarea 
+                            placeholder="Enter the answer..."
+                            value={answer}
+                            onChange={(e) => setAnswer(e.target.value)}
+                            rows={3}
+                          />
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                          <Button variant="outline" onClick={() => {
+                            setShowFlashcardDialog(false)
+                            setEditingFlashcardIndex(null)
+                            setQuestion("")
+                            setAnswer("")
+                          }}>
+                            Cancel
+                          </Button>
+                          <Button onClick={handleAddFlashcard}>
+                            {editingFlashcardIndex !== null ? "Update Flashcard" : "Add Flashcard"}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                {/* Flashcards List */}
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {flashcardsList.map((flashcard, index) => (
+                    <Card key={flashcard.id} className="p-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{index + 1}. {flashcard.question}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{flashcard.answer}</p>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Button size="sm" variant="ghost" onClick={() => handleEditFlashcardInList(index)}>
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDeleteFlashcardFromList(index)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
                   ))}
-                </SelectContent>
-              </Select>
+                  
+                  {flashcardsList.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Brain className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No flashcards added yet</p>
+                      <p className="text-xs">Click "Add Flashcard" to get started</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="question">Question</Label>
-              <Textarea 
-                id="question" 
-                placeholder="Enter the question" 
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="answer">Answer</Label>
-              <Textarea 
-                id="answer" 
-                placeholder="Enter the answer" 
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-              />
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={closeDialog}>
+          )}
+          
+          {/* Flashcard Set Actions */}
+          {currentFlashcard && Object.keys(currentFlashcard).length === 0 && !editingFlashcard && (
+            <div className="flex justify-end space-x-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => {
+                setShowCreateDialog(false)
+                setCurrentFlashcard(null)
+                setFlashcardSetTitle("")
+                setFlashcardSetSubject("")
+                setFlashcardsList([])
+                setEditingFlashcardSet(null)
+              }}>
                 Cancel
               </Button>
-              <Button 
-                onClick={editingFlashcard ? handleEditFlashcard : handleCreateFlashcard}
-                disabled={creating || updating}
-              >
-                {editingFlashcard ? (updating ? "Updating..." : "Update") : (creating ? "Creating..." : "Create")}
+              <Button onClick={handleCreateFlashcardSet}>
+                {editingFlashcardSet ? "Update Flashcard Set" : "Create Flashcard Set"}
               </Button>
             </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
