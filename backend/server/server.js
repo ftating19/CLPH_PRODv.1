@@ -4,7 +4,7 @@ require('dotenv').config({ path: '../.env' })
 
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
-const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, testEmailConnection } = require('../services/emailService')
+const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, testEmailConnection } = require('../services/emailService')
 const { 
   getAllSubjects, 
   getSubjectById, 
@@ -58,6 +58,30 @@ const {
   updateTutorStatus, 
   deleteTutor 
 } = require('../queries/tutors')
+const { 
+  getAllStudyMaterials, 
+  getStudyMaterialById, 
+  createStudyMaterial, 
+  updateStudyMaterial, 
+  deleteStudyMaterial, 
+  incrementDownloadCount, 
+  incrementViewCount, 
+  updateMaterialRating, 
+  searchStudyMaterials 
+} = require('../queries/studyMaterials')
+const { 
+  getAllPendingMaterials, 
+  getPendingMaterialById, 
+  createPendingMaterial, 
+  updatePendingMaterialStatus, 
+  deletePendingMaterial, 
+  getPendingMaterialsByStatus, 
+  transferToStudyMaterials 
+} = require('../queries/pendingMaterials')
+
+const multer = require('multer')
+const path = require('path')
+const fs = require('fs')
 
 const app = express()
 app.use(cors())
@@ -1391,6 +1415,722 @@ app.delete('/api/subjects/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('Error deleting subject:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ===== STUDY MATERIALS (LEARNING RESOURCES) API ENDPOINTS =====
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, '../../frontend/public/pending-resources');
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter to only allow PDF files
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype === 'application/pdf') {
+    cb(null, true);
+  } else {
+    cb(new Error('Only PDF files are allowed!'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
+
+// Get all study materials
+app.get('/api/study-materials', async (req, res) => {
+  try {
+    console.log('Fetching all study materials');
+    
+    const pool = await db.getPool();
+    const materials = await getAllStudyMaterials(pool);
+    
+    console.log(`✅ Found ${materials.length} study materials`);
+    
+    res.json({
+      success: true,
+      materials: materials,
+      total: materials.length
+    });
+  } catch (err) {
+    console.error('Error fetching study materials:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get study material by ID
+app.get('/api/study-materials/:id', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    console.log(`Fetching study material ${materialId}`);
+    
+    const pool = await db.getPool();
+    const material = await getStudyMaterialById(pool, materialId);
+    
+    if (!material) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Study material not found' 
+      });
+    }
+    
+    console.log(`✅ Found study material ${materialId}`);
+    
+    res.json({
+      success: true,
+      material: material
+    });
+  } catch (err) {
+    console.error('Error fetching study material:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Upload new study material (goes to pending for review)
+app.post('/api/study-materials', upload.single('file'), async (req, res) => {
+  try {
+    console.log('Creating new pending study material:', req.body);
+    console.log('Uploaded file:', req.file);
+
+    const { title, description, subject, uploaded_by } = req.body;
+
+    // Validate required fields
+    if (!title || !uploaded_by) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Title and uploaded_by are required' 
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'PDF file is required' 
+      });
+    }
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Create the pending material for review
+    const result = await createPendingMaterial(pool, {
+      title,
+      description,
+      subject: subject || 'General',
+      file_path: `/pending-resources/${req.file.filename}`,
+      uploaded_by,
+      file_type: 'PDF',
+      file_size: req.file.size
+    });
+
+    console.log(`✅ Pending study material created with ID: ${result.material_id}`);
+    
+    res.status(201).json({ 
+      success: true,
+      message: 'Study material submitted for review. You will be notified once it is approved.',
+      material: result
+    });
+  } catch (err) {
+    console.error('Error creating study material:', err);
+    
+    // Clean up uploaded file if database operation failed
+    if (req.file) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupErr) {
+        console.error('Error cleaning up uploaded file:', cleanupErr);
+      }
+    }
+    
+    if (err.message === 'Only PDF files are allowed!') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Only PDF files are allowed' 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Update study material
+app.put('/api/study-materials/:id', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    const { title, description } = req.body;
+    
+    console.log(`Updating study material ${materialId}:`, req.body);
+
+    // Validate required fields
+    if (!title) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Title is required' 
+      });
+    }
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Update the study material
+    const success = await updateStudyMaterial(pool, materialId, {
+      title,
+      description
+    });
+
+    if (!success) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Study material not found' 
+      });
+    }
+
+    console.log(`✅ Study material ${materialId} updated successfully`);
+    
+    res.json({ 
+      success: true,
+      message: 'Study material updated successfully'
+    });
+  } catch (err) {
+    console.error('Error updating study material:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete study material
+app.delete('/api/study-materials/:id', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    console.log(`Deleting study material ${materialId}`);
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Get material details for file cleanup
+    const material = await getStudyMaterialById(pool, materialId);
+    
+    if (!material) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Study material not found' 
+      });
+    }
+
+    // Delete from database (soft delete)
+    const success = await deleteStudyMaterial(pool, materialId);
+
+    if (!success) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Study material not found' 
+      });
+    }
+
+    // Optionally clean up the file (uncomment if you want to delete files)
+    // try {
+    //   const filePath = path.join(__dirname, '../../frontend/public', material.file_path);
+    //   if (fs.existsSync(filePath)) {
+    //     fs.unlinkSync(filePath);
+    //   }
+    // } catch (cleanupErr) {
+    //   console.error('Error cleaning up file:', cleanupErr);
+    // }
+
+    console.log(`✅ Study material ${materialId} deleted successfully`);
+    
+    res.json({ 
+      success: true,
+      message: 'Study material deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting study material:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Download study material (increment download count)
+app.get('/api/study-materials/:id/download', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    console.log(`Downloading study material ${materialId}`);
+
+    const pool = await db.getPool();
+    
+    // Get material details
+    const material = await getStudyMaterialById(pool, materialId);
+    
+    if (!material) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Study material not found' 
+      });
+    }
+
+    // Increment download count
+    await incrementDownloadCount(pool, materialId);
+
+    // Return file path for frontend to handle download
+    res.json({
+      success: true,
+      file_path: material.file_path,
+      title: material.title
+    });
+  } catch (err) {
+    console.error('Error downloading study material:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Preview study material (increment view count)
+app.get('/api/study-materials/:id/preview', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    console.log(`Previewing study material ${materialId}`);
+
+    const pool = await db.getPool();
+    
+    // Get material details
+    const material = await getStudyMaterialById(pool, materialId);
+    
+    if (!material) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Study material not found' 
+      });
+    }
+
+    // Increment view count
+    await incrementViewCount(pool, materialId);
+
+    // Return file path for frontend to handle preview
+    res.json({
+      success: true,
+      file_path: material.file_path,
+      title: material.title
+    });
+  } catch (err) {
+    console.error('Error previewing study material:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Search study materials
+app.get('/api/study-materials/search/:term', async (req, res) => {
+  try {
+    const searchTerm = req.params.term;
+    console.log(`Searching study materials for: ${searchTerm}`);
+
+    const pool = await db.getPool();
+    const materials = await searchStudyMaterials(pool, searchTerm);
+
+    console.log(`✅ Found ${materials.length} study materials matching search`);
+    
+    res.json({
+      success: true,
+      materials: materials,
+      total: materials.length,
+      search_term: searchTerm
+    });
+  } catch (err) {
+    console.error('Error searching study materials:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ===== PENDING MATERIALS API ENDPOINTS =====
+
+// Get all pending materials
+app.get('/api/pending-materials', async (req, res) => {
+  try {
+    console.log('Fetching all pending materials');
+    
+    const pool = await db.getPool();
+    const materials = await getAllPendingMaterials(pool);
+    
+    console.log(`✅ Found ${materials.length} pending materials`);
+    
+    res.json({
+      success: true,
+      materials: materials,
+      total: materials.length
+    });
+  } catch (err) {
+    console.error('Error fetching pending materials:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending material by ID
+app.get('/api/pending-materials/:id', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    console.log(`Fetching pending material ${materialId}`);
+    
+    const pool = await db.getPool();
+    const material = await getPendingMaterialById(pool, materialId);
+    
+    if (!material) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending material not found' 
+      });
+    }
+    
+    console.log(`✅ Found pending material ${materialId}`);
+    
+    res.json({
+      success: true,
+      material: material
+    });
+  } catch (err) {
+    console.error('Error fetching pending material:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Approve pending material
+app.put('/api/pending-materials/:id/approve', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    const { approved_by } = req.body;
+    
+    console.log(`Approving pending material ${materialId} by ${approved_by || 'system'}`);
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Get reviewer's name
+    let reviewerName = 'System';
+    if (approved_by) {
+      try {
+        const [reviewerRows] = await pool.query(
+          'SELECT CONCAT(first_name, " ", last_name) as full_name FROM users WHERE user_id = ?',
+          [approved_by]
+        );
+        if (reviewerRows.length > 0) {
+          reviewerName = reviewerRows[0].full_name;
+        }
+      } catch (reviewerErr) {
+        console.log('Could not fetch reviewer name:', reviewerErr);
+      }
+    }
+
+    // Get pending material details
+    const pendingMaterial = await getPendingMaterialById(pool, materialId);
+    
+    if (!pendingMaterial) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending material not found' 
+      });
+    }
+
+    if (pendingMaterial.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Material is not in pending status' 
+      });
+    }
+
+    // Transfer to study materials table
+    const transferResult = await transferToStudyMaterials(pool, pendingMaterial);
+    
+    // Move file from pending-resources to learning-resources
+    try {
+      const pendingFilePath = path.join(__dirname, '../../frontend/public', pendingMaterial.file_path);
+      const filename = path.basename(pendingMaterial.file_path);
+      const learningResourcesPath = path.join(__dirname, '../../frontend/public/learning-resources');
+      const newFilePath = path.join(learningResourcesPath, filename);
+      
+      // Create learning-resources directory if it doesn't exist
+      if (!fs.existsSync(learningResourcesPath)) {
+        fs.mkdirSync(learningResourcesPath, { recursive: true });
+      }
+      
+      // Move file from pending-resources to learning-resources
+      if (fs.existsSync(pendingFilePath)) {
+        fs.renameSync(pendingFilePath, newFilePath);
+        console.log(`✅ Moved file from ${pendingMaterial.file_path} to /learning-resources/${filename}`);
+      }
+    } catch (moveErr) {
+      console.error('Error moving approved file:', moveErr);
+      // Don't fail the approval if file move fails
+    }
+    
+    // Update pending material status to approved
+    const updateSuccess = await updatePendingMaterialStatus(pool, materialId, 'approved', approved_by || '1');
+
+    if (!updateSuccess) {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to update material status' 
+      });
+    }
+
+    console.log(`✅ Pending material ${materialId} approved successfully by ${reviewerName}`);
+    
+    // Send approval email to the user
+    try {
+      console.log(`Sending approval email to user ${pendingMaterial.uploaded_by}...`);
+      
+      const emailResult = await sendMaterialApprovalEmail(
+        pendingMaterial.email,
+        pendingMaterial.uploaded_by_name,
+        pendingMaterial.title,
+        reviewerName
+      );
+      
+      if (emailResult.success) {
+        console.log(`✅ Approval email sent successfully`);
+      } else {
+        console.log(`⚠️ Failed to send approval email: ${emailResult.error}`);
+      }
+    } catch (emailError) {
+      console.log(`⚠️ Error sending approval email: ${emailError.message}`);
+    }
+    
+    res.json({ 
+      success: true,
+      message: 'Material approved successfully',
+      approved_material: transferResult
+    });
+  } catch (err) {
+    console.error('Error approving pending material:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Reject pending material
+app.put('/api/pending-materials/:id/reject', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    const { rejected_by, rejection_reason } = req.body;
+    
+    console.log(`Rejecting pending material ${materialId} by ${rejected_by || 'system'}`);
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Get reviewer's name
+    let reviewerName = 'System';
+    if (rejected_by) {
+      try {
+        const [reviewerRows] = await pool.query(
+          'SELECT CONCAT(first_name, " ", last_name) as full_name FROM users WHERE user_id = ?',
+          [rejected_by]
+        );
+        if (reviewerRows.length > 0) {
+          reviewerName = reviewerRows[0].full_name;
+        }
+      } catch (reviewerErr) {
+        console.log('Could not fetch reviewer name:', reviewerErr);
+      }
+    }
+
+    // Get pending material details
+    const pendingMaterial = await getPendingMaterialById(pool, materialId);
+    
+    if (!pendingMaterial) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending material not found' 
+      });
+    }
+
+    if (pendingMaterial.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Material is not in pending status' 
+      });
+    }
+
+    // Update pending material status to rejected
+    const updateSuccess = await updatePendingMaterialStatus(pool, materialId, 'rejected', rejected_by || '1');
+
+    if (!updateSuccess) {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to update material status' 
+      });
+    }
+
+    // Optionally delete the uploaded file for rejected materials
+    try {
+      const filePath = path.join(__dirname, '../../frontend/public', pendingMaterial.file_path);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`✅ Deleted rejected file: ${pendingMaterial.file_path}`);
+      }
+    } catch (cleanupErr) {
+      console.error('Error cleaning up rejected file:', cleanupErr);
+    }
+
+    console.log(`✅ Pending material ${materialId} rejected successfully by ${reviewerName}`);
+    
+    // Send rejection email to the user
+    try {
+      console.log(`Sending rejection email to user ${pendingMaterial.uploaded_by}...`);
+      
+      const emailResult = await sendMaterialRejectionEmail(
+        pendingMaterial.email,
+        pendingMaterial.uploaded_by_name,
+        pendingMaterial.title,
+        rejection_reason,
+        reviewerName
+      );
+      
+      if (emailResult.success) {
+        console.log(`✅ Rejection email sent successfully`);
+      } else {
+        console.log(`⚠️ Failed to send rejection email: ${emailResult.error}`);
+      }
+    } catch (emailError) {
+      console.log(`⚠️ Error sending rejection email: ${emailError.message}`);
+    }
+    
+    res.json({ 
+      success: true,
+      message: 'Material rejected successfully'
+    });
+  } catch (err) {
+    console.error('Error rejecting pending material:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete pending material
+app.delete('/api/pending-materials/:id', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    console.log(`Deleting pending material ${materialId}`);
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Get material details for file cleanup
+    const material = await getPendingMaterialById(pool, materialId);
+    
+    if (!material) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending material not found' 
+      });
+    }
+
+    // Delete from database
+    const success = await deletePendingMaterial(pool, materialId);
+
+    if (!success) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending material not found' 
+      });
+    }
+
+    // Clean up the file
+    try {
+      const filePath = path.join(__dirname, '../../frontend/public', material.file_path);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`✅ Deleted file: ${material.file_path}`);
+      }
+    } catch (cleanupErr) {
+      console.error('Error cleaning up file:', cleanupErr);
+    }
+
+    console.log(`✅ Pending material ${materialId} deleted successfully`);
+    
+    res.json({ 
+      success: true,
+      message: 'Pending material deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting pending material:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending materials by status
+app.get('/api/pending-materials/status/:status', async (req, res) => {
+  try {
+    const status = req.params.status;
+    console.log(`Fetching pending materials with status: ${status}`);
+
+    const pool = await db.getPool();
+    const materials = await getPendingMaterialsByStatus(pool, status);
+
+    console.log(`✅ Found ${materials.length} materials with status ${status}`);
+    
+    res.json({
+      success: true,
+      materials: materials,
+      total: materials.length,
+      status: status
+    });
+  } catch (err) {
+    console.error('Error fetching pending materials by status:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 

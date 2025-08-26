@@ -151,6 +151,9 @@ export default function Sidebar() {
                     <NavItem href="/pending-applicants" icon={Clock}>
                       Pending Applicants
                     </NavItem>
+                    <NavItem href="/pending-materials" icon={BookOpen}>
+                      Pending Materials
+                    </NavItem>
                     {userRole === "admin" && (
                       <NavItem href="/admin-dashboard" icon={Shield}>
                         Admin Dashboard
