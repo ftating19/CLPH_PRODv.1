@@ -86,6 +86,12 @@ export default function Quizzes() {
   const [elapsedTime, setElapsedTime] = useState(0) // in seconds
   const [viewMode, setViewMode] = useState<"sets" | "list">("sets")
   
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("")
+  const [showFilters, setShowFilters] = useState(false)
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all")
+  const [selectedDifficultyFilter, setSelectedDifficultyFilter] = useState<string>("all")
+  
   // Confirmation and time-up dialogs
   const [showStartConfirmation, setShowStartConfirmation] = useState(false)
   const [quizToStart, setQuizToStart] = useState<Quiz | null>(null)
@@ -119,8 +125,25 @@ export default function Quizzes() {
     creator_name: `${dbQuiz.first_name || ''} ${dbQuiz.last_name || ''}`.trim(),
   }))
 
-  // Group quizzes by subject to create sets
-  const quizGroupedSets = quizList.reduce((sets: any[], quiz: any) => {
+  // Filter quizzes based on search and filter criteria
+  const filteredQuizList = quizList.filter((quiz: any) => {
+    // Search filter
+    const matchesSearch = searchQuery.trim() === "" || 
+      quiz.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      quiz.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      quiz.description.toLowerCase().includes(searchQuery.toLowerCase())
+
+    // Subject filter
+    const matchesSubject = selectedSubjectFilter === "all" || quiz.subject === selectedSubjectFilter
+
+    // Difficulty filter
+    const matchesDifficulty = selectedDifficultyFilter === "all" || quiz.difficulty === selectedDifficultyFilter
+
+    return matchesSearch && matchesSubject && matchesDifficulty
+  })
+
+  // Group filtered quizzes by subject to create sets
+  const quizGroupedSets = filteredQuizList.reduce((sets: any[], quiz: any) => {
     const existingSet = sets.find(set => set.subject === quiz.subject)
     
     if (existingSet) {
@@ -1233,7 +1256,12 @@ export default function Quizzes() {
       <div className="flex items-center space-x-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input placeholder="Search quizzes by title or subject..." className="pl-10" />
+          <Input 
+            placeholder="Search quizzes by title or subject..." 
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
         
         {/* View Mode Toggle */}
@@ -1258,10 +1286,75 @@ export default function Quizzes() {
           </Button>
         </div>
         
-        <Button variant="outline">
-          <Filter className="w-4 h-4 mr-2" />
-          Filters
-        </Button>
+        <Dialog open={showFilters} onOpenChange={setShowFilters}>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <Filter className="w-4 h-4 mr-2" />
+              Filters
+              {(selectedSubjectFilter !== "all" || selectedDifficultyFilter !== "all") && (
+                <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                  {[selectedSubjectFilter, selectedDifficultyFilter].filter(f => f !== "all").length}
+                </span>
+              )}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Filter Quizzes</DialogTitle>
+              <DialogDescription>
+                Filter quizzes by subject and difficulty
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Subject</Label>
+                <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All subjects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subjects</SelectItem>
+                    {subjects.map((subject) => (
+                      <SelectItem key={subject.subject_id} value={subject.subject_name}>
+                        {subject.subject_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Difficulty</Label>
+                <Select value={selectedDifficultyFilter} onValueChange={setSelectedDifficultyFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All difficulties" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Difficulties</SelectItem>
+                    <SelectItem value="Beginner">Beginner</SelectItem>
+                    <SelectItem value="Intermediate">Intermediate</SelectItem>
+                    <SelectItem value="Advanced">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-between pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSelectedSubjectFilter("all")
+                    setSelectedDifficultyFilter("all")
+                  }}
+                >
+                  Clear Filters
+                </Button>
+                <Button onClick={() => setShowFilters(false)}>
+                  Apply Filters
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Sets View */}
@@ -1276,23 +1369,48 @@ export default function Quizzes() {
       {/* List View */}
       {viewMode === "list" && (
         <div className="space-y-4">
-          {quizList.map((quiz) => (
+          {filteredQuizList.map((quiz) => (
             <QuizCard key={quiz.id} quiz={quiz} />
           ))}
         </div>
       )}
 
-      {quizList.length === 0 && !quizzesLoading && (
+      {/* Show different messages based on filter state */}
+      {filteredQuizList.length === 0 && !quizzesLoading && (
         <div className="text-center py-12">
           <Brain className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-muted-foreground mb-2">No quizzes available</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Create your first quiz to start testing knowledge
-          </p>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Your First Quiz
-          </Button>
+          {quizList.length === 0 ? (
+            <>
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">No quizzes available</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Create your first quiz to start testing knowledge
+              </p>
+              <Button onClick={() => setShowCreateDialog(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Quiz
+              </Button>
+            </>
+          ) : (
+            <>
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">No quizzes match your filters</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Try adjusting your search terms or filters to find quizzes
+              </p>
+              <div className="flex justify-center space-x-2">
+                <Button variant="outline" onClick={() => {
+                  setSearchQuery("")
+                  setSelectedSubjectFilter("all")
+                  setSelectedDifficultyFilter("all")
+                }}>
+                  Clear All Filters
+                </Button>
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create New Quiz
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
