@@ -11,7 +11,19 @@ import {
   UserCheck,
 } from "lucide-react"
 
-export default function DashboardContent() {
+export default function DashboardContent({ currentUser }: { currentUser: any }) {
+  // Example user data (replace with real queries)
+  const userCourses = currentUser?.courses?.length || 0
+  const userGroups = currentUser?.groups?.length || 0
+  const userPosts = currentUser?.posts?.length || 0
+  const userRating = currentUser?.average_rating || '-'
+  // Button handlers (replace with router push or modals as needed)
+  const handleFindTutor = () => window.location.href = '/tutor-matching'
+  const handleJoinDiscussion = () => window.location.href = '/discussion-forums'
+  const handleStartDiscussion = () => window.location.href = '/discussion-forums'
+  const handleFindTutors = () => window.location.href = '/tutor-matching'
+  const handleStartLearning = () => window.location.href = '/learning-resources'
+  const handleScheduleEvent = () => window.location.href = '/dashboard/events'
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl p-6 border border-blue-100 dark:border-blue-900/20">
@@ -20,10 +32,10 @@ export default function DashboardContent() {
           Connect, collaborate, and excel in your academic journey with peer-to-peer learning.
         </p>
         <div className="flex gap-3">
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+          <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={handleFindTutor}>
             Find a Tutor
           </Button>
-          <Button variant="outline" size="sm" className="bg-transparent">
+          <Button variant="outline" size="sm" className="bg-transparent" onClick={handleJoinDiscussion}>
             Join Discussion
           </Button>
         </div>
@@ -38,8 +50,8 @@ export default function DashboardContent() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">No courses enrolled</p>
+            <div className="text-2xl font-bold">{userCourses}</div>
+            <p className="text-xs text-muted-foreground">{userCourses === 0 ? 'No courses enrolled' : 'Courses enrolled'}</p>
           </CardContent>
         </Card>
         <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
@@ -50,8 +62,8 @@ export default function DashboardContent() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">No active groups</p>
+            <div className="text-2xl font-bold">{userGroups}</div>
+            <p className="text-xs text-muted-foreground">{userGroups === 0 ? 'No active groups' : 'Active groups'}</p>
           </CardContent>
         </Card>
         <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
@@ -62,8 +74,8 @@ export default function DashboardContent() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">No posts yet</p>
+            <div className="text-2xl font-bold">{userPosts}</div>
+            <p className="text-xs text-muted-foreground">{userPosts === 0 ? 'No posts yet' : 'Forum posts'}</p>
           </CardContent>
         </Card>
         <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
@@ -74,8 +86,8 @@ export default function DashboardContent() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
-            <p className="text-xs text-muted-foreground">No ratings yet</p>
+            <div className="text-2xl font-bold">{userRating}</div>
+            <p className="text-xs text-muted-foreground">{userRating === '-' ? 'No ratings yet' : 'Average rating'}</p>
           </CardContent>
         </Card>
       </div>
@@ -93,7 +105,7 @@ export default function DashboardContent() {
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <MessageSquare className="h-12 w-12 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground mb-4">No discussions yet</p>
-              <Button variant="outline" className="bg-transparent">
+              <Button variant="outline" className="bg-transparent" onClick={handleStartDiscussion}>
                 Start a Discussion
               </Button>
             </div>
@@ -112,7 +124,7 @@ export default function DashboardContent() {
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <UserCheck className="h-12 w-12 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground mb-4">No tutors available</p>
-              <Button variant="outline" className="bg-transparent">
+              <Button variant="outline" className="bg-transparent" onClick={handleFindTutors}>
                 Find Tutors
               </Button>
             </div>
@@ -133,7 +145,7 @@ export default function DashboardContent() {
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Brain className="h-12 w-12 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground mb-4">No progress data available</p>
-              <Button variant="outline" className="bg-transparent">
+              <Button variant="outline" className="bg-transparent" onClick={handleStartLearning}>
                 Start Learning
               </Button>
             </div>
@@ -152,7 +164,7 @@ export default function DashboardContent() {
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <BookOpen className="h-12 w-12 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground mb-4">No upcoming events</p>
-              <Button variant="outline" className="bg-transparent">
+              <Button variant="outline" className="bg-transparent" onClick={handleScheduleEvent}>
                 Schedule Event
               </Button>
             </div>

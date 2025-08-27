@@ -61,7 +61,7 @@ export default function DashboardPage() {
 
   return (
     <Layout>
-      <Dashboard />
+      <Dashboard currentUser={currentUser} />
     </Layout>
   )
 }
