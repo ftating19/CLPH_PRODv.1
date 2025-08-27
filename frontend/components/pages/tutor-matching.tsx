@@ -1,4 +1,6 @@
+
 "use client"
+import BookingForm from "@/components/modals/BookingForm"
 
 import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -483,65 +485,4 @@ export default function TutorMatching() {
   )
 }
 
-// BookingForm component
-function BookingForm({ tutor, currentUser, onClose }: { tutor: Tutor | null, currentUser: any, onClose: () => void }) {
-  const [startDate, setStartDate] = React.useState("")
-  const [endDate, setEndDate] = React.useState("")
-  const [time, setTime] = React.useState("")
-  const [status, setStatus] = React.useState("")
-  const [loading, setLoading] = React.useState(false)
-
-  const handleBooking = async () => {
-    if (!tutor || !currentUser || !startDate || !endDate || !time) {
-      setStatus("Please fill all required fields.")
-      return
-    }
-    setLoading(true)
-    setStatus("")
-    try {
-      const preferred_dates = [startDate, endDate]
-      const res = await fetch("/api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tutor_id: tutor.user_id,
-          student_id: currentUser.user_id,
-          preferred_dates,
-          preferred_time: time,
-          remarks: ""
-        })
-      })
-      const data = await res.json()
-      if (data.success) {
-        setStatus("Booking successful!")
-        setTimeout(() => { onClose() }, 1200)
-      } else {
-        setStatus("Booking failed. Please try again.")
-      }
-    } catch {
-      setStatus("Booking failed. Please try again.")
-    }
-    setLoading(false)
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="startDate">Start Date</Label>
-        <Input id="startDate" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="endDate">End Date</Label>
-        <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="sessionTime">Preferred Time</Label>
-        <Input id="sessionTime" type="time" value={time} onChange={e => setTime(e.target.value)} />
-      </div>
-      <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleBooking} disabled={loading}>
-        {loading ? "Booking..." : "Send Booking Request"}
-      </Button>
-      {status && <div className="text-center text-sm mt-2 text-blue-600">{status}</div>}
-    </div>
-  )
-}
+// ...existing code...

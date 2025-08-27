@@ -3559,13 +3559,13 @@ app.post('/api/flashcards/:flashcardId/reset', async (req, res) => {
 // API endpoint: Create a new session booking
 app.post('/api/sessions', async (req, res) => {
   try {
-    const { tutor_id, student_id, preferred_dates, preferred_time, remarks } = req.body
-    if (!tutor_id || !student_id || !preferred_dates || !Array.isArray(preferred_dates) || preferred_dates.length !== 2 || !preferred_time) {
+    const { tutor_id, name, student_id, preferred_dates, preferred_time } = req.body
+    if (!tutor_id || !name || !student_id || !preferred_dates || !Array.isArray(preferred_dates) || preferred_dates.length !== 2 || !preferred_time) {
       return res.status(400).json({ success: false, error: 'Missing or invalid required fields' })
     }
     // preferred_dates: [startDate, endDate]
     const [start_date, end_date] = preferred_dates
-    const booking_id = await createSession({ tutor_id, student_id, start_date, end_date, preferred_time, remarks })
+    const booking_id = await createSession({ tutor_id, name, start_date, end_date, preferred_time, student_id })
     res.status(201).json({ success: true, booking_id })
   } catch (err) {
     console.error('Error creating session:', err)
