@@ -27,10 +27,10 @@ export default function TutorSessionPage() {
       if (!currentUser) return
       setLoading(true)
       try {
-        const response = await fetch(`/api/bookings?student_id=${currentUser.user_id}`)
+  const response = await fetch(`http://localhost:4000/api/sessions`)
         const data = await response.json()
-        if (data.success) {
-          setBookings(data.bookings)
+        if (data.success && Array.isArray(data.sessions)) {
+          setBookings(data.sessions)
         } else {
           setBookings([])
         }
