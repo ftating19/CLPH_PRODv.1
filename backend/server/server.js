@@ -2,6 +2,10 @@ const express = require('express')
 const cors = require('cors')
 require('dotenv').config({ path: '../.env' })
 
+
+// ...imports only, no app initialization or routes here...
+
+
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
 const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, testEmailConnection } = require('../services/emailService')

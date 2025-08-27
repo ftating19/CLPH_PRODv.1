@@ -6,7 +6,7 @@ async function createSession({ tutor_id, name, student_id, start_date, end_date,
   const pool = await db.getPool()
   try {
     const [result] = await pool.query(
-      `INSERT INTO bookings (tutor_id, name, start_date, end_date, preferred_time, student_id, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      `INSERT INTO bookings (tutor_id, name, start_date, end_date, preferred_time, student_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())`,
       [tutor_id, name, start_date, end_date, preferred_time, student_id]
     )
     return result.insertId
