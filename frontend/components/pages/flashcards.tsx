@@ -605,23 +605,25 @@ export default function Flashcards() {
   const handleNextOrComplete = async () => {
     if (!selectedSet || !currentUser) return;
     try {
-      const currentCard = selectedSet.cards[currentCardIndex];
       const isLastCard = currentCardIndex === selectedSet.cards.length - 1;
-      // Mark current card as completed
-      await markCompleted(currentCard.id, currentUser.user_id);
-      // Update the card status in the current set
-      const updatedCards = [...selectedSet.cards];
-      updatedCards[currentCardIndex] = {
-        ...updatedCards[currentCardIndex],
-        status: 'completed'
-      };
-      setSelectedSet({
-        ...selectedSet,
-        cards: updatedCards
-      });
-      refetchProgress();
-      refetchFlashcards();
       if (isLastCard) {
+        // Mark all cards as completed and finish set
+        const updatedCards = [...selectedSet.cards];
+        for (let i = 0; i < updatedCards.length; i++) {
+          if (updatedCards[i].status !== 'completed') {
+            await markCompleted(updatedCards[i].id, currentUser.user_id);
+            updatedCards[i] = {
+              ...updatedCards[i],
+              status: 'completed'
+            };
+          }
+        }
+        setSelectedSet({
+          ...selectedSet,
+          cards: updatedCards
+        });
+        refetchProgress();
+        refetchFlashcards();
         // Show completion message and go back to sets
         toast({
           title: "Congratulations!",
@@ -632,6 +634,7 @@ export default function Flashcards() {
           setStudyMode(false);
         }, 2000);
       } else {
+        // Just go to next card, do not mark as completed
         setCurrentCardIndex(currentCardIndex + 1);
         setIsFlipped(false);
       }
@@ -679,7 +682,7 @@ export default function Flashcards() {
             </div>
             {set.completedCards > 0 && (
               <div className="flex items-center">
-                <span className="text-green-600 font-medium">{set.completedCards} completed</span>
+                <span className="text-green-600 font-medium">Completed ({set.completedCards} attempts)</span>
               </div>
             )}
           </div>
@@ -854,7 +857,7 @@ export default function Flashcards() {
                 </>
               ) : (
                 <>
-                  Next & Mark Done
+                  Next
                   <ChevronRight className="w-4 h-4 ml-2" />
                 </>
               )}
