@@ -164,19 +164,31 @@ export default function Sidebar() {
               )}
 
               {(userRole === "student" || userRole === "tutor") && (
-                <div>
-                  <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Tools
+                <>
+                  <div>
+                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Sessions
+                    </div>
+                    <div className="space-y-1">
+                      <NavItem href="/sessions/tutor-session" icon={UserCheck}>
+                        Tutor Session
+                      </NavItem>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <NavItem href="/quizzes" icon={Brain}>
-                      Quizzes
-                    </NavItem>
-                    <NavItem href="/flashcards" icon={Layers}>
-                      Flashcards
-                    </NavItem>
+                  <div>
+                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Tools
+                    </div>
+                    <div className="space-y-1">
+                      <NavItem href="/quizzes" icon={Brain}>
+                        Quizzes
+                      </NavItem>
+                      <NavItem href="/flashcards" icon={Layers}>
+                        Flashcards
+                      </NavItem>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
 
               {userRole === "admin" && (

@@ -101,6 +101,7 @@ const {
   getPendingMaterialsByStatus, 
   transferToStudyMaterials 
 } = require('../queries/pendingMaterials')
+const { createSession, getSessions } = require('../queries/sessions')
 
 const multer = require('multer')
 const path = require('path')
@@ -3554,6 +3555,35 @@ app.post('/api/flashcards/:flashcardId/reset', async (req, res) => {
     });
   }
 });
+
+// API endpoint: Create a new session booking
+app.post('/api/sessions', async (req, res) => {
+  try {
+    const { tutor_id, student_id, preferred_dates, preferred_time, remarks } = req.body
+    if (!tutor_id || !student_id || !preferred_dates || !Array.isArray(preferred_dates) || preferred_dates.length !== 2 || !preferred_time) {
+      return res.status(400).json({ success: false, error: 'Missing or invalid required fields' })
+    }
+    // preferred_dates: [startDate, endDate]
+    const [start_date, end_date] = preferred_dates
+    const booking_id = await createSession({ tutor_id, student_id, start_date, end_date, preferred_time, remarks })
+    res.status(201).json({ success: true, booking_id })
+  } catch (err) {
+    console.error('Error creating session:', err)
+    res.status(500).json({ success: false, error: 'Internal server error' })
+  }
+})
+
+// API endpoint: Get sessions for a student or tutor
+app.get('/api/sessions', async (req, res) => {
+  try {
+    const { student_id, tutor_id } = req.query
+    const sessions = await getSessions({ student_id, tutor_id })
+    res.json({ success: true, sessions })
+  } catch (err) {
+    console.error('Error fetching sessions:', err)
+    res.status(500).json({ success: false, error: 'Internal server error' })
+  }
+})
 
 async function start() {
   try {

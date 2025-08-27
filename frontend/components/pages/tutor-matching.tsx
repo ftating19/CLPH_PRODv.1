@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -48,7 +48,7 @@ interface Tutor {
 export default function TutorMatching() {
   // Subject filter state
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all')
-  const [selectedTutor, setSelectedTutor] = useState<string | null>(null)
+  const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [tutors, setTutors] = useState<Tutor[]>([])
@@ -256,13 +256,13 @@ export default function TutorMatching() {
 
         <div className="flex items-center justify-end pt-4 border-t">
           <div className="flex space-x-2">
-            <Button size="sm" variant="outline" onClick={() => setSelectedTutor(tutor.application_id.toString())}>
+            <Button size="sm" variant="outline" onClick={() => setSelectedTutor(tutor)}>
               View Profile
             </Button>
             <Button 
               size="sm" 
               className="bg-blue-600 hover:bg-blue-700" 
-              onClick={() => setShowBookingModal(true)}
+              onClick={() => { setSelectedTutor(tutor); setShowBookingModal(true); }}
               disabled={tutor.status !== 'approved'}
             >
               <Calendar className="w-4 h-4 mr-2" />
@@ -476,31 +476,72 @@ export default function TutorMatching() {
             <DialogTitle>Book a Tutoring Session</DialogTitle>
             <DialogDescription>Schedule a session with your selected tutor.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="sessionDate">Preferred Date</Label>
-              <Input id="sessionDate" type="date" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sessionTime">Preferred Time</Label>
-              <Input id="sessionTime" type="time" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="duration">Session Duration</Label>
-              <Input id="duration" placeholder="e.g., 1 hour, 2 hours" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="topic">Topic/Subject</Label>
-              <Input id="topic" placeholder="What would you like to learn?" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="message">Additional Message</Label>
-              <Textarea id="message" placeholder="Any specific requirements or questions?" rows={3} />
-            </div>
-            <Button className="w-full bg-blue-600 hover:bg-blue-700">Send Booking Request</Button>
-          </div>
+          <BookingForm tutor={selectedTutor} currentUser={currentUser} onClose={() => setShowBookingModal(false)} />
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+// BookingForm component
+function BookingForm({ tutor, currentUser, onClose }: { tutor: Tutor | null, currentUser: any, onClose: () => void }) {
+  const [startDate, setStartDate] = React.useState("")
+  const [endDate, setEndDate] = React.useState("")
+  const [time, setTime] = React.useState("")
+  const [status, setStatus] = React.useState("")
+  const [loading, setLoading] = React.useState(false)
+
+  const handleBooking = async () => {
+    if (!tutor || !currentUser || !startDate || !endDate || !time) {
+      setStatus("Please fill all required fields.")
+      return
+    }
+    setLoading(true)
+    setStatus("")
+    try {
+      const preferred_dates = [startDate, endDate]
+      const res = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tutor_id: tutor.user_id,
+          student_id: currentUser.user_id,
+          preferred_dates,
+          preferred_time: time,
+          remarks: ""
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setStatus("Booking successful!")
+        setTimeout(() => { onClose() }, 1200)
+      } else {
+        setStatus("Booking failed. Please try again.")
+      }
+    } catch {
+      setStatus("Booking failed. Please try again.")
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="startDate">Start Date</Label>
+        <Input id="startDate" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="endDate">End Date</Label>
+        <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="sessionTime">Preferred Time</Label>
+        <Input id="sessionTime" type="time" value={time} onChange={e => setTime(e.target.value)} />
+      </div>
+      <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleBooking} disabled={loading}>
+        {loading ? "Booking..." : "Send Booking Request"}
+      </Button>
+      {status && <div className="text-center text-sm mt-2 text-blue-600">{status}</div>}
     </div>
   )
 }
