@@ -46,6 +46,8 @@ interface Tutor {
 }
 
 export default function TutorMatching() {
+  // Subject filter state
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all')
   const [selectedTutor, setSelectedTutor] = useState<string | null>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [showApplyModal, setShowApplyModal] = useState(false)
@@ -421,10 +423,19 @@ export default function TutorMatching() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input placeholder="Search tutors by name, subject, or specialty..." className="pl-10" />
         </div>
-        <Button variant="outline">
-          <Filter className="w-4 h-4 mr-2" />
-          Filters
-        </Button>
+        <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Filter by subject" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Subjects</SelectItem>
+            {subjects.map((subject) => (
+              <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                {subject.subject_code} - {subject.subject_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -450,9 +461,11 @@ export default function TutorMatching() {
             </Button>
           </div>
         ) : (
-          tutors.map((tutor) => (
-            <TutorCard key={tutor.application_id} tutor={tutor} />
-          ))
+          tutors
+            .filter((tutor) => selectedSubjectFilter === 'all' || tutor.subject_id.toString() === selectedSubjectFilter)
+            .map((tutor) => (
+              <TutorCard key={tutor.application_id} tutor={tutor} />
+            ))
         )}
       </div>
 
