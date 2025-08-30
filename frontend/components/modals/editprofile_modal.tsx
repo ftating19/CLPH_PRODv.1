@@ -273,12 +273,12 @@ export default function EditProfileModal({ open, onClose, onUpdate }: EditProfil
                 </div>
                 <div>
                   <Label htmlFor="role" className="text-sm">Role</Label>
-                  <Select value={role} onValueChange={setRole}>
+                  <Select value={role} onValueChange={setRole} disabled>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Student">Student</SelectItem>
+                      <SelectItem value={role}>{role}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
