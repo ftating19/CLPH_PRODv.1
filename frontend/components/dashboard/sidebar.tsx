@@ -82,8 +82,9 @@ export default function Sidebar() {
         .then((res) => res.json())
         .then((data) => {
           if (isMounted) {
-            if (typeof data.total === "number") {
-              setPendingCount(data.total)
+            if (Array.isArray(data.materials)) {
+              const count = data.materials.filter((m: any) => m.status === "pending").length
+              setPendingCount(count)
             } else {
               setPendingCount(0)
             }
@@ -104,9 +105,11 @@ export default function Sidebar() {
         <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
         <span className="flex items-center gap-2">
           {children}
-          <span className="inline-flex items-center justify-center bg-red-500 text-white rounded-full min-w-[20px] h-5 text-xs font-bold ml-2">
-            {pendingCount !== undefined ? pendingCount : "!"}
-          </span>
+          {pendingCount && pendingCount > 0 && (
+            <span className="inline-flex items-center justify-center bg-red-500 text-white rounded-full min-w-[20px] h-5 text-xs font-bold ml-2">
+              {pendingCount}
+            </span>
+          )}
         </span>
       </Link>
     )
