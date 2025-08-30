@@ -11,6 +11,7 @@ const getAllFlashcards = async (pool) => {
         f.subject_id,
         f.sub_id,
         f.created_by,
+        f.created_at,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as creator_name
       FROM flashcards f
@@ -37,6 +38,7 @@ const getAllFlashcardsWithProgress = async (pool, userId) => {
         f.subject_id,
         f.sub_id,
         f.created_by,
+        f.created_at,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as creator_name,
         fp.progress_id,
@@ -71,6 +73,7 @@ const getFlashcardById = async (pool, flashcardId) => {
         f.subject_id,
         f.sub_id,
         f.created_by,
+        f.created_at,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as created_by_name
       FROM flashcards f
@@ -97,6 +100,7 @@ const getFlashcardsBySubject = async (pool, subjectId) => {
         f.subject_id,
         f.sub_id,
         f.created_by,
+        f.created_at,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as created_by_name
       FROM flashcards f
@@ -124,6 +128,7 @@ const getFlashcardsByCreator = async (pool, createdBy) => {
         f.subject_id,
         f.sub_id,
         f.created_by,
+        f.created_at,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as created_by_name
       FROM flashcards f
