@@ -245,6 +245,12 @@ export default function DiscussionForums() {
                 <CardDescription>Comments & Replies</CardDescription>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col">
+                {/* Show forum title above comment form */}
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold">
+                    {forums.find(f => f.forum_id === selectedForumId)?.title || "Forum Topic"}
+                  </h3>
+                </div>
                 <div className="flex-1 space-y-4 overflow-y-auto mb-4">
                   {loadingComments ? (
                     <div className="text-center text-muted-foreground">Loading comments...</div>
