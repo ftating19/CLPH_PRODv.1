@@ -155,7 +155,7 @@ export default function Sidebar() {
         <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
         <span className="flex items-center gap-2">
           {children}
-          {pendingCount && pendingCount > 0 && (
+          {pendingCount !== undefined && pendingCount > 0 && (
             <span className="inline-flex items-center justify-center bg-red-500 text-white rounded-full min-w-[20px] h-5 text-xs font-bold ml-2">
               {pendingCount}
             </span>
@@ -248,9 +248,9 @@ export default function Sidebar() {
                     <NavItem href="/user-management" icon={Users}>
                       User Management
                     </NavItem>
-                    <NavItem href="/pending-applicants" icon={Clock}>
+                    <PendingApplicantsNavItem href="/pending-applicants" icon={Clock}>
                       Pending Applicants
-                    </NavItem>
+                    </PendingApplicantsNavItem>
                     <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
                       Pending Materials
                     </PendingMaterialsNavItem>
