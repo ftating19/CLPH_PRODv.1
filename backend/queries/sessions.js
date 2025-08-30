@@ -2,18 +2,18 @@
 const db = require('../dbconnection/mysql')
 
 // Create a new session booking (supports date range and preferred time)
-async function createSession({ tutor_id, name, student_id, start_date, end_date, preferred_time }) {
+async function createSession({ tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time }) {
   const pool = await db.getPool()
   try {
     const [result] = await pool.query(
-      `INSERT INTO bookings (tutor_id, name, start_date, end_date, preferred_time, student_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())`,
-      [tutor_id, name, start_date, end_date, preferred_time, student_id]
+      `INSERT INTO bookings (tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW())`,
+      [tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time]
     )
     return result.insertId
   } catch (err) {
     console.error('Booking insert failed:', err.message)
     console.error('Booking insert details:', {
-      tutor_id, name, start_date, end_date, preferred_time, student_id
+      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time
     })
     throw err
   }

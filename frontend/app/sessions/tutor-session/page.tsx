@@ -6,13 +6,14 @@ import { Star } from "lucide-react"
 import Layout from "@/components/dashboard/layout"
 import { useUser } from "@/contexts/UserContext"
 
-// Sample booking data structure
+// Updated booking data structure
 interface Booking {
   booking_id: number
   tutor_id: number
-  name: string
-  booking_schedule: string
+  tutor_name: string
   student_id: number
+  student_name: string
+  booking_schedule: string
   rating: number | null
   remarks: string | null
 }
@@ -27,7 +28,7 @@ export default function TutorSessionPage() {
       if (!currentUser) return
       setLoading(true)
       try {
-  const response = await fetch(`http://localhost:4000/api/sessions`)
+        const response = await fetch(`http://localhost:4000/api/sessions`)
         const data = await response.json()
         if (data.success && Array.isArray(data.sessions)) {
           setBookings(data.sessions)
@@ -56,10 +57,11 @@ export default function TutorSessionPage() {
             bookings.map((booking) => (
               <Card key={booking.booking_id} className="border-2 hover:border-blue-200">
                 <CardHeader>
-                  <CardTitle>{booking.name}</CardTitle>
+                  <CardTitle>{booking.tutor_name}</CardTitle>
                   <div className="text-sm text-muted-foreground">Session: {booking.booking_schedule}</div>
                 </CardHeader>
                 <CardContent>
+                  <div className="text-sm text-muted-foreground mb-2">Student: {booking.student_name}</div>
                   <div className="flex items-center space-x-2 mb-2">
                     <span>Rating:</span>
                     {[...Array(5)].map((_, i) => (

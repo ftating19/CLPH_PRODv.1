@@ -763,7 +763,7 @@ app.get('/api/tutor-applications/:id', async (req, res) => {
       validated_by: application.validated_by,
       tutor_information: application.tutor_information || '',
       program: application.program || '',
-      specialties: application.specialties || ''
+      specialties: app.specialties || ''
     };
 
     console.log(`✅ Found tutor application ${applicationId}`);
@@ -1885,7 +1885,7 @@ app.put('/api/pending-materials/:id/approve', async (req, res) => {
     if (approved_by) {
       try {
         const [reviewerRows] = await pool.query(
-          'SELECT CONCAT(first_name, " ", last_name) as full_name FROM users WHERE user_id = ?',
+          'SELECT CONCAT(first_name, " ", last_name) AS full_name FROM users WHERE user_id = ?',
           [approved_by]
         );
         if (reviewerRows.length > 0) {
@@ -2000,7 +2000,7 @@ app.put('/api/pending-materials/:id/reject', async (req, res) => {
     if (rejected_by) {
       try {
         const [reviewerRows] = await pool.query(
-          'SELECT CONCAT(first_name, " ", last_name) as full_name FROM users WHERE user_id = ?',
+          'SELECT CONCAT(first_name, " ", last_name) AS full_name FROM users WHERE user_id = ?',
           [rejected_by]
         );
         if (reviewerRows.length > 0) {
@@ -2382,6 +2382,7 @@ app.delete('/api/quizzes/:id', async (req, res) => {
       return res.status(400).json({ 
         success: false,
         error: 'Valid quiz ID is required' 
+ 
       });
     }
     
@@ -3563,29 +3564,69 @@ app.post('/api/flashcards/:flashcardId/reset', async (req, res) => {
 // API endpoint: Create a new session booking
 app.post('/api/sessions', async (req, res) => {
   try {
-    const { tutor_id, name, student_id, preferred_dates, preferred_time } = req.body
-    if (!tutor_id || !name || !student_id || !preferred_dates || !Array.isArray(preferred_dates) || preferred_dates.length !== 2 || !preferred_time) {
-      return res.status(400).json({ success: false, error: 'Missing or invalid required fields' })
+    console.log('Received request payload:', req.body);
+
+    const { tutor_id, student_id, preferred_dates, preferred_time } = req.body;
+
+    if (!tutor_id || !student_id || !preferred_dates || !Array.isArray(preferred_dates) || preferred_dates.length !== 2 || !preferred_time) {
+      console.error('Validation failed for request payload:', req.body);
+      return res.status(400).json({ success: false, error: 'Missing or invalid required fields' });
     }
+
     // preferred_dates: [startDate, endDate]
-    const [start_date, end_date] = preferred_dates
-    const booking_id = await createSession({ tutor_id, name, start_date, end_date, preferred_time, student_id })
-    res.status(201).json({ success: true, booking_id })
+    const [start_date, end_date] = preferred_dates;
+
+    // Fetch tutor_name and student_name from the users table
+    const pool = await db.getPool();
+    const [[tutor]] = await pool.query('SELECT CONCAT(first_name, " ", last_name) AS name FROM users WHERE user_id = ?', [tutor_id]);
+    const [[student]] = await pool.query('SELECT CONCAT(first_name, " ", last_name) AS name FROM users WHERE user_id = ?', [student_id]);
+
+    const tutor_name = tutor ? tutor.name : 'Unknown Tutor';
+    const student_name = student ? student.name : 'Unknown Student';
+
+    console.log('Creating session with details:', {
+      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time
+    });
+
+    const booking_id = await createSession({ tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time });
+    console.log('Session created successfully with booking_id:', booking_id);
+
+    res.status(201).json({ success: true, booking_id });
   } catch (err) {
-    console.error('Error creating session:', err)
-    res.status(500).json({ success: false, error: 'Internal server error' })
+    console.error('Error creating session:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 })
 
 // API endpoint: Get sessions for a student or tutor
 app.get('/api/sessions', async (req, res) => {
   try {
-    const { student_id, tutor_id } = req.query
-    const sessions = await getSessions({ student_id, tutor_id })
-    res.json({ success: true, sessions })
+    const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({ success: false, error: 'Missing user_id' });
+    }
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    const query = `
+      SELECT * FROM bookings
+      WHERE student_id = ? OR tutor_id = ?
+    `;
+
+    const [sessions] = await pool.query(query, [user_id, user_id]);
+
+    if (sessions.length === 0) {
+      console.log(`No sessions found for user_id: ${user_id}`);
+    } else {
+      console.log(`Found ${sessions.length} sessions for user_id: ${user_id}`);
+    }
+
+    res.json({ success: true, sessions });
   } catch (err) {
-    console.error('Error fetching sessions:', err)
-    res.status(500).json({ success: false, error: 'Internal server error' })
+    console.error('Error fetching sessions:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 })
 
