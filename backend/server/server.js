@@ -3654,8 +3654,8 @@ app.put('/api/sessions/:booking_id/rating', async (req, res) => {
   const [[avgResult]] = await pool.query('SELECT AVG(rating) AS avg_rating FROM bookings WHERE tutor_id = ? AND rating IS NOT NULL AND status = "Completed"', [tutor_id]);
   const avg_rating = avgResult.avg_rating ? parseFloat(avgResult.avg_rating).toFixed(2) : null;
 
-    // Update tutor's rating column
-    await pool.query('UPDATE tutors SET rating = ? WHERE user_id = ?', [avg_rating, tutor_id]);
+  // Update tutor's ratings column
+  await pool.query('UPDATE tutors SET ratings = ? WHERE user_id = ?', [avg_rating, tutor_id]);
 
     res.json({ success: true, booking_id, rating, remarks, tutor_id, avg_rating });
   } catch (err) {

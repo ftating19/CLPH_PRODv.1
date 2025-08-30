@@ -4,17 +4,18 @@
 const getAllTutors = async (pool) => {
   const query = `
     SELECT 
-      application_id,
-      user_id,
-      name,
-      subject_id,
-      subject_name,
-      application_date,
-      status,
-      validated_by,
-      tutor_information,
-      program,
-      specialties
+  application_id,
+  user_id,
+  name,
+  subject_id,
+  subject_name,
+  application_date,
+  status,
+  validated_by,
+  tutor_information,
+  program,
+  specialties,
+  ratings
     FROM tutors
     ORDER BY application_date DESC
   `;
@@ -27,17 +28,18 @@ const getAllTutors = async (pool) => {
 const getTutorsByStatus = async (pool, status) => {
   const query = `
     SELECT 
-      application_id,
-      user_id,
-      name,
-      subject_id,
-      subject_name,
-      application_date,
-      status,
-      validated_by,
-      tutor_information,
-      program,
-      specialties
+  application_id,
+  user_id,
+  name,
+  subject_id,
+  subject_name,
+  application_date,
+  status,
+  validated_by,
+  tutor_information,
+  program,
+  specialties,
+  ratings
     FROM tutors
     WHERE status = ?
     ORDER BY application_date DESC
@@ -51,17 +53,18 @@ const getTutorsByStatus = async (pool, status) => {
 const getTutorsBySubject = async (pool, subjectId) => {
   const query = `
     SELECT 
-      application_id,
-      user_id,
-      name,
-      subject_id,
-      subject_name,
-      application_date,
-      status,
-      validated_by,
-      tutor_information,
-      program,
-      specialties
+  application_id,
+  user_id,
+  name,
+  subject_id,
+  subject_name,
+  application_date,
+  status,
+  validated_by,
+  tutor_information,
+  program,
+  specialties,
+  ratings
     FROM tutors
     WHERE subject_id = ? AND status = 'approved'
     ORDER BY application_date DESC
@@ -75,17 +78,18 @@ const getTutorsBySubject = async (pool, subjectId) => {
 const getApprovedTutors = async (pool) => {
   const query = `
     SELECT 
-      application_id,
-      user_id,
-      name,
-      subject_id,
-      subject_name,
-      application_date,
-      status,
-      validated_by,
-      tutor_information,
-      program,
-      specialties
+  application_id,
+  user_id,
+  name,
+  subject_id,
+  subject_name,
+  application_date,
+  status,
+  validated_by,
+  tutor_information,
+  program,
+  specialties,
+  ratings
     FROM tutors
     WHERE status = 'approved'
     ORDER BY application_date DESC
@@ -99,17 +103,18 @@ const getApprovedTutors = async (pool) => {
 const getTutorById = async (pool, applicationId) => {
   const query = `
     SELECT 
-      application_id,
-      user_id,
-      name,
-      subject_id,
-      subject_name,
-      application_date,
-      status,
-      validated_by,
-      tutor_information,
-      program,
-      specialties
+  application_id,
+  user_id,
+  name,
+  subject_id,
+  subject_name,
+  application_date,
+  status,
+  validated_by,
+  tutor_information,
+  program,
+  specialties,
+  ratings
     FROM tutors
     WHERE application_id = ?
   `;

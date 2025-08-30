@@ -44,7 +44,7 @@ interface Tutor {
   tutor_information: string
   program: string
   specialties: string
-  rating?: number | string
+  ratings?: number | string
 }
 
 export default function TutorMatching() {
@@ -216,12 +216,12 @@ export default function TutorMatching() {
               {/* Tutor Rating Display - Modern, Animated, Partial Stars, Tooltip */}
               <div
                 className="flex items-center text-sm font-semibold group relative"
-                title={tutor.rating ? `Rated ${tutor.rating} out of 5` : 'No ratings yet'}
+                title={tutor.ratings ? `Rated ${tutor.ratings} out of 5` : 'No ratings yet'}
               >
                 <span className="mr-1 text-yellow-700">Rating:</span>
                 <div className="flex items-center">
                   {[...Array(5)].map((_, i) => {
-                    const ratingValue = typeof tutor.rating === 'string' ? parseFloat(tutor.rating) : tutor.rating;
+                    const ratingValue = typeof tutor.ratings === 'string' ? parseFloat(tutor.ratings) : tutor.ratings;
                     let fill = 'none';
                     let stroke = 'currentColor';
                     let fillColor = 'text-yellow-400';
@@ -252,7 +252,7 @@ export default function TutorMatching() {
                     );
                   })}
                   <span className="ml-2 text-xs text-gray-500">
-                    {tutor.rating ? tutor.rating : 'No ratings yet'}
+                    {tutor.ratings ? tutor.ratings : 'No ratings yet'}
                   </span>
                 </div>
               </div>
