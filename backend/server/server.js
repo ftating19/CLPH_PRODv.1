@@ -3602,27 +3602,24 @@ app.post('/api/sessions', async (req, res) => {
 app.get('/api/sessions', async (req, res) => {
   try {
     const { user_id } = req.query;
-
-    if (!user_id) {
-      return res.status(400).json({ success: false, error: 'Missing user_id' });
-    }
-
-    // Get a database connection
     const pool = await db.getPool();
-
-    const query = `
-      SELECT * FROM bookings
-      WHERE student_id = ? OR tutor_id = ?
-    `;
-
-    const [sessions] = await pool.query(query, [user_id, user_id]);
-
-    if (sessions.length === 0) {
-      console.log(`No sessions found for user_id: ${user_id}`);
+    let sessions = [];
+    if (user_id) {
+      // Only show sessions for this user (student or tutor)
+      const query = `SELECT * FROM bookings WHERE student_id = ? OR tutor_id = ?`;
+      const [result] = await pool.query(query, [user_id, user_id]);
+      sessions = result;
+      if (sessions.length === 0) {
+        console.log(`No sessions found for user_id: ${user_id}`);
+      } else {
+        console.log(`Found ${sessions.length} sessions for user_id: ${user_id}`);
+      }
     } else {
-      console.log(`Found ${sessions.length} sessions for user_id: ${user_id}`);
+      // No user_id: show all sessions (admin/faculty)
+      const [result] = await pool.query(`SELECT * FROM bookings`);
+      sessions = result;
+      console.log(`Admin/faculty: Found ${sessions.length} total sessions.`);
     }
-
     res.json({ success: true, sessions });
   } catch (err) {
     console.error('Error fetching sessions:', err);
