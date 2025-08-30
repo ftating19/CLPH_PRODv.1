@@ -106,6 +106,8 @@ const {
   transferToStudyMaterials 
 } = require('../queries/pendingMaterials')
 const { createSession, getSessions } = require('../queries/sessions')
+const { getAllForums, getForumById, createForum } = require('../queries/forums')
+const { getCommentsByForumId, addComment } = require('../queries/comments')
 
 const multer = require('multer')
 const path = require('path')
@@ -3629,6 +3631,70 @@ app.get('/api/sessions', async (req, res) => {
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 })
+
+// ===== FORUMS API ENDPOINTS =====
+
+// Get all forums
+app.get('/api/forums', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const forums = await getAllForums(pool);
+    res.json({ success: true, forums });
+  } catch (err) {
+    console.error('Error fetching forums:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get forum by ID
+app.get('/api/forums/:id', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const forum = await getForumById(pool, req.params.id);
+    res.json({ success: true, forum });
+  } catch (err) {
+    console.error('Error fetching forum:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Create a new forum
+app.post('/api/forums', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const { title, topic, subject_id, created_by } = req.body;
+    const forum_id = await createForum(pool, { title, topic, subject_id, created_by });
+    res.json({ success: true, forum_id });
+  } catch (err) {
+    console.error('Error creating forum:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get comments for a forum
+app.get('/api/forums/:id/comments', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const comments = await getCommentsByForumId(pool, req.params.id);
+    res.json({ success: true, comments });
+  } catch (err) {
+    console.error('Error fetching comments:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Add a comment to a forum
+app.post('/api/forums/:id/comments', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const { user_id, comment } = req.body;
+    const comment_id = await addComment(pool, { forum_id: req.params.id, user_id, comment });
+    res.json({ success: true, comment_id });
+  } catch (err) {
+    console.error('Error adding comment:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 
 async function start() {
   try {
