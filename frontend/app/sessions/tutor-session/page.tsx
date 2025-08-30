@@ -23,6 +23,10 @@ interface Booking {
 }
 
 export default function TutorSessionPage() {
+  // State for rating modal
+  const [showRatingModal, setShowRatingModal] = useState<{open: boolean, bookingId?: number}>({open: false});
+  const [pendingRating, setPendingRating] = useState<number>(0);
+
   // State for remarks input
   const [remarksInput, setRemarksInput] = useState<{[key:number]: string}>({});
 
@@ -37,6 +41,9 @@ export default function TutorSessionPage() {
       const data = await res.json();
       if (data.success) {
         setBookings(prev => prev.map(b => b.booking_id === booking_id ? { ...b, status: "Completed" } : b));
+        // Show rating modal after marking as complete
+        setShowRatingModal({open: true, bookingId: booking_id});
+        setPendingRating(0);
       }
     } catch {
       // Optionally show error toast
@@ -140,29 +147,30 @@ export default function TutorSessionPage() {
   const [loading, setLoading] = useState(true)
   const { currentUser } = useUser()
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      if (!currentUser) return;
-      setLoading(true);
-      try {
-        let url = `http://localhost:4000/api/sessions`;
-        // For admin and faculty, show all transactions
-        const role = currentUser?.role?.toLowerCase();
-        if (role !== "admin" && role !== "faculty") {
-          url += `?user_id=${currentUser.user_id}`;
-        }
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data.success && Array.isArray(data.sessions)) {
-          setBookings(data.sessions);
-        } else {
-          setBookings([]);
-        }
-      } catch {
+  // Refetch bookings helper
+  const fetchBookings = async () => {
+    if (!currentUser) return;
+    setLoading(true);
+    try {
+      let url = `http://localhost:4000/api/sessions`;
+      // For admin and faculty, show all transactions
+      const role = currentUser?.role?.toLowerCase();
+      if (role !== "admin" && role !== "faculty") {
+        url += `?user_id=${currentUser.user_id}`;
+      }
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.success && Array.isArray(data.sessions)) {
+        setBookings(data.sessions);
+      } else {
         setBookings([]);
       }
-      setLoading(false);
-    };
+    } catch {
+      setBookings([]);
+    }
+    setLoading(false);
+  };
+  useEffect(() => {
     fetchBookings();
   }, [currentUser]);
 
@@ -231,28 +239,49 @@ export default function TutorSessionPage() {
                       </button>
                     </div>
                   )}
-                  {/* Student rating and remarks: only show if current user is the student, booking is completed, and not yet rated */}
-                  {currentUser?.user_id === booking.student_id && (booking.status === "Completed" || booking.status === "completed") && (
-                    <div className="mb-2">
-                      <div className="mb-1 font-semibold text-gray-700">Rate your tutor:</div>
-                      <StarRating
-                        value={booking.rating || 0}
-                        onChange={r => {
-                          if (!booking.rating) handleRating(booking.booking_id, r, remarksInput[booking.booking_id] || "");
-                        }}
-                        disabled={!!booking.rating}
-                      />
-                      <div className="mt-2">
-                        <input
-                          type="text"
-                          className="border border-gray-300 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          placeholder="Add remarks (optional)"
-                          value={remarksInput[booking.booking_id] || ""}
-                          onChange={e => setRemarksInput(prev => ({ ...prev, [booking.booking_id]: e.target.value }))}
-                          disabled={!!booking.rating}
+                  {/* Student rating and remarks: only show if current user is the student, booking is completed, and not yet rated, and not in modal */}
+                  {currentUser?.user_id === booking.student_id && (booking.status === "Completed" || booking.status === "completed") && !booking.rating && showRatingModal.open && showRatingModal.bookingId === booking.booking_id && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+                        <div className="mb-2 font-semibold text-gray-700 text-lg">Rate your tutor</div>
+                        <StarRating
+                          value={pendingRating}
+                          onChange={r => setPendingRating(r)}
+                          disabled={false}
                         />
+                        <div className="mt-4">
+                          <input
+                            type="text"
+                            className="border border-gray-300 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            placeholder="Add remarks (optional)"
+                            value={remarksInput[booking.booking_id] || ""}
+                            onChange={e => setRemarksInput(prev => ({ ...prev, [booking.booking_id]: e.target.value }))}
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2 mt-6">
+                          <button
+                            className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold"
+                            onClick={() => setShowRatingModal({open: false})}
+                          >Cancel</button>
+                          <button
+                            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                            disabled={pendingRating === 0}
+                            onClick={async () => {
+                              await handleRating(booking.booking_id, pendingRating, remarksInput[booking.booking_id] || "");
+                              setShowRatingModal({open: false});
+                              // Auto reload bookings after rating
+                              fetchBookings();
+                            }}
+                          >Submit Rating</button>
+                        </div>
                       </div>
-                      {booking.rating && <div className="text-green-600 text-sm mt-1">Thank you for rating!</div>}
+                    </div>
+                  )}
+                  {/* Show thank you and stars after rating is submitted (student view) */}
+                  {currentUser?.user_id === booking.student_id && (booking.status === "Completed" || booking.status === "completed") && booking.rating && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-green-600 text-sm">Thank you for rating!</span>
+                      <StarRating value={booking.rating} onChange={() => {}} disabled={true} />
                     </div>
                   )}
                   {/* Show rating to tutor if exists */}
