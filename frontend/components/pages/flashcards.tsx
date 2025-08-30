@@ -236,13 +236,17 @@ export default function Flashcards() {
   });
 
   const handleCreateFlashcard = async () => {
-    if (!question.trim() || !answer.trim() || !selectedSubject) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields.",
-        variant: "destructive",
-      })
-      return
+    if (!question.trim()) {
+      toast({ title: "Error", description: "Question is required.", variant: "destructive" });
+      return;
+    }
+    if (!answer.trim()) {
+      toast({ title: "Error", description: "Answer is required.", variant: "destructive" });
+      return;
+    }
+    if (!selectedSubject) {
+      toast({ title: "Error", description: "Subject is required.", variant: "destructive" });
+      return;
     }
 
     if (!currentUser) {
