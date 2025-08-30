@@ -2,7 +2,14 @@ const db = require('../dbconnection/mysql');
 
 // Get all comments for a forum
 async function getCommentsByForumId(pool, forum_id) {
-  const [rows] = await pool.query('SELECT * FROM comments WHERE forum_id = ? ORDER BY comment_id ASC', [forum_id]);
+  // Join users for user name display
+  const [rows] = await pool.query(`
+    SELECT c.*, CONCAT(u.first_name, ' ', u.last_name) AS user_name
+    FROM comments c
+    LEFT JOIN users u ON c.user_id = u.user_id
+    WHERE c.forum_id = ?
+    ORDER BY c.comment_id ASC
+  `, [forum_id]);
   return rows;
 }
 

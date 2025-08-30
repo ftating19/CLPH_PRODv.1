@@ -2,7 +2,16 @@ const db = require('../dbconnection/mysql');
 
 // Get all forums
 async function getAllForums(pool) {
-  const [rows] = await pool.query('SELECT * FROM forums ORDER BY created_at DESC');
+  // Join users and subjects for display
+  const [rows] = await pool.query(`
+    SELECT f.*, 
+      CONCAT(u.first_name, ' ', u.last_name) AS created_by_name,
+      s.subject_name
+    FROM forums f
+    LEFT JOIN users u ON f.created_by = u.user_id
+    LEFT JOIN subjects s ON f.subject_id = s.subject_id
+    ORDER BY f.created_at DESC
+  `);
   return rows;
 }
 

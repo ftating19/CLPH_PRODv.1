@@ -3639,7 +3639,13 @@ app.get('/api/forums', async (req, res) => {
   try {
     const pool = await db.getPool();
     const forums = await getAllForums(pool);
-    res.json({ success: true, forums });
+    // Transform to always include user name and subject name
+    const transformed = forums.map(forum => ({
+      ...forum,
+      created_by_name: forum.created_by_name || forum.created_by,
+      subject_name: forum.subject_name || forum.subject_id
+    }));
+    res.json({ success: true, forums: transformed });
   } catch (err) {
     console.error('Error fetching forums:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
@@ -3663,8 +3669,19 @@ app.post('/api/forums', async (req, res) => {
   try {
     const pool = await db.getPool();
     const { title, topic, subject_id, created_by } = req.body;
+    // Get user name from users table
+    let created_by_name = '';
+    if (created_by) {
+      const [userRows] = await pool.query('SELECT CONCAT(first_name, " ", last_name) AS name FROM users WHERE user_id = ?', [created_by]);
+      if (userRows.length > 0) {
+        created_by_name = userRows[0].name;
+      }
+    }
+    // Insert forum with user_id and user_name
     const forum_id = await createForum(pool, { title, topic, subject_id, created_by });
-    res.json({ success: true, forum_id });
+    // Optionally update created_by_name in forums table if you have a column for it
+    // await pool.query('UPDATE forums SET created_by_name = ? WHERE forum_id = ?', [created_by_name, forum_id]);
+    res.json({ success: true, forum_id, created_by_name });
   } catch (err) {
     console.error('Error creating forum:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
