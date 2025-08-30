@@ -220,37 +220,47 @@ export default function TutorMatching() {
               >
                 <span className="mr-1 text-yellow-700">Rating:</span>
                 <div className="flex items-center">
-                  {[...Array(5)].map((_, i) => {
-                    const ratingValue = typeof tutor.ratings === 'string' ? parseFloat(tutor.ratings) : tutor.ratings;
-                    let fill = 'none';
-                    let stroke = 'currentColor';
-                    let fillColor = 'text-yellow-400';
-                    if (ratingValue && ratingValue >= i + 1) {
-                      fill = 'currentColor';
-                      stroke = 'currentColor';
-                      fillColor = 'text-yellow-500';
-                    } else if (ratingValue && ratingValue > i && ratingValue < i + 1) {
-                      // Partial star for decimal
-                      fill = 'url(#starGradient'+i+')';
-                      stroke = 'currentColor';
-                      fillColor = 'text-yellow-500';
+                  {(() => {
+                    const ratingValue = typeof tutor.ratings === 'string' ? parseFloat(tutor.ratings) : tutor.ratings || 0;
+                    const fullStars = Math.floor(ratingValue);
+                    const hasHalfStar = ratingValue - fullStars >= 0.25 && ratingValue - fullStars < 0.75;
+                    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+                    const stars = [];
+                    for (let i = 0; i < fullStars; i++) {
+                      stars.push(
+                        <span key={"full"+i} className="w-5 h-5 mr-0.5 text-yellow-500 group-hover:scale-110 transition-transform duration-200">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" strokeWidth="1.5" className="w-full h-full">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.97a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.97c.3.921-.755 1.688-1.54 1.118l-3.38-2.455a1 1 0 00-1.175 0l-3.38 2.455c-.784.57-1.838-.197-1.539-1.118l1.287-3.97a1 1 0 00-.364-1.118L2.049 9.397c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.97z"/>
+                          </svg>
+                        </span>
+                      );
                     }
-                    return (
-                      <span key={i} className={`relative w-5 h-5 mr-0.5 transition-transform duration-200 group-hover:scale-110 ${fillColor}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill={fill} stroke={stroke} strokeWidth="1.5" className="w-full h-full">
-                          {ratingValue && ratingValue > i && ratingValue < i + 1 ? (
+                    if (hasHalfStar) {
+                      stars.push(
+                        <span key="half" className="w-5 h-5 mr-0.5 text-yellow-500 group-hover:scale-110 transition-transform duration-200">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" className="w-full h-full">
                             <defs>
-                              <linearGradient id={`starGradient${i}`} x1="0" x2="1" y1="0" y2="0">
-                                <stop offset={`${(ratingValue - i) * 100}%`} stopColor="#facc15" />
-                                <stop offset={`${(ratingValue - i) * 100}%`} stopColor="white" />
+                              <linearGradient id="halfStar" x1="0" x2="1" y1="0" y2="0">
+                                <stop offset="50%" stopColor="#facc15" />
+                                <stop offset="50%" stopColor="#e5e7eb" />
                               </linearGradient>
                             </defs>
-                          ) : null}
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.97a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.97c.3.921-.755 1.688-1.54 1.118l-3.38-2.455a1 1 0 00-1.175 0l-3.38 2.455c-.784.57-1.838-.197-1.539-1.118l1.287-3.97a1 1 0 00-.364-1.118L2.049 9.397c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.97z"/>
-                        </svg>
-                      </span>
-                    );
-                  })}
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.97a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.97c.3.921-.755 1.688-1.54 1.118l-3.38-2.455a1 1 0 00-1.175 0l-3.38 2.455c-.784.57-1.838-.197-1.539-1.118l1.287-3.97a1 1 0 00-.364-1.118L2.049 9.397c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.97z" fill="url(#halfStar)" stroke="#facc15" strokeWidth="1.5"/>
+                          </svg>
+                        </span>
+                      );
+                    }
+                    for (let i = 0; i < emptyStars; i++) {
+                      stars.push(
+                        <span key={"empty"+i} className="w-5 h-5 mr-0.5 text-gray-300 group-hover:scale-110 transition-transform duration-200">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-full h-full">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.97a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.97c.3.921-.755 1.688-1.54 1.118l-3.38-2.455a1 1 0 00-1.175 0l-3.38 2.455c-.784.57-1.838-.197-1.539-1.118l1.287-3.97a1 1 0 00-.364-1.118L2.049 9.397c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.97z"/>
+                          </svg>
+                        </span>
+                      );
+                    }
+                    return stars;
+                  })()}
                   <span className="ml-2 text-xs text-gray-500">
                     {tutor.ratings ? tutor.ratings : 'No ratings yet'}
                   </span>

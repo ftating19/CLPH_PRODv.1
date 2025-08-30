@@ -1111,7 +1111,7 @@ app.get('/api/tutors', async (req, res) => {
 
     console.log(`Found ${tutors.length} tutors`);
 
-    // Transform the data to match frontend expectations
+    // Transform the data to match frontend expectations, including ratings
     const transformedTutors = tutors.map(tutor => ({
       application_id: tutor.application_id,
       user_id: tutor.user_id,
@@ -1124,7 +1124,8 @@ app.get('/api/tutors', async (req, res) => {
       validated_by: tutor.validated_by,
       tutor_information: tutor.tutor_information || '',
       program: tutor.program || '',
-      specialties: tutor.specialties || ''
+      specialties: tutor.specialties || '',
+      ratings: tutor.ratings
     }));
 
     console.log(`✅ Found ${transformedTutors.length} tutors`);
