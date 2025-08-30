@@ -280,10 +280,6 @@ export default function UserManagement() {
                   Clear Filters
                 </Button>
               )}
-              <Button variant="outline">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
             </div>
           </div>
         </CardContent>
