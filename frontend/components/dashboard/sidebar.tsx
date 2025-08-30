@@ -22,7 +22,7 @@ import {
 
 import { Home } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { useUser } from "@/contexts/UserContext"
 
@@ -61,6 +61,53 @@ export default function Sidebar() {
       >
         <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
         {children}
+      </Link>
+    )
+  }
+
+  function PendingMaterialsNavItem({
+    href,
+    icon: Icon,
+    children,
+  }: {
+    href: string
+    icon: any
+    children: React.ReactNode
+  }) {
+    const [pendingCount, setPendingCount] = useState<number | undefined>(undefined)
+
+    useEffect(() => {
+      let isMounted = true;
+      fetch("http://localhost:4000/api/pending-materials?status=pending")
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted) {
+            if (typeof data.total === "number") {
+              setPendingCount(data.total)
+            } else {
+              setPendingCount(0)
+            }
+          }
+        })
+        .catch(() => {
+          if (isMounted) setPendingCount(undefined)
+        })
+      return () => { isMounted = false }
+    }, [])
+
+    return (
+      <Link
+        href={href}
+        onClick={handleNavigation}
+        className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors`}
+      >
+        <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
+        <span className="flex items-center gap-2">
+          {children}
+          <span className="inline-flex items-center justify-center bg-red-500 text-white rounded-full min-w-[20px] h-5 text-xs font-bold ml-2">
+            {pendingCount !== undefined ? pendingCount : "!"}
+          </span>
+        </span>
       </Link>
     )
   }
@@ -151,9 +198,9 @@ export default function Sidebar() {
                     <NavItem href="/pending-applicants" icon={Clock}>
                       Pending Applicants
                     </NavItem>
-                    <NavItem href="/pending-materials" icon={BookOpen}>
+                    <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
                       Pending Materials
-                    </NavItem>
+                    </PendingMaterialsNavItem>
                     {userRole === "admin" && (
                       <NavItem href="/admin-dashboard" icon={Shield}>
                         Admin Dashboard
