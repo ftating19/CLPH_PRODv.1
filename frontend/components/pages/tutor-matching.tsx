@@ -44,6 +44,7 @@ interface Tutor {
   tutor_information: string
   program: string
   specialties: string
+  rating?: number | string
 }
 
 export default function TutorMatching() {
@@ -211,6 +212,49 @@ export default function TutorMatching() {
               <div className="flex items-center text-sm text-muted-foreground">
                 <Calendar className="w-4 h-4 mr-1" />
                 Since: {tutor.application_date ? new Date(tutor.application_date).toLocaleDateString() : 'Date not available'}
+              </div>
+              {/* Tutor Rating Display - Modern, Animated, Partial Stars, Tooltip */}
+              <div
+                className="flex items-center text-sm font-semibold group relative"
+                title={tutor.rating ? `Rated ${tutor.rating} out of 5` : 'No ratings yet'}
+              >
+                <span className="mr-1 text-yellow-700">Rating:</span>
+                <div className="flex items-center">
+                  {[...Array(5)].map((_, i) => {
+                    const ratingValue = typeof tutor.rating === 'string' ? parseFloat(tutor.rating) : tutor.rating;
+                    let fill = 'none';
+                    let stroke = 'currentColor';
+                    let fillColor = 'text-yellow-400';
+                    if (ratingValue && ratingValue >= i + 1) {
+                      fill = 'currentColor';
+                      stroke = 'currentColor';
+                      fillColor = 'text-yellow-500';
+                    } else if (ratingValue && ratingValue > i && ratingValue < i + 1) {
+                      // Partial star for decimal
+                      fill = 'url(#starGradient'+i+')';
+                      stroke = 'currentColor';
+                      fillColor = 'text-yellow-500';
+                    }
+                    return (
+                      <span key={i} className={`relative w-5 h-5 mr-0.5 transition-transform duration-200 group-hover:scale-110 ${fillColor}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill={fill} stroke={stroke} strokeWidth="1.5" className="w-full h-full">
+                          {ratingValue && ratingValue > i && ratingValue < i + 1 ? (
+                            <defs>
+                              <linearGradient id={`starGradient${i}`} x1="0" x2="1" y1="0" y2="0">
+                                <stop offset={`${(ratingValue - i) * 100}%`} stopColor="#facc15" />
+                                <stop offset={`${(ratingValue - i) * 100}%`} stopColor="white" />
+                              </linearGradient>
+                            </defs>
+                          ) : null}
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.97a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.97c.3.921-.755 1.688-1.54 1.118l-3.38-2.455a1 1 0 00-1.175 0l-3.38 2.455c-.784.57-1.838-.197-1.539-1.118l1.287-3.97a1 1 0 00-.364-1.118L2.049 9.397c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.97z"/>
+                        </svg>
+                      </span>
+                    );
+                  })}
+                  <span className="ml-2 text-xs text-gray-500">
+                    {tutor.rating ? tutor.rating : 'No ratings yet'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

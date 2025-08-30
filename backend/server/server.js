@@ -3637,13 +3637,29 @@ app.put('/api/sessions/:booking_id/rating', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing or invalid booking_id or rating' });
     }
     const pool = await db.getPool();
+    // Update booking rating and remarks
     const [result] = await pool.query('UPDATE bookings SET rating = ?, remarks = ? WHERE booking_id = ?', [rating, remarks || null, booking_id]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
     }
-    res.json({ success: true, booking_id, rating, remarks });
+
+    // Get tutor_id for this booking
+    const [[booking]] = await pool.query('SELECT tutor_id FROM bookings WHERE booking_id = ?', [booking_id]);
+    if (!booking || !booking.tutor_id) {
+      return res.status(404).json({ success: false, error: 'Tutor not found for this booking' });
+    }
+    const tutor_id = booking.tutor_id;
+
+    // Calculate average rating for this tutor from all completed bookings with a rating
+    const [[avgResult]] = await pool.query('SELECT AVG(rating) AS avg_rating FROM bookings WHERE tutor_id = ? AND rating IS NOT NULL', [tutor_id]);
+    const avg_rating = avgResult.avg_rating ? parseFloat(avgResult.avg_rating).toFixed(2) : null;
+
+    // Update tutor's rating column
+    await pool.query('UPDATE tutors SET rating = ? WHERE user_id = ?', [avg_rating, tutor_id]);
+
+    res.json({ success: true, booking_id, rating, remarks, tutor_id, avg_rating });
   } catch (err) {
-    console.error('Error updating booking rating:', err);
+    console.error('Error updating booking rating and tutor rating:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
