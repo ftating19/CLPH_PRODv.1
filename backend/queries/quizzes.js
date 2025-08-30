@@ -28,7 +28,7 @@ const getAllQuizzes = async (pool) => {
         LEFT JOIN subjects s ON q.subject_id = s.subject_id
         LEFT JOIN users u ON q.created_by = u.user_id
         LEFT JOIN questions qu ON q.quizzes_id = qu.quizzes_id
-        GROUP BY q.quizzes_id
+  GROUP BY q.quizzes_id
         ORDER BY q.quizzes_id DESC
       `);
       
@@ -75,7 +75,7 @@ const getAllQuizzes = async (pool) => {
         LEFT JOIN subjects s ON q.subject_id = s.subject_id
         LEFT JOIN users u ON q.created_by = u.user_id
         LEFT JOIN questions qu ON q.quizzes_id = qu.quizzes_id
-        GROUP BY q.quizzes_id
+  GROUP BY q.quizzes_id
         ORDER BY q.quizzes_id DESC
       `);
       

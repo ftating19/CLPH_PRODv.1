@@ -84,7 +84,7 @@ export default function Quizzes() {
   const [quizStartTime, setQuizStartTime] = useState<Date | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0) // in seconds
-  const [viewMode, setViewMode] = useState<"sets" | "list">("sets")
+  // Remove viewMode and always use list view
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState("")
@@ -142,26 +142,7 @@ export default function Quizzes() {
     return matchesSearch && matchesSubject && matchesDifficulty
   })
 
-  // Group filtered quizzes by subject to create sets
-  const quizGroupedSets = filteredQuizList.reduce((sets: any[], quiz: any) => {
-    const existingSet = sets.find(set => set.subject === quiz.subject)
-    
-    if (existingSet) {
-      existingSet.quizzes.push(quiz)
-      existingSet.quizCount = existingSet.quizzes.length
-    } else {
-      sets.push({
-        id: quiz.subject,
-        title: `${quiz.subject} Quizzes`,
-        subject: quiz.subject,
-        quizCount: 1,
-        description: `Test your knowledge in ${quiz.subject}`,
-        difficulty: "Mixed",
-        quizzes: [quiz]
-      })
-    }
-    return sets
-  }, [])
+  // Removed quizGroupedSets logic
 
   // Form states for quiz creation
   const [quizTitle, setQuizTitle] = useState("")
@@ -1337,23 +1318,14 @@ export default function Quizzes() {
         </Dialog>
       </div>
 
-      {/* Sets View */}
-      {viewMode === "sets" && (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {quizGroupedSets.map((set) => (
-            <QuizSetCard key={set.id} set={set} />
-          ))}
-        </div>
-      )}
+      {/* Always use Grid View - quizzes rendered individually, 3 per row on large screens */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredQuizList.map((quiz) => (
+          <QuizCard key={quiz.id} quiz={quiz} />
+        ))}
+      </div>
 
-      {/* List View */}
-      {viewMode === "list" && (
-        <div className="space-y-4">
-          {filteredQuizList.map((quiz) => (
-            <QuizCard key={quiz.id} quiz={quiz} />
-          ))}
-        </div>
-      )}
+      {/* List View (removed viewMode check, always show list) */}
 
       {/* Show different messages based on filter state */}
       {filteredQuizList.length === 0 && !quizzesLoading && (
