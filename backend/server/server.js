@@ -3627,6 +3627,45 @@ app.get('/api/sessions', async (req, res) => {
   }
 })
 
+  // API endpoint: Update booking status (Accept/Decline)
+// API endpoint: Update tutor rating for a booking
+app.put('/api/sessions/:booking_id/rating', async (req, res) => {
+  try {
+    const booking_id = parseInt(req.params.booking_id);
+    const { rating, remarks } = req.body;
+    if (!booking_id || typeof rating !== 'number' || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, error: 'Missing or invalid booking_id or rating' });
+    }
+    const pool = await db.getPool();
+    const [result] = await pool.query('UPDATE bookings SET rating = ?, remarks = ? WHERE booking_id = ?', [rating, remarks || null, booking_id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+    res.json({ success: true, booking_id, rating, remarks });
+  } catch (err) {
+    console.error('Error updating booking rating:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+  app.put('/api/sessions/:booking_id/status', async (req, res) => {
+    try {
+      const booking_id = parseInt(req.params.booking_id);
+      const { status } = req.body;
+      if (!booking_id || !status) {
+        return res.status(400).json({ success: false, error: 'Missing booking_id or status' });
+      }
+      const pool = await db.getPool();
+      const [result] = await pool.query('UPDATE bookings SET status = ? WHERE booking_id = ?', [status, booking_id]);
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ success: false, error: 'Booking not found' });
+      }
+      res.json({ success: true, booking_id, status });
+    } catch (err) {
+      console.error('Error updating booking status:', err);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  });
+
 // ===== FORUMS API ENDPOINTS =====
 
 // Get all forums
