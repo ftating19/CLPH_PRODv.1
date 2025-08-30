@@ -548,6 +548,11 @@ export default function TutorMatching() {
         ) : (
           tutors
             .filter((tutor) => selectedSubjectFilter === 'all' || tutor.subject_id.toString() === selectedSubjectFilter)
+            .sort((a, b) => {
+              const ratingA = typeof a.ratings === 'string' ? parseFloat(a.ratings) : a.ratings || 0;
+              const ratingB = typeof b.ratings === 'string' ? parseFloat(b.ratings) : b.ratings || 0;
+              return ratingB - ratingA;
+            })
             .map((tutor) => (
               <TutorCard key={tutor.application_id} tutor={tutor} />
             ))
