@@ -19,6 +19,7 @@ import { useSubjects } from "@/hooks/use-subjects"
 import { useUser } from "@/contexts/UserContext"
 
 export default function DiscussionForums() {
+  // ...existing code...
   const { currentUser } = useUser();
   const [showNewTopicModal, setShowNewTopicModal] = useState(false);
   const [newTopicTitle, setNewTopicTitle] = useState("");
@@ -258,7 +259,15 @@ export default function DiscussionForums() {
                         </Avatar>
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium">{comment.user_name || `User ${comment.user_id}`}</span>
+                            <span className="text-sm font-medium">
+                              {currentUser && comment.user_id === currentUser.user_id
+                                ? "You"
+                                : comment.user_name && comment.user_name.trim() !== ""
+                                  ? comment.user_name
+                                  : (comment.first_name && comment.last_name)
+                                    ? `${comment.first_name} ${comment.last_name}`
+                                    : `User ${comment.user_id}`}
+                            </span>
                           </div>
                           <p className="text-sm">{comment.comment}</p>
                         </div>
@@ -277,8 +286,8 @@ export default function DiscussionForums() {
                     className="bg-blue-600 hover:bg-blue-700"
                     disabled={!newComment.trim()}
                     onClick={async () => {
-                      // TODO: Replace with actual user_id
-                      const user_id = 1;
+                      const user_id = currentUser?.user_id;
+                      if (!user_id) return;
                       const res = await fetch(`http://localhost:4000/api/forums/${selectedForumId}/comments`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
