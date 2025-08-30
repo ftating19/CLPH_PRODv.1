@@ -18,10 +18,27 @@ interface Booking {
   end_date?: string
   rating: number | null
   remarks: string | null
+  preferred_time?: string
   status?: string // Added status property, optional
 }
 
 export default function TutorSessionPage() {
+  // Helper to format time range with AM/PM
+  const formatTimeRange = (range?: string) => {
+    if (!range) return "N/A";
+    // Expecting format: "HH:mm - HH:mm"
+    const [from, to] = range.split(" - ");
+    const format = (t: string) => {
+      if (!t) return "";
+      const [h, m] = t.split(":");
+      let hour = parseInt(h, 10);
+      const minute = m || "00";
+      const ampm = hour >= 12 ? "PM" : "AM";
+      hour = hour % 12 || 12;
+      return `${hour}:${minute} ${ampm}`;
+    };
+    return `${format(from)} - ${format(to)}`;
+  };
   // Helper to format date as yyyy-mm-dd
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "N/A";
@@ -92,6 +109,9 @@ export default function TutorSessionPage() {
                   </div>
                   <div className="text-sm text-muted-foreground mb-2">
                     <span className="font-semibold">End Date:</span> {formatDate(booking.end_date)}
+                  </div>
+                  <div className="text-sm text-muted-foreground mb-2">
+                    <span className="font-semibold">Time:</span> {formatTimeRange(booking.preferred_time)}
                   </div>
                   <div className="text-sm text-muted-foreground mb-2">
                     <span className="font-semibold">Remarks:</span> {booking.remarks || "No remarks."}

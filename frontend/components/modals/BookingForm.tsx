@@ -12,13 +12,14 @@ interface BookingFormProps {
 export default function BookingForm({ tutor, currentUser, onClose }: BookingFormProps) {
   const [startDate, setStartDate] = React.useState("")
   const [endDate, setEndDate] = React.useState("")
-  const [time, setTime] = React.useState("")
+  const [timeFrom, setTimeFrom] = React.useState("")
+  const [timeTo, setTimeTo] = React.useState("")
   const [name, setName] = React.useState(tutor ? tutor.name : "")
   const [status, setStatus] = React.useState("")
   const [loading, setLoading] = React.useState(false)
 
   const handleBooking = async () => {
-    if (!tutor || !currentUser || !startDate || !endDate || !time || !name) {
+    if (!tutor || !currentUser || !startDate || !endDate || !timeFrom || !timeTo || !name) {
       setStatus("Please fill all required fields.")
       return
     }
@@ -26,7 +27,8 @@ export default function BookingForm({ tutor, currentUser, onClose }: BookingForm
     setStatus("")
     try {
       const preferred_dates = [startDate, endDate]
-  const res = await fetch("http://localhost:4000/api/sessions", {
+      const preferred_time = `${timeFrom} - ${timeTo}`
+      const res = await fetch("http://localhost:4000/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -34,7 +36,7 @@ export default function BookingForm({ tutor, currentUser, onClose }: BookingForm
           name,
           student_id: currentUser.user_id,
           preferred_dates,
-          preferred_time: time
+          preferred_time
         })
       })
       const data = await res.json()
@@ -65,8 +67,12 @@ export default function BookingForm({ tutor, currentUser, onClose }: BookingForm
         <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="sessionTime">Preferred Time</Label>
-        <Input id="sessionTime" type="time" value={time} onChange={e => setTime(e.target.value)} />
+        <Label>Preferred Time Range</Label>
+        <div className="flex gap-2">
+          <Input id="sessionTimeFrom" type="time" value={timeFrom} onChange={e => setTimeFrom(e.target.value)} placeholder="From" />
+          <span className="self-center">to</span>
+          <Input id="sessionTimeTo" type="time" value={timeTo} onChange={e => setTimeTo(e.target.value)} placeholder="To" />
+        </div>
       </div>
       <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleBooking} disabled={loading}>
         {loading ? "Booking..." : "Send Booking Request"}
