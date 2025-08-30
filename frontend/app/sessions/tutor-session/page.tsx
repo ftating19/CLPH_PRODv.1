@@ -14,11 +14,21 @@ interface Booking {
   student_id: number
   student_name: string
   booking_schedule: string
+  start_date?: string
+  end_date?: string
   rating: number | null
   remarks: string | null
+  status?: string // Added status property, optional
 }
 
 export default function TutorSessionPage() {
+  // Helper to format date as yyyy-mm-dd
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "N/A";
+    return d.toISOString().slice(0, 10);
+  };
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const { currentUser } = useUser()
@@ -63,19 +73,30 @@ export default function TutorSessionPage() {
             bookings.map((booking) => (
               <Card key={booking.booking_id} className="border-2 hover:border-blue-200">
                 <CardHeader>
-                  <CardTitle>{booking.tutor_name}</CardTitle>
-                  <div className="text-sm text-muted-foreground">Session: {booking.booking_schedule}</div>
+                  <CardTitle className="text-lg font-bold">{booking.tutor_name}</CardTitle>
+
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm text-muted-foreground mb-2">Student: {booking.student_name}</div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span>Rating:</span>
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className={i < (booking.rating || 0) ? "text-yellow-400" : "text-gray-300"} />
-                    ))}
+                  <div className="text-sm text-muted-foreground mb-2">
+                    <span className="font-semibold">Requester:</span> {booking.student_name}
                   </div>
-                  <div className="text-sm text-muted-foreground mb-2">Remarks: {booking.remarks || "No remarks."}</div>
-                  <div className="text-xs text-muted-foreground">Student ID: {booking.student_id}</div>
+                  <div className="text-sm text-muted-foreground mb-2">
+                    <span className="font-semibold">Tutor:</span> {booking.tutor_name}
+                  </div>
+                  <div className="text-sm text-muted-foreground mb-2">
+                    <span className="font-semibold">Status:</span> {booking.status || "Pending"}
+                  </div>
+                  {/* Rating hidden for now */}
+                  <div className="text-sm text-muted-foreground mb-2">
+                    <span className="font-semibold">Start Date:</span> {formatDate(booking.start_date)}
+                  </div>
+                  <div className="text-sm text-muted-foreground mb-2">
+                    <span className="font-semibold">End Date:</span> {formatDate(booking.end_date)}
+                  </div>
+                  <div className="text-sm text-muted-foreground mb-2">
+                    <span className="font-semibold">Remarks:</span> {booking.remarks || "No remarks."}
+                  </div>
+                  {/* Student ID hidden for now */}
                 </CardContent>
               </Card>
             ))
