@@ -105,6 +105,56 @@ export default function Sidebar() {
         <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
         <span className="flex items-center gap-2">
           {children}
+          {pendingCount !== undefined && pendingCount > 0 && (
+            <span className="inline-flex items-center justify-center bg-red-500 text-white rounded-full min-w-[20px] h-5 text-xs font-bold ml-2">
+              {pendingCount}
+            </span>
+          )}
+        </span>
+      </Link>
+    )
+  }
+
+  function PendingApplicantsNavItem({
+    href,
+    icon: Icon,
+    children,
+  }: {
+    href: string
+    icon: any
+    children: React.ReactNode
+  }) {
+    const [pendingCount, setPendingCount] = useState<number | undefined>(undefined)
+
+    useEffect(() => {
+      let isMounted = true;
+      fetch("http://localhost:4000/api/tutor-applications?status=pending")
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted) {
+            if (Array.isArray(data.applications)) {
+              const count = data.applications.filter((a: any) => a.status === "pending").length
+              setPendingCount(count)
+            } else {
+              setPendingCount(0)
+            }
+          }
+        })
+        .catch(() => {
+          if (isMounted) setPendingCount(undefined)
+        })
+      return () => { isMounted = false }
+    }, [])
+
+    return (
+      <Link
+        href={href}
+        onClick={handleNavigation}
+        className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors`}
+      >
+        <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
+        <span className="flex items-center gap-2">
+          {children}
           {pendingCount && pendingCount > 0 && (
             <span className="inline-flex items-center justify-center bg-red-500 text-white rounded-full min-w-[20px] h-5 text-xs font-bold ml-2">
               {pendingCount}
