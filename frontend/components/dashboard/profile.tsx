@@ -182,22 +182,6 @@ export default function Profile01() {
       external: false,
       onClick: () => setShowEditModal(true),
     },
-    {
-      label: "My Courses",
-      href: "#",
-      icon: <BookOpen className="w-4 h-4" />,
-    },
-    {
-      label: "Settings",
-      href: "#",
-      icon: <Settings className="w-4 h-4" />,
-    },
-    {
-      label: "Help & Support",
-      href: "#",
-      icon: <FileText className="w-4 h-4" />,
-      external: true,
-    },
   ]
 
   return (
