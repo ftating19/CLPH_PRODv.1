@@ -1,4 +1,3 @@
-
 "use client"
 import BookingForm from "@/components/modals/BookingForm"
 
@@ -53,6 +52,7 @@ export default function TutorMatching() {
   const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [showApplyModal, setShowApplyModal] = useState(false)
+  const [showTestModal, setShowTestModal] = useState(false)
   const [tutors, setTutors] = useState<Tutor[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -279,10 +279,27 @@ export default function TutorMatching() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
+        <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold">Tutor Matching</h1>
-          <p className="text-muted-foreground">Find qualified tutors for your subjects</p>
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => setShowTestModal(true)}>
+            Take our test
+          </Button>
         </div>
+        <Dialog open={showTestModal} onOpenChange={setShowTestModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Sample Tutor Matching Test</DialogTitle>
+              <DialogDescription>
+                This test will help us match you with the best tutors based on your results. Click Start to begin the sample test.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center justify-center py-4">
+              <Button className="bg-blue-600 hover:bg-blue-700 w-full" onClick={() => { setShowTestModal(false); /* TODO: Start sample test logic here */ }}>
+                Start Test
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Dialog open={showApplyModal} onOpenChange={setShowApplyModal}>
           <DialogTrigger asChild>
             <Button className="bg-green-600 hover:bg-green-700">
@@ -484,5 +501,3 @@ export default function TutorMatching() {
     </div>
   )
 }
-
-// ...existing code...
