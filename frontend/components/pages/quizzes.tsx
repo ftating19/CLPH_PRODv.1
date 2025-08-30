@@ -425,22 +425,33 @@ export default function Quizzes() {
   }
 
   const handleCreateQuiz = async () => {
-    if (!quizTitle.trim() || !quizSubject.trim() || !quizDescription.trim()) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      })
-      return
+    if (!quizTitle.trim()) {
+      toast({ title: "Error", description: "Quiz title is required.", variant: "destructive" });
+      return;
     }
-
+    if (!quizSubject.trim()) {
+      toast({ title: "Error", description: "Quiz subject is required.", variant: "destructive" });
+      return;
+    }
+    if (!quizDescription.trim()) {
+      toast({ title: "Error", description: "Quiz description is required.", variant: "destructive" });
+      return;
+    }
+    if (!quizDuration || isNaN(Number(quizDuration)) || Number(quizDuration) <= 0) {
+      toast({ title: "Error", description: "Quiz duration is required and must be a positive number.", variant: "destructive" });
+      return;
+    }
+    if (!quizDurationUnit.trim()) {
+      toast({ title: "Error", description: "Quiz duration unit is required.", variant: "destructive" });
+      return;
+    }
+    if (!quizDifficulty.trim()) {
+      toast({ title: "Error", description: "Quiz difficulty is required.", variant: "destructive" });
+      return;
+    }
     if (quizQuestions.length === 0) {
-      toast({
-        title: "Error", 
-        description: "Please add at least one question",
-        variant: "destructive"
-      })
-      return
+      toast({ title: "Error", description: "Please add at least one question.", variant: "destructive" });
+      return;
     }
 
     try {
