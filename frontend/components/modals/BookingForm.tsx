@@ -23,6 +23,11 @@ export default function BookingForm({ tutor, currentUser, onClose }: BookingForm
       setStatus("Please fill all required fields.")
       return
     }
+    // Prevent tutors from booking themselves
+    if (tutor.user_id === currentUser.user_id) {
+      setStatus("You cannot book yourself as a tutor.")
+      return
+    }
     setLoading(true)
     setStatus("")
     try {

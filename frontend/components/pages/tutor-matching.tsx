@@ -205,10 +205,10 @@ export default function TutorMatching() {
               {tutor.program || 'Program not specified'}
             </CardDescription>
             <div className="flex items-center space-x-4 mt-2">
-              <div className="flex items-center text-sm text-muted-foreground">
+              {/* <div className="flex items-center text-sm text-muted-foreground">
                 <User className="w-4 h-4 mr-1" />
                 ID: {tutor.user_id || 'N/A'}
-              </div>
+              </div> */}
               <div className="flex items-center text-sm text-muted-foreground">
                 <Calendar className="w-4 h-4 mr-1" />
                 Since: {tutor.application_date ? new Date(tutor.application_date).toLocaleDateString() : 'Date not available'}
@@ -306,10 +306,22 @@ export default function TutorMatching() {
               View Profile
             </Button>
             <Button 
-              size="sm" 
-              className="bg-blue-600 hover:bg-blue-700" 
-              onClick={() => { setSelectedTutor(tutor); setShowBookingModal(true); }}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => {
+                if (currentUser?.user_id === tutor.user_id) {
+                  toast({
+                    title: "Booking Not Allowed",
+                    description: "You cannot book yourself as a tutor.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                setSelectedTutor(tutor);
+                setShowBookingModal(true);
+              }}
               disabled={tutor.status !== 'approved'}
+              title={currentUser?.user_id === tutor.user_id ? 'You cannot book yourself as a tutor.' : ''}
             >
               <Calendar className="w-4 h-4 mr-2" />
               Book Session
