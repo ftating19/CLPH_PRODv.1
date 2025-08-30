@@ -25,23 +25,29 @@ export default function TutorSessionPage() {
 
   useEffect(() => {
     const fetchBookings = async () => {
-      if (!currentUser) return
-      setLoading(true)
+      if (!currentUser) return;
+      setLoading(true);
       try {
-        const response = await fetch(`http://localhost:4000/api/sessions`)
-        const data = await response.json()
+        let url = `http://localhost:4000/api/sessions`;
+        // For admin and faculty, show all transactions
+        const role = currentUser?.role?.toLowerCase();
+        if (role !== "admin" && role !== "faculty") {
+          url += `?user_id=${currentUser.user_id}`;
+        }
+        const response = await fetch(url);
+        const data = await response.json();
         if (data.success && Array.isArray(data.sessions)) {
-          setBookings(data.sessions)
+          setBookings(data.sessions);
         } else {
-          setBookings([])
+          setBookings([]);
         }
       } catch {
-        setBookings([])
+        setBookings([]);
       }
-      setLoading(false)
-    }
-    fetchBookings()
-  }, [currentUser])
+      setLoading(false);
+    };
+    fetchBookings();
+  }, [currentUser]);
 
   return (
     <Layout>

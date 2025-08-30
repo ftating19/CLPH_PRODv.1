@@ -263,7 +263,7 @@ export default function Sidebar() {
                 </div>
               )}
 
-              {(userRole === "student" || userRole === "tutor") && (
+              {(userRole === "student" || userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
                 <>
                   <div>
                     <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -275,19 +275,21 @@ export default function Sidebar() {
                       </NavItem>
                     </div>
                   </div>
-                  <div>
-                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Tools
+                  {(userRole === "student" || userRole === "tutor") && (
+                    <div>
+                      <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Tools
+                      </div>
+                      <div className="space-y-1">
+                        <NavItem href="/quizzes" icon={Brain}>
+                          Quizzes
+                        </NavItem>
+                        <NavItem href="/flashcards" icon={Layers}>
+                          Flashcards
+                        </NavItem>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <NavItem href="/quizzes" icon={Brain}>
-                        Quizzes
-                      </NavItem>
-                      <NavItem href="/flashcards" icon={Layers}>
-                        Flashcards
-                      </NavItem>
-                    </div>
-                  </div>
+                  )}
                 </>
               )}
 
