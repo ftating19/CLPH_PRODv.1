@@ -266,7 +266,7 @@ export default function ManageSubjects() {
   const SubjectCard = ({ subject }: { subject: Subject }) => (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader className="pb-4">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start">
           <div className="flex-1">
             <div className="flex items-center space-x-2">
               <CardTitle className="text-xl">{subject.subject_name}</CardTitle>
@@ -276,26 +276,6 @@ export default function ManageSubjects() {
               {subject.subject_code}
             </CardDescription>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleEditSubject(subject)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Subject
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => handleDeleteSubject(subject)}
-                className="text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Subject
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -303,9 +283,16 @@ export default function ManageSubjects() {
           <Label className="text-sm font-medium">Description</Label>
           <p className="text-sm text-muted-foreground mt-1">{subject.description}</p>
         </div>
-        
         <div className="text-xs text-muted-foreground">
           Subject ID: {subject.subject_id}
+        </div>
+        <div className="flex gap-2 pt-4">
+          <Button size="sm" variant="outline" onClick={() => handleEditSubject(subject)} className="flex items-center text-black border-black hover:bg-black hover:text-white">
+            <Edit className="w-4 h-4 mr-1" /> Edit
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => handleDeleteSubject(subject)} className="flex items-center text-black border-black hover:bg-black hover:text-white">
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -343,21 +330,24 @@ export default function ManageSubjects() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Manage Subjects</h1>
+          <h1 className="text-3xl font-bold">Subjects</h1>
           <p className="text-muted-foreground">Create and manage academic subjects for the learning platform</p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <Dialog open={showCreateDialog} onOpenChange={(open) => {
+          setShowCreateDialog(open);
+          if (open) setSelectedSubject(null);
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => setSelectedSubject(null)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Subject
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Create New Subject</DialogTitle>
+              <DialogTitle>{selectedSubject ? "Edit Subject" : "Create New Subject"}</DialogTitle>
               <DialogDescription>
-                Add a new subject to the learning platform
+                {selectedSubject ? "Update subject information" : "Add a new subject to the learning platform"}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -366,8 +356,10 @@ export default function ManageSubjects() {
                 <Input 
                   id="subject_name" 
                   placeholder="Enter subject name" 
-                  value={createForm.subject_name}
-                  onChange={(e) => setCreateForm({...createForm, subject_name: e.target.value})}
+                  value={selectedSubject ? editForm.subject_name : createForm.subject_name}
+                  onChange={(e) => selectedSubject
+                    ? setEditForm({...editForm, subject_name: e.target.value})
+                    : setCreateForm({...createForm, subject_name: e.target.value})}
                 />
               </div>
               <div className="space-y-2">
@@ -375,8 +367,10 @@ export default function ManageSubjects() {
                 <Input 
                   id="subject_code" 
                   placeholder="e.g., CS201" 
-                  value={createForm.subject_code}
-                  onChange={(e) => setCreateForm({...createForm, subject_code: e.target.value})}
+                  value={selectedSubject ? editForm.subject_code : createForm.subject_code}
+                  onChange={(e) => selectedSubject
+                    ? setEditForm({...editForm, subject_code: e.target.value})
+                    : setCreateForm({...createForm, subject_code: e.target.value})}
                 />
               </div>
               <div className="space-y-2">
@@ -385,22 +379,27 @@ export default function ManageSubjects() {
                   id="description" 
                   placeholder="Enter subject description" 
                   rows={3} 
-                  value={createForm.description}
-                  onChange={(e) => setCreateForm({...createForm, description: e.target.value})}
+                  value={selectedSubject ? editForm.description : createForm.description}
+                  onChange={(e) => selectedSubject
+                    ? setEditForm({...editForm, description: e.target.value})
+                    : setCreateForm({...createForm, description: e.target.value})}
                 />
               </div>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                <Button variant="outline" onClick={() => {
+                  setShowCreateDialog(false)
+                  setSelectedSubject(null)
+                }}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateSubject} disabled={isSubmitting}>
+                <Button onClick={selectedSubject ? handleUpdateSubject : handleCreateSubject} disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating...
+                      {selectedSubject ? "Updating..." : "Creating..."}
                     </>
                   ) : (
-                    "Create Subject"
+                    selectedSubject ? "Update Subject" : "Create Subject"
                   )}
                 </Button>
               </div>
@@ -424,7 +423,7 @@ export default function ManageSubjects() {
         </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredSubjects.map((subject) => (
           <SubjectCard key={subject.subject_id} subject={subject} />
         ))}
