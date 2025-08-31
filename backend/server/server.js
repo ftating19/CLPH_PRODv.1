@@ -3764,6 +3764,31 @@ app.post('/api/forums/:id/comments', async (req, res) => {
   }
 });
 
+// Like/unlike a forum
+app.post('/api/forums/:id/like', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const { user_id } = req.body;
+    const forumsQueries = require('../queries/forums');
+    if (!user_id) return res.status(400).json({ success: false, error: 'Missing user_id' });
+    const forum_id = req.params.id;
+    let liked;
+    if (await forumsQueries.hasUserLiked(pool, forum_id, user_id)) {
+      await forumsQueries.removeUserLike(pool, forum_id, user_id);
+      liked = false;
+    } else {
+      await forumsQueries.addUserLike(pool, forum_id, user_id);
+      liked = true;
+    }
+    // Get new like_count
+    const forum = await forumsQueries.getForumById(pool, forum_id);
+    res.json({ success: true, like_count: forum.like_count, liked });
+  } catch (err) {
+    console.error('Error liking/unliking forum:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 async function start() {
   try {
     await db.connect()

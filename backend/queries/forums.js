@@ -33,8 +33,30 @@ async function createForum(pool, { title, topic, subject_id, created_by }) {
   return result.insertId;
 }
 
+
+// Check if user liked forum
+async function hasUserLiked(pool, forum_id, user_id) {
+  const [rows] = await pool.query('SELECT 1 FROM forum_likes WHERE forum_id = ? AND user_id = ?', [forum_id, user_id]);
+  return rows.length > 0;
+}
+
+// Add user like
+async function addUserLike(pool, forum_id, user_id) {
+  await pool.query('INSERT IGNORE INTO forum_likes (forum_id, user_id) VALUES (?, ?)', [forum_id, user_id]);
+  await pool.query('UPDATE forums SET like_count = COALESCE(like_count, 0) + 1 WHERE forum_id = ?', [forum_id]);
+}
+
+// Remove user like
+async function removeUserLike(pool, forum_id, user_id) {
+  await pool.query('DELETE FROM forum_likes WHERE forum_id = ? AND user_id = ?', [forum_id, user_id]);
+  await pool.query('UPDATE forums SET like_count = GREATEST(COALESCE(like_count, 1) - 1, 0) WHERE forum_id = ?', [forum_id]);
+}
+
 module.exports = {
   getAllForums,
   getForumById,
-  createForum
+  createForum,
+  hasUserLiked,
+  addUserLike,
+  removeUserLike
 };

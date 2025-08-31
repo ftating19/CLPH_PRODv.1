@@ -234,10 +234,30 @@ export default function DiscussionForums() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="flex gap-4 pt-2 border-t mt-2">
-              <Button size="sm" variant="ghost" className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="flex items-center gap-1"
+                onClick={async () => {
+                  if (!currentUser?.user_id) return;
+                  const res = await fetch(`http://localhost:4000/api/forums/${forum.forum_id}/like`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUser.user_id })
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    setForums(prevForums => prevForums.map(f =>
+                      f.forum_id === forum.forum_id
+                        ? { ...f, like_count: data.like_count, liked_by_current_user: data.liked }
+                        : f
+                    ));
+                  }
+                }}
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 9l-5 5-5-5" /></svg>
-                <span className="text-xs">Like</span>
-                <span className="text-xs font-semibold">{forum.likes || 0}</span>
+                <span className="text-xs">{forum.liked_by_current_user ? 'Unlike' : 'Like'}</span>
+                <span className="text-xs font-semibold">{forum.like_count || 0}</span>
               </Button>
               <Button
                 size="sm"
