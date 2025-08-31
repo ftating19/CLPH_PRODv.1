@@ -17,7 +17,6 @@ import { useSubjects } from "@/hooks/use-subjects"
 import { useUser } from "@/contexts/UserContext"
 
 export default function DiscussionForums() {
-  // ...existing code...
   const { currentUser } = useUser();
   const [showNewTopicModal, setShowNewTopicModal] = useState(false);
   const [newTopicTitle, setNewTopicTitle] = useState("");
@@ -74,6 +73,11 @@ export default function DiscussionForums() {
 
     return matchesSubject && (keyword === "" || matchesSearch);
   });
+
+  // Toggle forum comment section
+  const handleCommentButtonClick = (forumId: string) => {
+    setSelectedForumId(prev => prev === forumId ? null : forumId);
+  };
 
   return (
     <div className="space-y-6">
@@ -235,7 +239,12 @@ export default function DiscussionForums() {
                 <span className="text-xs">Like</span>
                 <span className="text-xs font-semibold">{forum.likes || 0}</span>
               </Button>
-              <Button size="sm" variant="ghost" className="flex items-center gap-1" onClick={() => setSelectedForumId(forum.forum_id)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="flex items-center gap-1"
+                onClick={() => handleCommentButtonClick(forum.forum_id)}
+              >
                 <MessageSquare className="w-5 h-5" />
                 <span className="text-xs">Comment</span>
                 <span className="text-xs font-semibold">
