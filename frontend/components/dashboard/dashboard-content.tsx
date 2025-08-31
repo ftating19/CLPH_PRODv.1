@@ -12,6 +12,23 @@ import {
 } from "lucide-react"
 
 export default function DashboardContent({ currentUser }: { currentUser: any }) {
+  // Active users count
+  const [activeUserCount, setActiveUserCount] = useState(0);
+
+  useEffect(() => {
+    fetch("http://localhost:4000/api/users?active=true")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.users)) {
+          setActiveUserCount(data.users.length);
+        } else if (typeof data.total === "number") {
+          setActiveUserCount(data.total);
+        } else {
+          setActiveUserCount(0);
+        }
+      })
+      .catch(() => setActiveUserCount(0));
+  }, []);
   // Forum post count
   const [forumPostCount, setForumPostCount] = useState(0);
 
@@ -93,6 +110,18 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{activeUserCount}</div>
+            <p className="text-xs text-muted-foreground">{activeUserCount === 0 ? 'No active users' : 'Currently active users'}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Forum Posts</CardTitle>
             <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
               <MessageSquare className="h-4 w-4 text-purple-600 dark:text-purple-400" />
@@ -113,18 +142,6 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
           <CardContent>
             <div className="text-2xl font-bold">{recommendedTutors.length}</div>
             <p className="text-xs text-muted-foreground">{recommendedTutors.length === 0 ? 'No tutors available' : 'Top-rated tutors'}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Forum Posts</CardTitle>
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-              <MessageSquare className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{userPosts}</div>
-            <p className="text-xs text-muted-foreground">{userPosts === 0 ? 'No posts yet' : 'Forum posts'}</p>
           </CardContent>
         </Card>
         <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
@@ -198,13 +215,13 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
               </div>
             ) : (
               <ul className="space-y-3">
-                {recommendedTutors.map((tutor) => (
-                  <li key={tutor.tutor_id} className="border-b pb-2 flex items-center gap-2">
+                {recommendedTutors.map((tutor, idx) => (
+                  <li key={tutor.tutor_id ? `tutor-${tutor.tutor_id}` : `tutor-idx-${idx}`} className="border-b pb-2 flex items-center gap-2">
                     <span className="font-semibold text-green-700">{tutor.name || tutor.tutor_name}</span>
                     <span className="text-xs text-muted-foreground">{tutor.specialization || tutor.subjects}</span>
                     <span className="flex items-center gap-1 ml-auto">
                       {[...Array(5)].map((_, i) => (
-                        <span key={i} className="text-yellow-500">★</span>
+                        <span key={`star-${tutor.tutor_id || idx}-${i}`} className="text-yellow-500">★</span>
                       ))}
                     </span>
                   </li>
