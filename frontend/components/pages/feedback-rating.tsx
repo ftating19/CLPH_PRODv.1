@@ -10,7 +10,6 @@ import { Star, Send } from "lucide-react"
 
 export default function FeedbackRating() {
   const [systemRating, setSystemRating] = useState(0)
-  const [tutorRating, setTutorRating] = useState(0)
 
   const StarRating = ({
     rating,
@@ -40,7 +39,7 @@ export default function FeedbackRating() {
         <p className="text-muted-foreground">Help us improve by sharing your experience</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="max-w-xl mx-auto">
         <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
           <CardHeader>
             <CardTitle>Rate the Platform</CardTitle>
@@ -66,50 +65,6 @@ export default function FeedbackRating() {
             <Button className="w-full bg-blue-600 hover:bg-blue-700">
               <Send className="w-4 h-4 mr-2" />
               Submit Platform Feedback
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
-          <CardHeader>
-            <CardTitle>Rate Your Tutor</CardTitle>
-            <CardDescription>Provide feedback on your tutoring session</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="tutor-select">Select Tutor</Label>
-              <Input id="tutor-select" placeholder="Search for tutor..." />
-            </div>
-
-            <StarRating rating={tutorRating} setRating={setTutorRating} label="Tutor Rating" />
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Teaching Quality</Label>
-                <div className="flex space-x-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star key={star} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Communication</Label>
-                <div className="flex space-x-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star key={star} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="tutor-feedback">Session Feedback</Label>
-              <Textarea id="tutor-feedback" placeholder="How was your tutoring session?" rows={4} />
-            </div>
-
-            <Button className="w-full bg-blue-600 hover:bg-blue-700">
-              <Send className="w-4 h-4 mr-2" />
-              Submit Tutor Rating
             </Button>
           </CardContent>
         </Card>
