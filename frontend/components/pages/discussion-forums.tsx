@@ -37,14 +37,15 @@ export default function DiscussionForums() {
   // Fetch forums from backend
   React.useEffect(() => {
     setLoadingForums(true);
-    fetch("http://localhost:4000/api/forums")
+    const userIdParam = currentUser?.user_id ? `?user_id=${currentUser.user_id}` : "";
+    fetch(`http://localhost:4000/api/forums${userIdParam}`)
       .then((res) => res.json())
       .then((data) => {
         setForums(data.forums || []);
       })
       .catch(() => setForums([]))
       .finally(() => setLoadingForums(false));
-  }, []);
+  }, [currentUser]);
 
   // Fetch comments for selected forum
   React.useEffect(() => {

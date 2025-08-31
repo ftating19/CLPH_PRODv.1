@@ -3690,11 +3690,20 @@ app.get('/api/forums', async (req, res) => {
   try {
     const pool = await db.getPool();
     const forums = await getAllForums(pool);
-    // Transform to always include user name and subject name
-    const transformed = forums.map(forum => ({
-      ...forum,
-      created_by_name: forum.created_by_name || forum.created_by,
-      subject_name: forum.subject_name || forum.subject_id
+    const user_id = req.query.user_id;
+    const forumsQueries = require('../queries/forums');
+    // Transform to always include user name, subject name, and liked_by_current_user
+    const transformed = await Promise.all(forums.map(async forum => {
+      let liked_by_current_user = false;
+      if (user_id) {
+        liked_by_current_user = await forumsQueries.hasUserLiked(pool, forum.forum_id, user_id);
+      }
+      return {
+        ...forum,
+        created_by_name: forum.created_by_name || forum.created_by,
+        subject_name: forum.subject_name || forum.subject_id,
+        liked_by_current_user
+      };
     }));
     res.json({ success: true, forums: transformed });
   } catch (err) {
