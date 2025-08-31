@@ -187,18 +187,25 @@ export default function TutorSessionPage() {
           ) : (
             bookings.map((booking) => (
               <div key={booking.booking_id} className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 p-6 flex flex-col justify-between min-h-[350px]">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-xl font-bold text-blue-800">{booking.tutor_name}</h2>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${booking.status === 'Completed' ? 'bg-green-100 text-green-700' : booking.status === 'Accepted' ? 'bg-blue-100 text-blue-700' : booking.status === 'Declined' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{booking.status || "Pending"}</span>
-                  </div>
-                  <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">Requester:</span> {booking.student_name}</div>
-                  <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">Tutor:</span> {booking.tutor_name}</div>
-                  <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">Start Date:</span> {formatDate(booking.start_date)}</div>
-                  <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">End Date:</span> {formatDate(booking.end_date)}</div>
-                  <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">Time:</span> {formatTimeRange(booking.preferred_time)}</div>
-                  <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">Remarks:</span> {booking.remarks || "No remarks."}</div>
+                {/* Card header: tutor name, status, rating */}
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xl font-bold text-blue-800">{booking.tutor_name}</h2>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${booking.status === 'Completed' ? 'bg-green-100 text-green-700' : booking.status === 'Accepted' ? 'bg-blue-100 text-blue-700' : booking.status === 'Declined' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{booking.status || "Pending"}</span>
                 </div>
+                {/* Tutor star rating visible to all roles */}
+                {booking.rating && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-yellow-700 text-sm font-semibold">Tutor Rating:</span>
+                    <StarRating value={booking.rating} onChange={() => {}} disabled={true} />
+                  </div>
+                )}
+                {/* Card details */}
+                <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">Requester:</span> {booking.student_name}</div>
+                <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">Tutor:</span> {booking.tutor_name}</div>
+                <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">Start Date:</span> {formatDate(booking.start_date)}</div>
+                <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">End Date:</span> {formatDate(booking.end_date)}</div>
+                <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">Time:</span> {formatTimeRange(booking.preferred_time)}</div>
+                <div className="text-sm text-gray-600 mb-1"><span className="font-semibold">Remarks:</span> {booking.remarks || "No remarks."}</div>
                 <div className="mt-4">
                   {/* Tutor action buttons: only show if current user is the tutor and status is pending */}
                   {currentUser?.user_id === booking.tutor_id && (booking.status === "Pending" || booking.status === "pending") && (
