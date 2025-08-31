@@ -2,11 +2,14 @@ const db = require('../dbconnection/mysql');
 
 // Get all forums
 async function getAllForums(pool) {
-  // Join users and subjects for display
+  // Join users and subjects for display, and add comment count
   const [rows] = await pool.query(`
     SELECT f.*, 
       CONCAT(u.first_name, ' ', u.last_name) AS created_by_name,
-      s.subject_name
+      s.subject_name,
+      (
+        SELECT COUNT(*) FROM comments c WHERE c.forum_id = f.forum_id
+      ) AS comment_count
     FROM forums f
     LEFT JOIN users u ON f.created_by = u.user_id
     LEFT JOIN subjects s ON f.subject_id = s.subject_id
