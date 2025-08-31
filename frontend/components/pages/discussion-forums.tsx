@@ -91,7 +91,6 @@ export default function DiscussionForums() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={subjectsLoading || !!subjectsError}>
@@ -110,7 +109,6 @@ export default function DiscussionForums() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
       {/* New Topic Modal */}
       {showNewTopicModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
@@ -185,143 +183,149 @@ export default function DiscussionForums() {
           </div>
         </div>
       )}
-        {/* Forums List */}
-        <div className="lg:col-span-1 space-y-4">
-          <h2 className="text-xl font-semibold">Forum Topics</h2>
-          {loadingForums ? (
-            <Card><CardContent className="p-4 text-center">Loading forums...</CardContent></Card>
-          ) : filteredForums.length === 0 ? (
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-muted-foreground">
-                  {searchTerm || selectedSubject !== "all" 
-                    ? "No forums found matching your filters." 
-                    : "No forums available."
-                  }
-                </p>
+
+  {/* Facebook-style Forums Feed */}
+  <div className="max-w-5xl mx-auto space-y-6">
+        {loadingForums ? (
+          <Card><CardContent className="p-4 text-center">Loading forums...</CardContent></Card>
+        ) : filteredForums.length === 0 ? (
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-muted-foreground">
+                {searchTerm || selectedSubject !== "all" 
+                  ? "No forums found matching your filters." 
+                  : "No forums available."}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredForums.map((forum) => (
+            <Card
+              key={forum.forum_id}
+              className={`transition-colors mb-4 ${selectedForumId === forum.forum_id ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"}`}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-3 mb-2">
+                  <Avatar className="w-10 h-10">
+                    <AvatarImage src={forum.avatar_url || "/placeholder-user.jpg"} alt={forum.created_by_name} />
+                    <AvatarFallback>{forum.created_by_name ? forum.created_by_name.split(' ').map((n: string) => n[0]).join('') : '?'}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm">{forum.created_by_name}</span>
+                      <span className="text-xs text-muted-foreground">• {new Date(forum.created_at).toLocaleString()}</span>
+                    </div>
+                    <Badge variant="secondary" className="text-xs mt-1">{forum.subject_name}</Badge>
+                  </div>
+                </div>
+                <CardTitle className="text-lg mb-1">{forum.title}</CardTitle>
+                <CardDescription className="text-base text-muted-foreground">{forum.topic}</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex gap-4 pt-2 border-t mt-2">
+                  <Button size="sm" variant="ghost" className="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 9l-5 5-5-5" /></svg>
+                    <span className="text-xs">Like</span>
+                    <span className="text-xs font-semibold">{forum.likes || 0}</span>
+                  </Button>
+                  <Button size="sm" variant="ghost" className="flex items-center gap-1" onClick={() => setSelectedForumId(forum.forum_id)}>
+                    <MessageSquare className="w-5 h-5" />
+                    <span className="text-xs">Comment</span>
+                    <span className="text-xs font-semibold">{forum.comment_count || 0}</span>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-          ) : (
-            filteredForums.map((forum) => (
-              <Card
-                key={forum.forum_id}
-                className={`cursor-pointer transition-colors ${selectedForumId === forum.forum_id ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"}`}
-                onClick={() => setSelectedForumId(forum.forum_id)}
-              >
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{forum.title}</CardTitle>
-                  <CardDescription className="text-sm">{forum.topic}</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-2">
-                    <Badge variant="secondary">Subject: {forum.subject_name}</Badge>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-1">
-                          <Users className="w-3 h-3" />
-                          <span>By {forum.created_by_name}</span>
+          ))
+        )}
+      </div>
+
+  {/* Chat Area below feed */}
+  <div className="max-w-5xl mx-auto">
+        {selectedForumId ? (
+          <Card className="h-[600px] flex flex-col">
+            <CardHeader>
+              <CardTitle>Forum Discussion</CardTitle>
+              <CardDescription>Comments & Replies</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold">
+                  {forums.find(f => f.forum_id === selectedForumId)?.title || "Forum Topic"}
+                </h3>
+              </div>
+              <div className="flex-1 space-y-4 overflow-y-auto mb-4">
+                {loadingComments ? (
+                  <div className="text-center text-muted-foreground">Loading comments...</div>
+                ) : comments.length === 0 ? (
+                  <div className="text-center text-muted-foreground">No comments yet.</div>
+                ) : (
+                  comments.map((comment) => (
+                    <div key={comment.comment_id} className="flex space-x-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={"/placeholder-user.jpg"} alt={comment.user_name || comment.user_id} />
+                        <AvatarFallback>{comment.user_name ? comment.user_name.split(' ').map((n: string) => n[0]).join('') : comment.user_id}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium">
+                            {currentUser && comment.user_id === currentUser.user_id
+                              ? "You"
+                              : comment.user_name && comment.user_name.trim() !== ""
+                                ? comment.user_name
+                                : (comment.first_name && comment.last_name)
+                                  ? `${comment.first_name} ${comment.last_name}`
+                                  : `User ${comment.user_id}`}
+                          </span>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{new Date(forum.created_at).toLocaleString()}</span>
+                        <p className="text-sm">{comment.comment}</p>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
-
-        {/* Chat Area */}
-        <div className="lg:col-span-2">
-          {selectedForumId ? (
-            <Card className="h-[600px] flex flex-col">
-              <CardHeader>
-                <CardTitle>Forum Discussion</CardTitle>
-                <CardDescription>Comments & Replies</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                {/* Show forum title above comment form */}
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold">
-                    {forums.find(f => f.forum_id === selectedForumId)?.title || "Forum Topic"}
-                  </h3>
-                </div>
-                <div className="flex-1 space-y-4 overflow-y-auto mb-4">
-                  {loadingComments ? (
-                    <div className="text-center text-muted-foreground">Loading comments...</div>
-                  ) : comments.length === 0 ? (
-                    <div className="text-center text-muted-foreground">No comments yet.</div>
-                  ) : (
-                    comments.map((comment) => (
-                      <div key={comment.comment_id} className="flex space-x-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={"/placeholder-user.jpg"} alt={comment.user_name || comment.user_id} />
-                          <AvatarFallback>{comment.user_name ? comment.user_name.split(' ').map((n: string) => n[0]).join('') : comment.user_id}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium">
-                              {currentUser && comment.user_id === currentUser.user_id
-                                ? "You"
-                                : comment.user_name && comment.user_name.trim() !== ""
-                                  ? comment.user_name
-                                  : (comment.first_name && comment.last_name)
-                                    ? `${comment.first_name} ${comment.last_name}`
-                                    : `User ${comment.user_id}`}
-                            </span>
-                          </div>
-                          <p className="text-sm">{comment.comment}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="flex space-x-2">
-                  <Input 
-                    placeholder="Type your message..." 
-                    className="flex-1" 
-                    value={newComment}
-                    onChange={e => setNewComment(e.target.value)}
-                  />
-                  <Button 
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={!newComment.trim()}
-                    onClick={async () => {
-                      const user_id = currentUser?.user_id;
-                      if (!user_id) return;
-                      const res = await fetch(`http://localhost:4000/api/forums/${selectedForumId}/comments`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ user_id, comment: newComment })
-                      });
-                      if (res.ok) {
-                        setNewComment("");
-                        // Refresh comments
-                        const data = await res.json();
-                        fetch(`http://localhost:4000/api/forums/${selectedForumId}/comments`)
-                          .then((r) => r.json())
-                          .then((d) => setComments(d.comments || []));
-                      }
-                    }}
-                  >Send</Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="h-[600px] flex items-center justify-center">
-              <div className="text-center">
-                <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium">Select a forum topic to start chatting</h3>
-                <p className="text-muted-foreground">
-                  Choose a forum topic from the left to join the conversation
-                </p>
+                  ))
+                )}
               </div>
-            </Card>
-          )}
-        </div>
+              <div className="flex space-x-2">
+                <Input 
+                  placeholder="Type your message..." 
+                  className="flex-1" 
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                />
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={!newComment.trim()}
+                  onClick={async () => {
+                    const user_id = currentUser?.user_id;
+                    if (!user_id) return;
+                    const res = await fetch(`http://localhost:4000/api/forums/${selectedForumId}/comments`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ user_id, comment: newComment })
+                    });
+                    if (res.ok) {
+                      setNewComment("");
+                      // Refresh comments
+                      const data = await res.json();
+                      fetch(`http://localhost:4000/api/forums/${selectedForumId}/comments`)
+                        .then((r) => r.json())
+                        .then((d) => setComments(d.comments || []));
+                    }
+                  }}
+                >Send</Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="h-[300px] flex items-center justify-center">
+            <div className="text-center">
+              <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium">Select a forum post to view comments</h3>
+              <p className="text-muted-foreground">
+                Choose a post above to join the conversation
+              </p>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   )
