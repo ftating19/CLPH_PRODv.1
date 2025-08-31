@@ -62,10 +62,17 @@ export default function DiscussionForums() {
 
   // Filter forums based on search term and selected subject
   const filteredForums = forums.filter((forum) => {
-    const matchesSearch = forum.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         forum.topic.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSubject = selectedSubject === "all" || forum.subject_id === selectedSubject;
-    return matchesSearch && matchesSubject;
+    // Subject filter: match subject_id (number) or 'all'
+    const matchesSubject = selectedSubject === "all" || String(forum.subject_id) === String(selectedSubject);
+
+    // Search filter: match title, topic, or subject_name
+    const keyword = searchTerm.trim().toLowerCase();
+    const matchesSearch =
+      forum.title.toLowerCase().includes(keyword) ||
+      forum.topic.toLowerCase().includes(keyword) ||
+      (forum.subject_name && forum.subject_name.toLowerCase().includes(keyword));
+
+    return matchesSubject && (keyword === "" || matchesSearch);
   });
 
   return (
@@ -100,7 +107,7 @@ export default function DiscussionForums() {
             <SelectContent>
               <SelectItem value="all">All Subjects</SelectItem>
               {!subjectsLoading && !subjectsError && subjects.map((subject) => (
-                <SelectItem key={subject.subject_id} value={subject.subject_name}>
+                <SelectItem key={subject.subject_id} value={String(subject.subject_id)}>
                   {subject.subject_name}
                 </SelectItem>
               ))}
