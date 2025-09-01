@@ -926,9 +926,6 @@ export default function Quizzes() {
           >
             <Trash2 className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="sm">
-            <Star className="w-4 h-4" />
-          </Button>
         </div>
         
         {(quiz.questionCount || 0) === 0 && (
