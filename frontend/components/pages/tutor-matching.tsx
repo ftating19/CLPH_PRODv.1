@@ -57,6 +57,7 @@ export default function TutorMatching() {
   const [tutors, setTutors] = useState<Tutor[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("");
   const { currentUser } = useUser()
   const { toast } = useToast()
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
@@ -506,7 +507,12 @@ export default function TutorMatching() {
       <div className="flex items-center space-x-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input placeholder="Search tutors by name, subject, or specialty..." className="pl-10" />
+          <Input
+            placeholder="Search tutors by name, subject, or specialty..."
+            className="pl-10"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
         </div>
         <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
           <SelectTrigger className="w-[200px]">
@@ -547,7 +553,17 @@ export default function TutorMatching() {
           </div>
         ) : (
           tutors
-            .filter((tutor) => selectedSubjectFilter === 'all' || tutor.subject_id.toString() === selectedSubjectFilter)
+            .filter((tutor) => {
+              // Subject filter
+              const subjectMatch = selectedSubjectFilter === 'all' || tutor.subject_id.toString() === selectedSubjectFilter;
+              // Search filter
+              const term = searchTerm.trim().toLowerCase();
+              if (!term) return subjectMatch;
+              const nameMatch = tutor.name?.toLowerCase().includes(term);
+              const specialtyMatch = tutor.specialties?.toLowerCase().includes(term);
+              const subjectNameMatch = tutor.subject_name?.toLowerCase().includes(term);
+              return subjectMatch && (nameMatch || specialtyMatch || subjectNameMatch);
+            })
             .sort((a, b) => {
               const ratingA = typeof a.ratings === 'string' ? parseFloat(a.ratings) : a.ratings || 0;
               const ratingB = typeof b.ratings === 'string' ? parseFloat(b.ratings) : b.ratings || 0;
