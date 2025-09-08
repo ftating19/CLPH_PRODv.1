@@ -210,16 +210,7 @@ export default function Sidebar() {
                   <NavItem href="/learning-resources" icon={FileText}>
                     Learning Resources
                   </NavItem>
-                  {userRole === "faculty" && (
-                    <>
-                      <NavItem href="/quizzes" icon={Brain}>
-                        Quizzes
-                      </NavItem>
-                      <NavItem href="/flashcards" icon={Layers}>
-                        Flashcards
-                      </NavItem>
-                    </>
-                  )}
+                  {/* Quizzes and Flashcards removed from Learning for faculty/admin; now only in Tools section */}
                 </div>
               </div>
 
@@ -262,6 +253,24 @@ export default function Sidebar() {
                   </div>
                 </div>
               )}
+                {(userRole === "faculty" || userRole === "admin") && (
+                  <div>
+                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mt-6">
+                      Tools
+                    </div>
+                    <div className="space-y-1">
+                      <NavItem href="/quizzes" icon={Brain}>
+                        Manage Quizzes
+                      </NavItem>
+                      <NavItem href="/flashcards" icon={Layers}>
+                        Manage Flashcards
+                      </NavItem>
+                      <NavItem href="/manage-subjects" icon={Library}>
+                        Manage Subjects
+                      </NavItem>
+                    </div>
+                  </div>
+                )}
 
               {(userRole === "student" || userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
                 <>
