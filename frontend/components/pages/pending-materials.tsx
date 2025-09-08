@@ -48,6 +48,7 @@ interface PendingMaterial {
   reviewed_by?: number
   reviewed_by_name?: string
   reviewed_at?: string
+  assigned_faculty?: string[]
 }
 
 export default function PendingMaterials() {
@@ -63,30 +64,34 @@ export default function PendingMaterials() {
   const { toast } = useToast()
   const { currentUser } = useUser()
 
-  // Fetch pending materials from database
+  // Fetch pending materials only after currentUser is loaded
   useEffect(() => {
-    fetchPendingMaterials()
-  }, [])
+    if (currentUser) {
+      fetchPendingMaterials()
+    }
+  }, [currentUser])
 
   const fetchPendingMaterials = async () => {
     try {
       setLoading(true)
       setError(null)
-      
       const response = await fetch('http://localhost:4000/api/pending-materials/status/pending')
-      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
       const data = await response.json()
-      
+      let filtered = []
       if (data.success && data.materials) {
-        setMaterials(data.materials)
+        // Admins see all, faculty see only assigned
+        if (currentUser?.role?.toLowerCase() === 'faculty') {
+          filtered = data.materials.filter((mat: any) => Array.isArray(mat.assigned_faculty) && mat.assigned_faculty.some((fac: string) => fac.includes(currentUser.email)))
+        } else {
+          filtered = data.materials
+        }
+        setMaterials(filtered)
       } else {
         setMaterials([])
       }
-      
     } catch (error) {
       console.error('Error fetching pending materials:', error)
       setError(error instanceof Error ? error.message : 'Failed to fetch materials')
@@ -246,6 +251,16 @@ export default function PendingMaterials() {
                 ID: {material.material_id}
               </div>
             </div>
+            {material.assigned_faculty && material.assigned_faculty.length > 0 && (
+              <div className="mt-2">
+                <Label className="text-xs font-medium">Assigned Faculty:</Label>
+                <ul className="text-xs text-muted-foreground">
+                  {material.assigned_faculty.map((f, idx) => (
+                    <li key={idx}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -374,6 +389,16 @@ export default function PendingMaterials() {
                 <div>
                   <Label className="text-sm font-medium">Subject</Label>
                   <p className="text-sm">{currentMaterial.subject}</p>
+                  {currentMaterial.assigned_faculty && currentMaterial.assigned_faculty.length > 0 && (
+                    <div className="mt-1">
+                      <Label className="text-xs font-medium">Assigned Faculty:</Label>
+                      <ul className="text-xs text-muted-foreground">
+                        {currentMaterial.assigned_faculty.map((f, idx) => (
+                          <li key={idx}>{f}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Uploaded By</Label>

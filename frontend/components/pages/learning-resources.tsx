@@ -178,7 +178,7 @@ export default function LearningResources() {
               <SelectItem value="all">All Subjects</SelectItem>
               {!subjectsLoading && !subjectsError && subjects.map((subject) => (
                 <SelectItem key={subject.subject_id} value={subject.subject_name}>
-                  {subject.subject_name}
+                  {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -302,7 +302,7 @@ export default function LearningResources() {
                   <SelectContent>
                     {!subjectsLoading && !subjectsError && subjects.map((subject) => (
                       <SelectItem key={subject.subject_id} value={subject.subject_name}>
-                        {subject.subject_name}
+                        {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -22,14 +22,34 @@ const getAllPendingMaterials = async (pool) => {
         pm.reviewed_by,
         pm.reviewed_at,
         CONCAT(u.first_name, ' ', u.last_name) as uploaded_by_name,
-        CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name
+        CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
+        s.user_id as subject_user_ids,
+        s.subject_code,
+        s.subject_name
       FROM pendingmaterials pm
       LEFT JOIN users u ON pm.uploaded_by = u.user_id
       LEFT JOIN users r ON pm.reviewed_by = r.user_id
+      LEFT JOIN subjects s ON pm.subject = s.subject_name
       ORDER BY pm.material_id DESC
     `);
-    
-    return rows;
+    // Get all faculty for mapping
+    const [faculty] = await pool.query('SELECT user_id, first_name, middle_name, last_name, email FROM users WHERE role = "Faculty"');
+    // Attach assigned_faculty array to each material
+    return rows.map(row => {
+      let assigned_faculty = [];
+      if (row.subject_user_ids) {
+        try {
+          const ids = JSON.parse(row.subject_user_ids);
+          assigned_faculty = ids.map(fid => {
+            const fac = faculty.find(f => String(f.user_id) === String(fid));
+            return fac ? `${fac.first_name} ${fac.middle_name ? fac.middle_name + ' ' : ''}${fac.last_name} (${fac.email})` : `Faculty ID: ${fid}`;
+          });
+        } catch {
+          assigned_faculty = [];
+        }
+      }
+      return { ...row, assigned_faculty };
+    });
   } catch (error) {
     console.error('Error fetching pending materials:', error);
     throw error;
@@ -180,15 +200,33 @@ const getPendingMaterialsByStatus = async (pool, status) => {
         pm.reviewed_by,
         pm.reviewed_at,
         CONCAT(u.first_name, ' ', u.last_name) as uploaded_by_name,
-        CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name
+        CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
+        s.user_id as subject_user_ids,
+        s.subject_code,
+        s.subject_name
       FROM pendingmaterials pm
       LEFT JOIN users u ON pm.uploaded_by = u.user_id
       LEFT JOIN users r ON pm.reviewed_by = r.user_id
+      LEFT JOIN subjects s ON pm.subject = s.subject_name
       WHERE pm.status = ?
       ORDER BY pm.material_id DESC
     `, [status]);
-    
-    return rows;
+    const [faculty] = await pool.query('SELECT user_id, first_name, middle_name, last_name, email FROM users WHERE role = "Faculty"');
+    return rows.map(row => {
+      let assigned_faculty = [];
+      if (row.subject_user_ids) {
+        try {
+          const ids = JSON.parse(row.subject_user_ids);
+          assigned_faculty = ids.map(fid => {
+            const fac = faculty.find(f => String(f.user_id) === String(fid));
+            return fac ? `${fac.first_name} ${fac.middle_name ? fac.middle_name + ' ' : ''}${fac.last_name} (${fac.email})` : `Faculty ID: ${fid}`;
+          });
+        } catch {
+          assigned_faculty = [];
+        }
+      }
+      return { ...row, assigned_faculty };
+    });
   } catch (error) {
     console.error('Error fetching pending materials by status:', error);
     throw error;

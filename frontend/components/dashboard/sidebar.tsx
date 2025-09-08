@@ -76,6 +76,7 @@ export default function Sidebar() {
   }) {
     const [pendingCount, setPendingCount] = useState<number | undefined>(undefined)
 
+    const { currentUser } = useUser();
     useEffect(() => {
       let isMounted = true;
       fetch("http://localhost:4000/api/pending-materials?status=pending")
@@ -83,7 +84,12 @@ export default function Sidebar() {
         .then((data) => {
           if (isMounted) {
             if (Array.isArray(data.materials)) {
-              const count = data.materials.filter((m: any) => m.status === "pending").length
+              let count = 0;
+              if (currentUser?.role?.toLowerCase() === 'faculty') {
+                count = data.materials.filter((m: any) => m.status === "pending" && Array.isArray(m.assigned_faculty) && m.assigned_faculty.some((fac: string) => fac.includes(currentUser.email))).length;
+              } else {
+                count = data.materials.filter((m: any) => m.status === "pending").length;
+              }
               setPendingCount(count)
             } else {
               setPendingCount(0)
@@ -94,7 +100,7 @@ export default function Sidebar() {
           if (isMounted) setPendingCount(undefined)
         })
       return () => { isMounted = false }
-    }, [])
+    }, [currentUser])
 
     return (
       <Link
