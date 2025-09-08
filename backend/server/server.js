@@ -359,6 +359,31 @@ app.get('/api/users', async (req, res) => {
 });
 
 // Add endpoint to fetch students specifically
+// Add endpoint to fetch faculty specifically
+app.get('/api/faculty', async (req, res) => {
+  try {
+    console.log('Fetching faculty for subject assignment');
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Fetch only faculty with active status (excluding passwords for security)
+    const [faculty] = await pool.query(
+      'SELECT user_id, first_name, middle_name, last_name, email, program, role, status, first_login, created_at FROM users WHERE role = ? AND status = ? ORDER BY created_at DESC',
+      ['Faculty', 'active']
+    );
+
+    console.log(`✅ Found ${faculty.length} active faculty`);
+    res.status(200).json({
+      success: true,
+      faculty: faculty,
+      total: faculty.length
+    });
+  } catch (err) {
+    console.error('Error fetching faculty:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 app.get('/api/students', async (req, res) => {
   try {
     console.log('Fetching students for tutor matching');
@@ -1243,12 +1268,32 @@ app.get('/api/subjects', async (req, res) => {
     
     const pool = await db.getPool();
     const subjects = await getAllSubjects(pool);
-    
+    // Fetch all users for matching
+    const [users] = await pool.query('SELECT user_id, first_name, middle_name, last_name, email FROM users');
+
+    // Attach assigned faculty info to each subject
+    const subjectsWithFaculty = subjects.map(subj => {
+      let facultyIds = [];
+      if (subj.user_id) {
+        try {
+          facultyIds = JSON.parse(subj.user_id);
+        } catch {
+          facultyIds = [];
+        }
+      }
+      const assigned_faculty = facultyIds.map(fid => {
+        const user = users.find(u => String(u.user_id) === String(fid));
+        return user
+          ? `${user.first_name} ${user.middle_name ? user.middle_name + ' ' : ''}${user.last_name} (${user.email})`
+          : `Faculty ID: ${fid}`;
+      });
+      return { ...subj, assigned_faculty };
+    });
+
     console.log(`✅ Found ${subjects.length} subjects`);
-    
     res.json({
       success: true,
-      subjects: subjects,
+      subjects: subjectsWithFaculty,
       total: subjects.length
     });
   } catch (err) {
@@ -1302,7 +1347,7 @@ app.get('/api/subjects/:id', async (req, res) => {
 // Create new subject
 app.post('/api/subjects', async (req, res) => {
   try {
-    const { subject_name, description, subject_code } = req.body;
+  const { subject_name, description, subject_code, faculty_ids } = req.body;
     
     // Validation
     if (!subject_name || !description || !subject_code) {
@@ -1315,10 +1360,13 @@ app.post('/api/subjects', async (req, res) => {
     console.log(`Creating new subject: ${subject_name} (${subject_code})`);
     
     const pool = await db.getPool();
+    // Store faculty_ids as JSON string in user_id field
+    const user_id = Array.isArray(faculty_ids) ? JSON.stringify(faculty_ids) : faculty_ids ? JSON.stringify([faculty_ids]) : null;
     const newSubject = await createSubject(pool, {
       subject_name,
       description,
-      subject_code
+      subject_code,
+      user_id
     });
     
     console.log(`✅ Subject created successfully with ID: ${newSubject.subject_id}`);
@@ -1349,7 +1397,7 @@ app.post('/api/subjects', async (req, res) => {
 app.put('/api/subjects/:id', async (req, res) => {
   try {
     const subjectId = parseInt(req.params.id);
-    const { subject_name, description, subject_code } = req.body;
+  const { subject_name, description, subject_code, faculty_ids } = req.body;
     
     if (!subjectId) {
       return res.status(400).json({ 
@@ -1379,10 +1427,13 @@ app.put('/api/subjects/:id', async (req, res) => {
       });
     }
     
+    // Store faculty_ids as JSON string in user_id field
+    const user_id = Array.isArray(faculty_ids) ? JSON.stringify(faculty_ids) : faculty_ids ? JSON.stringify([faculty_ids]) : null;
     const updatedSubject = await updateSubject(pool, subjectId, {
       subject_name,
       description,
-      subject_code
+      subject_code,
+      user_id
     });
     
     console.log(`✅ Subject updated successfully: ${subject_name}`);

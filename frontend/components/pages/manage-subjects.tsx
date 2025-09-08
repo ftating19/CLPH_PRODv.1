@@ -34,71 +34,105 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
 
-// TypeScript interface for subject data
+// TypeScript interfaces for faculty and subject data
+interface Faculty {
+  user_id: string;
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  email: string;
+}
+
 interface Subject {
-  subject_id: number
-  subject_name: string
-  description: string
-  subject_code: string
+  subject_id: number;
+  subject_name: string;
+  description: string;
+  subject_code: string;
+  faculty_ids?: string[];
 }
 
 export default function ManageSubjects() {
-  const [subjects, setSubjects] = useState<Subject[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [showEditDialog, setShowEditDialog] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Faculty state
+  const [facultyList, setFacultyList] = useState<Faculty[]>([]);
+
   // Form states
-  const [createForm, setCreateForm] = useState({
+  const [createForm, setCreateForm] = useState<{
+    subject_name: string;
+    description: string;
+    subject_code: string;
+    faculty_ids: string[];
+  }>({
     subject_name: "",
     description: "",
-    subject_code: ""
-  })
-  
-  const [editForm, setEditForm] = useState({
+    subject_code: "",
+    faculty_ids: []
+  });
+
+  const [editForm, setEditForm] = useState<{
+    subject_name: string;
+    description: string;
+    subject_code: string;
+    faculty_ids: string[];
+  }>({
     subject_name: "",
     description: "",
-    subject_code: ""
-  })
-  
-  const { toast } = useToast()
+    subject_code: "",
+    faculty_ids: []
+  });
+
+  const { toast } = useToast();
 
   // Fetch subjects from API
   const fetchSubjects = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      
-      const response = await fetch('http://localhost:4000/api/subjects')
-      
+      setLoading(true);
+      setError(null);
+      const response = await fetch('http://localhost:4000/api/subjects');
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      const data = await response.json()
-      
+      const data = await response.json();
       if (data.success) {
-        setSubjects(data.subjects || [])
+        setSubjects(data.subjects || []);
       } else {
-        throw new Error('Failed to fetch subjects')
+        throw new Error('Failed to fetch subjects');
       }
     } catch (err) {
-      console.error('Error fetching subjects:', err)
-      setError('Failed to load subjects. Please try again later.')
-      setSubjects([])
+      console.error('Error fetching subjects:', err);
+      setError('Failed to load subjects. Please try again later.');
+      setSubjects([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  // Fetch faculty from API
+  const fetchFaculty = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/faculty');
+      const data = await response.json();
+      if (data.success) {
+        setFacultyList(data.faculty || []);
+      }
+    } catch (err) {
+      console.error('Error fetching faculty:', err);
+    }
+  };
 
   useEffect(() => {
-    fetchSubjects()
-  }, [])
+    fetchSubjects();
+    fetchFaculty();
+  }, []);
 
   const handleCreateSubject = async () => {
     if (!createForm.subject_name.trim() || !createForm.description.trim() || !createForm.subject_code.trim()) {
@@ -106,122 +140,110 @@ export default function ManageSubjects() {
         title: "Validation Error",
         description: "Please fill in all required fields.",
         variant: "destructive"
-      })
-      return
+      });
+      return;
     }
-
     try {
-      setIsSubmitting(true)
-      
+      setIsSubmitting(true);
       const response = await fetch('http://localhost:4000/api/subjects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(createForm)
-      })
-      
-      const data = await response.json()
-      
+      });
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create subject')
+        throw new Error(data.error || 'Failed to create subject');
       }
-      
       if (data.success) {
         toast({
           title: "Subject Created",
           description: `${createForm.subject_name} has been successfully created.`,
           duration: 3000,
-        })
-        
-        setCreateForm({ subject_name: "", description: "", subject_code: "" })
-        setShowCreateDialog(false)
-        fetchSubjects() // Refresh the list
+        });
+        setCreateForm({ subject_name: "", description: "", subject_code: "", faculty_ids: [] });
+        setShowCreateDialog(false);
+        fetchSubjects();
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create subject'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create subject';
       toast({
         title: "Error",
         description: errorMessage,
         variant: "destructive"
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleEditSubject = (subject: Subject) => {
-    setSelectedSubject(subject)
+    setSelectedSubject(subject);
     setEditForm({
       subject_name: subject.subject_name,
       description: subject.description,
-      subject_code: subject.subject_code
-    })
-    setShowEditDialog(true)
-  }
+      subject_code: subject.subject_code,
+      faculty_ids: subject.faculty_ids || []
+    });
+    setShowEditDialog(true);
+  };
 
   const handleUpdateSubject = async () => {
-    if (!selectedSubject) return
-    
+    if (!selectedSubject) return;
     if (!editForm.subject_name.trim() || !editForm.description.trim() || !editForm.subject_code.trim()) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields.",
         variant: "destructive"
-      })
-      return
+      });
+      return;
     }
-
     try {
-      setIsSubmitting(true)
-      
+      setIsSubmitting(true);
       const response = await fetch(`http://localhost:4000/api/subjects/${selectedSubject.subject_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(editForm)
-      })
-      
-      const data = await response.json()
-      
+      });
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update subject')
+        throw new Error(data.error || 'Failed to update subject');
       }
-      
       if (data.success) {
         toast({
           title: "Subject Updated",
           description: `${editForm.subject_name} has been successfully updated.`,
           duration: 3000,
-        })
-        
-        setShowEditDialog(false)
-        setSelectedSubject(null)
-        fetchSubjects() // Refresh the list
+        });
+        setShowEditDialog(false);
+        setSelectedSubject(null);
+        fetchSubjects();
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update subject'
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update subject';
       toast({
         title: "Error",
         description: errorMessage,
         variant: "destructive"
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleDeleteSubject = (subject: Subject) => {
-    setSelectedSubject(subject)
-    setShowDeleteDialog(true)
+    setSelectedSubject(subject);
+    setShowDeleteDialog(true);
   }
 
   const confirmDelete = async () => {
     if (!selectedSubject) return
 
     try {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
       
       const response = await fetch(`http://localhost:4000/api/subjects/${selectedSubject.subject_id}`, {
         method: 'DELETE'
@@ -263,40 +285,59 @@ export default function ManageSubjects() {
     subject.description.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const SubjectCard = ({ subject }: { subject: Subject }) => (
-    <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
-      <CardHeader className="pb-4">
-        <div className="flex items-start">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <CardTitle className="text-xl">{subject.subject_name}</CardTitle>
-              <Badge variant="default">Active</Badge>
+  const SubjectCard = ({ subject }: { subject: Subject }) => {
+    // Use assigned_faculty from backend if present
+    const assignedFacultyNames = Array.isArray((subject as any).assigned_faculty)
+      ? (subject as any).assigned_faculty
+      : [];
+
+    return (
+      <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
+        <CardHeader className="pb-4">
+          <div className="flex items-start">
+            <div className="flex-1">
+              <div className="flex items-center space-x-2">
+                <CardTitle className="text-xl">{subject.subject_name}</CardTitle>
+                <Badge variant="default">Active</Badge>
+              </div>
+              <CardDescription className="text-base mt-1">
+                {subject.subject_code}
+              </CardDescription>
             </div>
-            <CardDescription className="text-base mt-1">
-              {subject.subject_code}
-            </CardDescription>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label className="text-sm font-medium">Description</Label>
-          <p className="text-sm text-muted-foreground mt-1">{subject.description}</p>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          Subject ID: {subject.subject_id}
-        </div>
-        <div className="flex gap-2 pt-4">
-          <Button size="sm" variant="outline" onClick={() => handleEditSubject(subject)} className="flex items-center text-black border-black hover:bg-black hover:text-white">
-            <Edit className="w-4 h-4 mr-1" /> Edit
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => handleDeleteSubject(subject)} className="flex items-center text-black border-black hover:bg-black hover:text-white">
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  )
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label className="text-sm font-medium">Description</Label>
+            <p className="text-sm text-muted-foreground mt-1">{subject.description}</p>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Subject ID: {subject.subject_id}
+          </div>
+          <div>
+            <Label className="text-sm font-medium">Assigned Faculty</Label>
+            {assignedFacultyNames.length > 0 ? (
+              <ul className="text-sm text-muted-foreground mt-1">
+                {assignedFacultyNames.map((name: string, idx: number) => (
+                  <li key={idx}>{name}</li>
+                ))}
+              </ul>
+            ) : (
+              <span className="text-xs text-muted-foreground">No faculty assigned</span>
+            )}
+          </div>
+          <div className="flex gap-2 pt-4">
+            <Button size="sm" variant="outline" onClick={() => handleEditSubject(subject)} className="flex items-center text-black border-black hover:bg-black hover:text-white">
+              <Edit className="w-4 h-4 mr-1" /> Edit
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => handleDeleteSubject(subject)} className="flex items-center text-black border-black hover:bg-black hover:text-white">
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (
@@ -385,10 +426,34 @@ export default function ManageSubjects() {
                     : setCreateForm({...createForm, description: e.target.value})}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="faculty">Assign Faculty</Label>
+                <select
+                  multiple
+                  id="faculty"
+                  value={selectedSubject ? editForm.faculty_ids : createForm.faculty_ids}
+                  onChange={e => {
+                    const options = Array.from(e.target.selectedOptions).map(opt => opt.value);
+                    if (selectedSubject) {
+                      setEditForm({ ...editForm, faculty_ids: options });
+                    } else {
+                      setCreateForm({ ...createForm, faculty_ids: options });
+                    }
+                  }}
+                  className="w-full border rounded p-2 bg-white dark:bg-gray-900"
+                >
+                  {facultyList.map(faculty => (
+                    <option key={faculty.user_id} value={faculty.user_id}>
+                      {faculty.first_name} {faculty.middle_name ? faculty.middle_name + ' ' : ''}{faculty.last_name} ({faculty.email})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Hold Ctrl (Windows) or Cmd (Mac) to select multiple faculty.</p>
+              </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => {
-                  setShowCreateDialog(false)
-                  setSelectedSubject(null)
+                  setShowCreateDialog(false);
+                  setSelectedSubject(null);
                 }}>
                   Cancel
                 </Button>
@@ -486,6 +551,26 @@ export default function ManageSubjects() {
                   onChange={(e) => setEditForm({...editForm, description: e.target.value})}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-faculty">Assign Faculty</Label>
+                <select
+                  multiple
+                  id="edit-faculty"
+                  value={editForm.faculty_ids}
+                  onChange={e => {
+                    const options = Array.from(e.target.selectedOptions).map(opt => opt.value);
+                    setEditForm({ ...editForm, faculty_ids: options });
+                  }}
+                  className="w-full border rounded p-2 bg-white dark:bg-gray-900"
+                >
+                  {facultyList.map(faculty => (
+                    <option key={faculty.user_id} value={faculty.user_id}>
+                      {faculty.first_name} {faculty.middle_name ? faculty.middle_name + ' ' : ''}{faculty.last_name} ({faculty.email})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Hold Ctrl (Windows) or Cmd (Mac) to select multiple faculty.</p>
+              </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setShowEditDialog(false)}>
                   Cancel
@@ -539,3 +624,4 @@ export default function ManageSubjects() {
     </div>
   )
 }
+

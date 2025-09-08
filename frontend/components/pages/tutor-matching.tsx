@@ -65,7 +65,6 @@ export default function TutorMatching() {
   // Application form state
   const [applicationForm, setApplicationForm] = useState({
     subject_id: "",
-    program: "",
     specialties: "",
     tutor_information: ""
   })
@@ -116,7 +115,7 @@ export default function TutorMatching() {
       return
     }
 
-    if (!applicationForm.subject_id || !applicationForm.program || !applicationForm.specialties.trim() || !applicationForm.tutor_information.trim()) {
+    if (!applicationForm.subject_id || !applicationForm.specialties.trim() || !applicationForm.tutor_information.trim()) {
       toast({
         title: "Error", 
         description: "Please fill in all required fields",
@@ -133,7 +132,7 @@ export default function TutorMatching() {
       subject_id: parseInt(applicationForm.subject_id),
       subject_name: selectedSubject?.subject_name || "",
       tutor_information: applicationForm.tutor_information,
-      program: applicationForm.program,
+      program: currentUser.program,
       specialties: applicationForm.specialties
     }
 
@@ -164,7 +163,6 @@ export default function TutorMatching() {
         // Reset form and close modal
         setApplicationForm({
           subject_id: "",
-          program: "",
           specialties: "",
           tutor_information: ""
         })
@@ -428,25 +426,7 @@ export default function TutorMatching() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="program">Program *</Label>
-                  <Select 
-                    value={applicationForm.program} 
-                    onValueChange={(value) => setApplicationForm(prev => ({...prev, program: value}))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your program" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {programs.map((program) => (
-                        <SelectItem key={program} value={program}>
-                          {program}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Program selection hidden. Program is auto-filled from user profile and not shown in the modal. */}
 
                 <div className="space-y-2">
                   <Label htmlFor="specialties">Specialties *</Label>
