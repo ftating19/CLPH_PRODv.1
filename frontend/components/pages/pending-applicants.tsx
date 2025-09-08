@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { CheckCircle, XCircle, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Eye, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@/contexts/UserContext"
 
 interface TutorApplication {
   application_id: number
@@ -62,29 +63,33 @@ export default function PendingApplicants() {
   const { toast } = useToast()
 
   // Fetch tutor applications from database
+  const { currentUser } = useUser();
   useEffect(() => {
-    fetchTutorApplications()
-  }, [])
+    if (currentUser) {
+      fetchTutorApplications()
+    }
+  }, [currentUser])
 
   const fetchTutorApplications = async () => {
     try {
       setLoading(true)
       setError(null)
-      
-      const response = await fetch('http://localhost:4000/api/tutor-applications?status=pending')
-      
+      const response = await fetch('http://localhost:4000/api/tutor-applications?status=pending', {
+        headers: {
+          'x-user-id': currentUser?.user_id ? String(currentUser.user_id) : '',
+          'x-user-role': currentUser?.role || '',
+        }
+      })
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
       const data = await response.json()
-      
+      let filtered = []
       if (data.success && data.applications) {
-        setApplicants(data.applications)
+  setApplicants(data.applications)
       } else {
         setApplicants([])
       }
-      
     } catch (error) {
       console.error('Error fetching tutor applications:', error)
       setError(error instanceof Error ? error.message : 'Failed to fetch applications')

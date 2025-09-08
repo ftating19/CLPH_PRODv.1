@@ -721,6 +721,7 @@ app.get('/api/tutor-applications', async (req, res) => {
     const pool = await db.getPool();
     console.log('Database connection obtained');
 
+    // Get all applications
     let applications;
     if (status) {
       applications = await getTutorApplicationsByStatus(pool, status);
@@ -728,10 +729,37 @@ app.get('/api/tutor-applications', async (req, res) => {
       applications = await getAllTutorApplications(pool);
     }
 
-    console.log(`Found ${applications.length} applications`);
+    // Get all subjects and users for faculty matching
+    const subjects = await pool.query('SELECT subject_id, user_id FROM subjects');
+    // user_id is a JSON array of faculty ids
+    const subjectFacultyMap = {};
+    subjects[0].forEach(subj => {
+      let facultyIds = [];
+      if (subj.user_id) {
+        try {
+          facultyIds = JSON.parse(subj.user_id);
+        } catch {
+          facultyIds = [];
+        }
+      }
+      subjectFacultyMap[subj.subject_id] = facultyIds;
+    });
+
+    // Get current user from request header (assume user_id and role are sent)
+    const currentUserId = req.headers['x-user-id'];
+    const currentUserRole = req.headers['x-user-role'];
+
+    // Filter applications for faculty
+    let filteredApplications = applications;
+    if (currentUserRole === 'Faculty' && currentUserId) {
+      filteredApplications = applications.filter(app => {
+        const assignedFaculty = subjectFacultyMap[app.subject_id] || [];
+        return assignedFaculty.some(fid => String(fid) === String(currentUserId));
+      });
+    }
 
     // Transform the data to match frontend expectations
-    const transformedApplications = applications.map(app => ({
+    const transformedApplications = filteredApplications.map(app => ({
       application_id: app.application_id,
       user_id: app.user_id,
       name: app.name || `${app.first_name || ''} ${app.last_name || ''}`.trim(),
@@ -746,8 +774,7 @@ app.get('/api/tutor-applications', async (req, res) => {
       specialties: app.specialties || ''
     }));
 
-    console.log(`✅ Found ${transformedApplications.length} tutor applications`);
-    
+    console.log(`✅ Found ${transformedApplications.length} tutor applications (filtered)`);
     res.status(200).json({ 
       success: true,
       applications: transformedApplications,

@@ -132,6 +132,7 @@ export default function Sidebar() {
   }) {
     const [pendingCount, setPendingCount] = useState<number | undefined>(undefined)
 
+    const { currentUser } = useUser();
     useEffect(() => {
       let isMounted = true;
       fetch("http://localhost:4000/api/tutor-applications?status=pending")
@@ -139,7 +140,15 @@ export default function Sidebar() {
         .then((data) => {
           if (isMounted) {
             if (Array.isArray(data.applications)) {
-              const count = data.applications.filter((a: any) => a.status === "pending").length
+              let count = 0;
+              if (currentUser?.role?.toLowerCase() === 'faculty') {
+                count = data.applications.filter((a: any) => {
+                  // Assume a.assigned_faculty is an array of faculty names/emails
+                  return a.status === "pending" && Array.isArray(a.assigned_faculty) && a.assigned_faculty.some((fac: string) => fac.includes(currentUser.email));
+                }).length;
+              } else {
+                count = data.applications.filter((a: any) => a.status === "pending").length;
+              }
               setPendingCount(count)
             } else {
               setPendingCount(0)
@@ -150,7 +159,7 @@ export default function Sidebar() {
           if (isMounted) setPendingCount(undefined)
         })
       return () => { isMounted = false }
-    }, [])
+    }, [currentUser])
 
     return (
       <Link
