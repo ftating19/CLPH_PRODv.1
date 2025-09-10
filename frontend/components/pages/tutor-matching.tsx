@@ -53,6 +53,7 @@ export default function TutorMatching() {
   const [selectedProgramFilter, setSelectedProgramFilter] = useState<string>("all")
   const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [showTestModal, setShowTestModal] = useState(false)
   const [tutors, setTutors] = useState<Tutor[]>([])
@@ -325,7 +326,10 @@ export default function TutorMatching() {
 
         <div className="flex items-center justify-end pt-4 border-t">
           <div className="flex space-x-2">
-            <Button size="sm" variant="outline" onClick={() => setSelectedTutor(tutor)}>
+            <Button size="sm" variant="outline" onClick={() => {
+              setSelectedTutor(tutor);
+              setShowProfileModal(true);
+            }}>
               View Profile
             </Button>
             <Button 
@@ -542,23 +546,23 @@ export default function TutorMatching() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
-          <div className="col-span-2 flex items-center justify-center py-12">
+          <div className="col-span-full flex items-center justify-center py-12">
             <div className="flex items-center space-x-2">
               <Loader2 className="w-6 h-6 animate-spin" />
               <span>Loading tutors...</span>
             </div>
           </div>
         ) : error ? (
-          <div className="col-span-2 text-center py-12">
+          <div className="col-span-full text-center py-12">
             <p className="text-red-600 mb-4">{error}</p>
             <Button onClick={fetchTutors} variant="outline">
               Try Again
             </Button>
           </div>
         ) : tutors.length === 0 ? (
-          <div className="col-span-2 text-center py-12">
+          <div className="col-span-full text-center py-12">
             <p className="text-muted-foreground mb-4">No tutors available at the moment.</p>
             <Button onClick={fetchTutors} variant="outline">
               Refresh
@@ -616,6 +620,152 @@ export default function TutorMatching() {
             <DialogDescription>Schedule a session with your selected tutor.</DialogDescription>
           </DialogHeader>
           <BookingForm tutor={selectedTutor} currentUser={currentUser} onClose={() => setShowBookingModal(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Profile Modal */}
+      <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-3">
+              <Avatar className="w-12 h-12">
+                <AvatarImage src="/placeholder.svg" alt={selectedTutor?.name || 'Tutor'} />
+                <AvatarFallback className="text-lg font-semibold">
+                  {selectedTutor?.name
+                    ? selectedTutor.name.split(" ").map((n) => n[0]).join("")
+                    : 'T'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="text-xl font-bold">{selectedTutor?.name || 'Tutor Profile'}</h2>
+                <p className="text-muted-foreground">{selectedTutor?.program}</p>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedTutor && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                  <div className="mt-1">
+                    <Badge variant={selectedTutor.status === "approved" ? "default" : "secondary"}>
+                      {selectedTutor.status === "approved" ? "Available" : "Unavailable"}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Member Since</Label>
+                  <p className="mt-1 text-sm">
+                    {selectedTutor.application_date ? new Date(selectedTutor.application_date).toLocaleDateString() : 'Date not available'}
+                  </p>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Subject Expertise</Label>
+                  <div className="mt-1">
+                    <Badge variant="outline" className="text-sm">
+                      {selectedTutor.subject_name || 'Subject not specified'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Rating</Label>
+                  <div className="flex items-center mt-1">
+                    {(() => {
+                      const ratingValue = typeof selectedTutor.ratings === 'string' ? parseFloat(selectedTutor.ratings) : selectedTutor.ratings || 0;
+                      const fullStars = Math.floor(ratingValue);
+                      const hasHalfStar = ratingValue - fullStars >= 0.25 && ratingValue - fullStars < 0.75;
+                      const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+                      const stars = [];
+                      for (let i = 0; i < fullStars; i++) {
+                        stars.push(
+                          <Star key={"full"+i} className="w-4 h-4 text-yellow-500 fill-current" />
+                        );
+                      }
+                      if (hasHalfStar) {
+                        stars.push(
+                          <Star key="half" className="w-4 h-4 text-yellow-500 fill-current opacity-50" />
+                        );
+                      }
+                      for (let i = 0; i < emptyStars; i++) {
+                        stars.push(
+                          <Star key={"empty"+i} className="w-4 h-4 text-gray-300" />
+                        );
+                      }
+                      return stars;
+                    })()}
+                    <span className="ml-2 text-sm text-muted-foreground">
+                      {selectedTutor.ratings ? `${selectedTutor.ratings}/5.0` : 'No ratings yet'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Program */}
+              {selectedTutor.program && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Academic Program</Label>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <GraduationCap className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{selectedTutor.program}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Specialties */}
+              {selectedTutor.specialties && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Specialties</Label>
+                  <p className="mt-2 text-sm leading-relaxed text-foreground">
+                    {selectedTutor.specialties}
+                  </p>
+                </div>
+              )}
+
+              {/* Additional Information */}
+              {selectedTutor.tutor_information && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Teaching Experience & Additional Information</Label>
+                  <p className="mt-2 text-sm leading-relaxed text-foreground">
+                    {selectedTutor.tutor_information}
+                  </p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowProfileModal(false)}
+                >
+                  Close
+                </Button>
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => {
+                    if (currentUser?.user_id === selectedTutor.user_id) {
+                      toast({
+                        title: "Booking Not Allowed",
+                        description: "You cannot book yourself as a tutor.",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    setShowProfileModal(false);
+                    setShowBookingModal(true);
+                  }}
+                  disabled={selectedTutor.status !== 'approved'}
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Book Session
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
