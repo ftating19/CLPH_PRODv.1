@@ -1379,11 +1379,20 @@ export default function Flashcards() {
                     <SelectValue placeholder="Select program" />
                   </SelectTrigger>
                   <SelectContent>
-                    {programOptions.map((program) => (
-                      <SelectItem key={program} value={program}>
-                        {program}
-                      </SelectItem>
-                    ))}
+                    {userRole === "admin" ? (
+                      programOptions.map((program) => (
+                        <SelectItem key={program} value={program}>
+                          {program}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      // Students can only see their own program
+                      userProgram && (
+                        <SelectItem key={userProgram} value={userProgram}>
+                          {userProgram}
+                        </SelectItem>
+                      )
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1466,11 +1475,20 @@ export default function Flashcards() {
                         <SelectValue placeholder="Select program" />
                       </SelectTrigger>
                       <SelectContent>
-                        {programOptions.map((program) => (
-                          <SelectItem key={program} value={program}>
-                            {program}
-                          </SelectItem>
-                        ))}
+                        {userRole === "admin" ? (
+                          programOptions.map((program) => (
+                            <SelectItem key={program} value={program}>
+                              {program}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          // Students can only see their own program
+                          userProgram && (
+                            <SelectItem key={userProgram} value={userProgram}>
+                              {userProgram}
+                            </SelectItem>
+                          )
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
