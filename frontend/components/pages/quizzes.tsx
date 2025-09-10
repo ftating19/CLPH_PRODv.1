@@ -126,10 +126,13 @@ export default function Quizzes() {
     correctAnswers: number
     totalQuestions: number
     timeSpent: number
+    totalPointsEarned: number
+    totalPointsPossible: number
     questionResults: {
       question: Question
       userAnswer: string
       isCorrect: boolean
+      pointsEarned: number
       explanation?: string
     }[]
   } | null>(null)
@@ -401,35 +404,67 @@ export default function Quizzes() {
     } else {
       // For actual quiz, calculate score and save results
       let correctAnswers = 0
+      let totalPointsEarned = 0
+      let totalPointsPossible = 0
       const questionResults: {
         question: Question
         userAnswer: string
         isCorrect: boolean
+        pointsEarned: number
         explanation?: string
       }[] = []
 
       takingQuiz.questions.forEach((question, index) => {
         const userAnswer = selectedAnswers[index] || ""
         const correctAnswer = question.correctAnswer
+        const questionPoints = question.points || 1
         let isCorrect = false
+        let pointsEarned = 0
+        
+        totalPointsPossible += questionPoints
         
         if (question.type === "enumeration") {
-          // For enumeration, check if all user answers match any of the correct answers
+          // Enhanced enumeration scoring: case-insensitive, proportional partial credit
+          // Example: If correct answers are "PHP, Java" (5 points) and user enters "php" - gets 2.5 points
           if (userAnswer && correctAnswer) {
             const userAnswersArray = userAnswer.split(',').map(a => a.trim().toLowerCase()).filter(a => a)
             const correctAnswersArray = correctAnswer.toString().split(',').map(a => a.trim().toLowerCase()).filter(a => a)
             
-            // Check if user provided answers match the correct answers (order doesn't matter)
-            const userAnswersSet = new Set(userAnswersArray)
-            const correctAnswersSet = new Set(correctAnswersArray)
+            console.log(`Question ${index + 1} - Enumeration Check:`, {
+              userAnswers: userAnswersArray,
+              correctAnswers: correctAnswersArray,
+              totalPoints: questionPoints
+            })
             
-            // All user answers must be correct, and user must provide all required answers
-            const allUserAnswersCorrect = userAnswersArray.every(answer => correctAnswersSet.has(answer))
-            const allRequiredAnswersProvided = correctAnswersArray.every(answer => userAnswersSet.has(answer))
-            
-            if (allUserAnswersCorrect && allRequiredAnswersProvided && userAnswersArray.length === correctAnswersArray.length) {
-              isCorrect = true
-              correctAnswers++
+            if (userAnswersArray.length > 0) {
+              // Check how many of the user's answers are correct
+              const correctAnswersSet = new Set(correctAnswersArray)
+              const correctUserAnswers = userAnswersArray.filter(answer => correctAnswersSet.has(answer))
+              const incorrectUserAnswers = userAnswersArray.filter(answer => !correctAnswersSet.has(answer))
+              
+              if (incorrectUserAnswers.length === 0 && correctUserAnswers.length > 0) {
+                // All user answers are correct, calculate partial credit based on completeness
+                const completionRatio = Math.min(correctUserAnswers.length / correctAnswersArray.length, 1)
+                pointsEarned = questionPoints * completionRatio
+                
+                if (correctUserAnswers.length === correctAnswersArray.length) {
+                  // Full credit - all answers provided and correct
+                  isCorrect = true
+                  correctAnswers++
+                  console.log(`Question ${index + 1}: Full credit - ${pointsEarned}/${questionPoints} points`)
+                } else {
+                  // Partial credit - some correct answers provided
+                  console.log(`Question ${index + 1}: Partial credit - ${pointsEarned}/${questionPoints} points (${correctUserAnswers.length}/${correctAnswersArray.length} answers)`)
+                  // Consider it correct if they got more than 50% of the points
+                  if (completionRatio >= 0.5) {
+                    isCorrect = true
+                    correctAnswers++
+                  }
+                }
+              } else {
+                console.log(`Question ${index + 1}: No credit - has incorrect answers or no correct answers`)
+                pointsEarned = 0
+              }
             }
           }
         } else {
@@ -437,18 +472,23 @@ export default function Quizzes() {
           if (userAnswer === correctAnswer) {
             isCorrect = true
             correctAnswers++
+            pointsEarned = questionPoints
           }
         }
+
+        totalPointsEarned += pointsEarned
 
         questionResults.push({
           question,
           userAnswer,
           isCorrect,
+          pointsEarned,
           explanation: question.explanation
         })
       })
 
-      const score = Math.round((correctAnswers / takingQuiz.questions.length) * 100)
+      // Calculate percentage score based on points, not just question count
+      const score = Math.round((totalPointsEarned / totalPointsPossible) * 100)
       
       // Prepare quiz results for the modal
       setQuizResults({
@@ -457,6 +497,8 @@ export default function Quizzes() {
         correctAnswers,
         totalQuestions: takingQuiz.questions.length,
         timeSpent,
+        totalPointsEarned,
+        totalPointsPossible,
         questionResults
       })
       
@@ -471,6 +513,13 @@ export default function Quizzes() {
         }
 
         console.log('Sending quiz attempt data:', attemptData)
+        console.log('Quiz Results Summary:', {
+          totalPointsEarned,
+          totalPointsPossible,
+          percentage: score,
+          correctQuestions: correctAnswers,
+          totalQuestions: takingQuiz.questions.length
+        })
 
         const response = await fetch('http://localhost:4000/api/quiz-attempts', {
           method: 'POST',
@@ -1877,11 +1926,17 @@ export default function Quizzes() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <div className="flex items-center space-x-2">
                       <Target className="w-5 h-5 text-green-500" />
                       <span className="text-sm">
                         <strong>{quizResults.correctAnswers}</strong> out of <strong>{quizResults.totalQuestions}</strong> correct
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Trophy className="w-5 h-5 text-blue-500" />
+                      <span className="text-sm">
+                        <strong>{quizResults.totalPointsEarned.toFixed(1)}</strong> out of <strong>{quizResults.totalPointsPossible}</strong> points
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -1903,7 +1958,7 @@ export default function Quizzes() {
                       </span>
                     </div>
                   </div>
-                  <Progress value={(quizResults.correctAnswers / quizResults.totalQuestions) * 100} className="w-full" />
+                  <Progress value={(quizResults.totalPointsEarned / quizResults.totalPointsPossible) * 100} className="w-full" />
                 </CardContent>
               </Card>
 
@@ -1923,6 +1978,11 @@ export default function Quizzes() {
                               <Check className="w-3 h-3 mr-1" />
                               Correct
                             </Badge>
+                          ) : result.pointsEarned > 0 ? (
+                            <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                              <Target className="w-3 h-3 mr-1" />
+                              Partial
+                            </Badge>
                           ) : (
                             <Badge variant="destructive" className="bg-red-100 text-red-800">
                               <X className="w-3 h-3 mr-1" />
@@ -1930,7 +1990,8 @@ export default function Quizzes() {
                             </Badge>
                           )}
                           <span className="text-sm text-muted-foreground">
-                            {result.question.points} {result.question.points === 1 ? 'point' : 'points'}
+                            <strong>{result.pointsEarned.toFixed(1)}</strong>/{result.question.points} 
+                            {result.question.points === 1 ? ' point' : ' points'}
                           </span>
                         </div>
                       </div>
@@ -1957,6 +2018,87 @@ export default function Quizzes() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Enhanced display for enumeration questions */}
+                      {result.question.type === "enumeration" && result.userAnswer && result.question.correctAnswer && (
+                        <div>
+                          <p className="font-medium text-sm mb-2">Answer Breakdown:</p>
+                          <div className="grid grid-cols-1 gap-2">
+                            {(() => {
+                              const userAnswersArray = result.userAnswer.split(',').map(a => a.trim()).filter(a => a)
+                              const correctAnswersArray = result.question.correctAnswer.toString().split(',').map(a => a.trim()).filter(a => a)
+                              const correctAnswersLower = correctAnswersArray.map(a => a.toLowerCase())
+                              
+                              return (
+                                <>
+                                  <div className="text-xs font-medium text-muted-foreground">Your Answers:</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {userAnswersArray.map((userAns, idx) => {
+                                      const isCorrect = correctAnswersLower.includes(userAns.toLowerCase())
+                                      return (
+                                        <span 
+                                          key={idx}
+                                          className={`px-2 py-1 rounded text-xs border ${
+                                            isCorrect 
+                                              ? 'border-green-300 bg-green-100 text-green-700'
+                                              : 'border-red-300 bg-red-100 text-red-700'
+                                          }`}
+                                        >
+                                          {userAns}
+                                          {isCorrect ? (
+                                            <Check className="w-3 h-3 inline ml-1" />
+                                          ) : (
+                                            <X className="w-3 h-3 inline ml-1" />
+                                          )}
+                                        </span>
+                                      )
+                                    })}
+                                  </div>
+                                  <div className="text-xs font-medium text-muted-foreground mt-2">Expected Answers:</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {correctAnswersArray.map((correctAns, idx) => {
+                                      const userProvided = userAnswersArray.some(ua => ua.toLowerCase() === correctAns.toLowerCase())
+                                      return (
+                                        <span 
+                                          key={idx}
+                                          className={`px-2 py-1 rounded text-xs border ${
+                                            userProvided 
+                                              ? 'border-green-300 bg-green-100 text-green-700'
+                                              : 'border-gray-300 bg-gray-100 text-gray-700'
+                                          }`}
+                                        >
+                                          {correctAns}
+                                          {userProvided ? (
+                                            <Check className="w-3 h-3 inline ml-1" />
+                                          ) : (
+                                            <span className="w-3 h-3 inline ml-1 text-gray-400">○</span>
+                                          )}
+                                        </span>
+                                      )
+                                    })}
+                                  </div>
+                                  {/* Scoring breakdown for enumeration */}
+                                  <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                                    <div className="font-medium text-blue-800 mb-1">Scoring Breakdown:</div>
+                                    <div className="text-blue-700">
+                                      • Correct answers provided: <strong>{userAnswersArray.filter(ua => correctAnswersLower.includes(ua.toLowerCase())).length}</strong>
+                                    </div>
+                                    <div className="text-blue-700">
+                                      • Total answers required: <strong>{correctAnswersArray.length}</strong>
+                                    </div>
+                                    <div className="text-blue-700">
+                                      • Points earned: <strong>{result.pointsEarned.toFixed(1)}</strong> out of <strong>{result.question.points}</strong>
+                                    </div>
+                                    <div className="text-blue-700">
+                                      • Completion rate: <strong>{Math.round((userAnswersArray.filter(ua => correctAnswersLower.includes(ua.toLowerCase())).length / correctAnswersArray.length) * 100)}%</strong>
+                                    </div>
+                                  </div>
+                                </>
+                              )
+                            })()}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Show options for multiple choice questions */}
                       {result.question.type === "multiple-choice" && result.question.options && (
