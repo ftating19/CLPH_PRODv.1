@@ -983,22 +983,6 @@ export default function Quizzes() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Quiz Details Section */}
                 <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Program</Label>
-                <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All programs" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Programs</SelectItem>
-                    {programOptions.map((program) => (
-                      <SelectItem key={program} value={program}>
-                        {program}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
                   <h3 className="text-lg font-semibold">Quiz Details</h3>
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -1020,14 +1004,14 @@ export default function Quizzes() {
                             className="w-full border rounded p-2 bg-white dark:bg-gray-900"
                           >
                             <option value="">Select Program</option>
-                            {programDropdownOptions.map(opt => (
+                            {programOptions.map(opt => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
                           </select>
                         ) : (
                           <Input
                             id="program"
-                            value={userProgram}
+                            value={selectedProgramFilter !== "all" ? selectedProgramFilter : userProgram}
                             disabled
                             className="w-full border rounded p-2 bg-white dark:bg-gray-900"
                           />
