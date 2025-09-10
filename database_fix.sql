@@ -12,6 +12,10 @@ ADD COLUMN IF NOT EXISTS subject_name VARCHAR(255) AFTER subject_id;
 ALTER TABLE quizzes 
 ADD COLUMN IF NOT EXISTS duration_unit VARCHAR(10) DEFAULT 'minutes' AFTER duration;
 
+-- 4. Add program column if it doesn't exist
+ALTER TABLE quizzes 
+ADD COLUMN IF NOT EXISTS program VARCHAR(255) DEFAULT '' AFTER duration_unit;
+
 -- 4. Update existing records to populate subject_name from subjects table
 UPDATE quizzes q
 INNER JOIN subjects s ON q.subject_id = s.subject_id

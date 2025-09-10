@@ -86,10 +86,29 @@ export default function Quizzes() {
   const { currentUser } = useUser();
   const userRole = currentUser?.role?.toLowerCase() || "student";
   const userProgram = currentUser?.program || "";
+  
   const programDropdownOptions = userRole === "admin"
     ? programOptions
     : programOptions.filter(opt => opt === userProgram);
   const [quizProgram, setQuizProgram] = useState(userRole === "admin" ? "" : userProgram);
+  
+  // Update quizProgram when currentUser loads or changes
+  useEffect(() => {
+    if (currentUser && userRole !== "admin") {
+      setQuizProgram(currentUser.program || "");
+    }
+  }, [currentUser, userRole]);
+  
+  // Debug logging for user info
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Current User Info:', {
+      role: userRole,
+      program: userProgram,
+      quizProgram: quizProgram,
+      fullUser: currentUser
+    })
+  }
+  
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showQuestionDialog, setShowQuestionDialog] = useState(false)
@@ -206,6 +225,7 @@ export default function Quizzes() {
       lastAttempt: lastAttempt,
       created_by: dbQuiz.created_by,
       creator_name: `${dbQuiz.first_name || ''} ${dbQuiz.last_name || ''}`.trim(),
+      program: dbQuiz.program || '', // Add program from database
     }
   })
 
@@ -223,8 +243,20 @@ export default function Quizzes() {
     // Difficulty filter
     const matchesDifficulty = selectedDifficultyFilter === "all" || quiz.difficulty === selectedDifficultyFilter
 
-    // Program filter
-    const matchesProgram = selectedProgramFilter === "all" || quiz.program === selectedProgramFilter
+    // Program filter - for students, automatically filter by their program
+    let matchesProgram = true
+    if (userRole === "student") {
+      // For students, only show quizzes that exactly match their program
+      matchesProgram = quiz.program && quiz.program === userProgram
+      
+      // Debug logging for program filtering
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Quiz "${quiz.title}": program="${quiz.program}", userProgram="${userProgram}", matches=${matchesProgram}`)
+      }
+    } else if (userRole === "admin" && selectedProgramFilter !== "all") {
+      // For admins, apply the selected program filter
+      matchesProgram = quiz.program === selectedProgramFilter
+    }
 
     return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram
   })
@@ -682,6 +714,10 @@ export default function Quizzes() {
       console.log('Quiz Duration Input:', quizDuration);
       console.log('Quiz Duration Unit:', quizDurationUnit);
       console.log('Duration in Minutes:', durationInMinutes);
+      console.log('Quiz Program State:', quizProgram);
+      console.log('User Program:', userProgram);
+      console.log('User Role:', userRole);
+      console.log('Current User:', currentUser);
       console.log('=====================');
 
       // Create quiz in database
@@ -695,7 +731,8 @@ export default function Quizzes() {
         duration: durationInMinutes, // Always store in minutes
         duration_unit: quizDurationUnit, // Store the original unit for reference
         difficulty: quizDifficulty,
-        item_counts: quizQuestions.length
+        item_counts: quizQuestions.length,
+        program: quizProgram // Add program field
       }
 
       console.log('=== QUIZ DATA BEING SENT ===');
@@ -1514,22 +1551,25 @@ export default function Quizzes() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Program</Label>
-                <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All programs" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Programs</SelectItem>
-                    {programOptions.map((program) => (
-                      <SelectItem key={program} value={program}>
-                        {program}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Program Filter - Only show for admins */}
+              {userRole === "admin" && (
+                <div className="space-y-2">
+                  <Label>Program</Label>
+                  <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All programs" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Programs</SelectItem>
+                      {programOptions.map((program) => (
+                        <SelectItem key={program} value={program}>
+                          {program}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Subject</Label>
