@@ -25,17 +25,18 @@ const getSubjectById = async (pool, subjectId) => {
 // Create new subject
 const createSubject = async (pool, subjectData) => {
   try {
-    const { subject_name, description, subject_code, user_id } = subjectData;
+    const { subject_name, description, subject_code, user_id, program } = subjectData;
     const [result] = await pool.query(
-      'INSERT INTO subjects (subject_name, description, subject_code, user_id) VALUES (?, ?, ?, ?)',
-      [subject_name, description, subject_code, user_id]
+      'INSERT INTO subjects (subject_name, description, subject_code, user_id, program) VALUES (?, ?, ?, ?, ?)',
+      [subject_name, description, subject_code, user_id, program]
     );
     return {
       subject_id: result.insertId,
       subject_name,
       description,
       subject_code,
-      user_id
+      user_id,
+      program
     };
   } catch (error) {
     console.error('Error creating subject:', error);
@@ -46,17 +47,18 @@ const createSubject = async (pool, subjectData) => {
 // Update subject
 const updateSubject = async (pool, subjectId, subjectData) => {
   try {
-    const { subject_name, description, subject_code, user_id } = subjectData;
+    const { subject_name, description, subject_code, user_id, program } = subjectData;
     await pool.query(
-      'UPDATE subjects SET subject_name = ?, description = ?, subject_code = ?, user_id = ? WHERE subject_id = ?',
-      [subject_name, description, subject_code, user_id, subjectId]
+      'UPDATE subjects SET subject_name = ?, description = ?, subject_code = ?, user_id = ?, program = ? WHERE subject_id = ?',
+      [subject_name, description, subject_code, user_id, program, subjectId]
     );
     return {
       subject_id: subjectId,
       subject_name,
       description,
       subject_code,
-      user_id
+      user_id,
+      program
     };
   } catch (error) {
     console.error('Error updating subject:', error);

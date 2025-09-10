@@ -1374,7 +1374,7 @@ app.get('/api/subjects/:id', async (req, res) => {
 // Create new subject
 app.post('/api/subjects', async (req, res) => {
   try {
-  const { subject_name, description, subject_code, faculty_ids } = req.body;
+  const { subject_name, description, subject_code, faculty_ids, program } = req.body;
     
     // Validation
     if (!subject_name || !description || !subject_code) {
@@ -1393,7 +1393,8 @@ app.post('/api/subjects', async (req, res) => {
       subject_name,
       description,
       subject_code,
-      user_id
+      user_id,
+      program
     });
     
     console.log(`✅ Subject created successfully with ID: ${newSubject.subject_id}`);
@@ -1424,7 +1425,7 @@ app.post('/api/subjects', async (req, res) => {
 app.put('/api/subjects/:id', async (req, res) => {
   try {
     const subjectId = parseInt(req.params.id);
-  const { subject_name, description, subject_code, faculty_ids } = req.body;
+  const { subject_name, description, subject_code, faculty_ids, program } = req.body;
     
     if (!subjectId) {
       return res.status(400).json({ 
@@ -1460,7 +1461,8 @@ app.put('/api/subjects/:id', async (req, res) => {
       subject_name,
       description,
       subject_code,
-      user_id
+      user_id,
+      program
     });
     
     console.log(`✅ Subject updated successfully: ${subject_name}`);

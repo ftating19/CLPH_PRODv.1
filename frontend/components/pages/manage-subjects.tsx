@@ -65,17 +65,24 @@ export default function ManageSubjects() {
   // Faculty state
   const [facultyList, setFacultyList] = useState<Faculty[]>([]);
 
+  // Program options
+  const programOptions = [
+    "BSCS", "BSIT", "BSIS", "BLIS", "BSEMC", "Other"
+  ];
+
   // Form states
   const [createForm, setCreateForm] = useState<{
     subject_name: string;
     description: string;
     subject_code: string;
     faculty_ids: string[];
+    program: string;
   }>({
     subject_name: "",
     description: "",
     subject_code: "",
-    faculty_ids: []
+    faculty_ids: [],
+    program: ""
   });
 
   const [editForm, setEditForm] = useState<{
@@ -83,11 +90,13 @@ export default function ManageSubjects() {
     description: string;
     subject_code: string;
     faculty_ids: string[];
+    program: string;
   }>({
     subject_name: "",
     description: "",
     subject_code: "",
-    faculty_ids: []
+    faculty_ids: [],
+    program: ""
   });
 
   const { toast } = useToast();
@@ -162,7 +171,7 @@ export default function ManageSubjects() {
           description: `${createForm.subject_name} has been successfully created.`,
           duration: 3000,
         });
-        setCreateForm({ subject_name: "", description: "", subject_code: "", faculty_ids: [] });
+        setCreateForm({ subject_name: "", description: "", subject_code: "", faculty_ids: [], program: "" });
         setShowCreateDialog(false);
         fetchSubjects();
       }
@@ -184,7 +193,8 @@ export default function ManageSubjects() {
       subject_name: subject.subject_name,
       description: subject.description,
       subject_code: subject.subject_code,
-      faculty_ids: subject.faculty_ids || []
+      faculty_ids: subject.faculty_ids || [],
+      program: (subject as any).program || ""
     });
     setShowEditDialog(true);
   };
@@ -311,9 +321,7 @@ export default function ManageSubjects() {
             <Label className="text-sm font-medium">Description</Label>
             <p className="text-sm text-muted-foreground mt-1">{subject.description}</p>
           </div>
-          <div className="text-xs text-muted-foreground">
-            Subject ID: {subject.subject_id}
-          </div>
+          {/* Subject ID hidden as requested */}
           <div>
             <Label className="text-sm font-medium">Assigned Faculty</Label>
             {assignedFacultyNames.length > 0 ? (
@@ -413,6 +421,22 @@ export default function ManageSubjects() {
                     ? setEditForm({...editForm, subject_code: e.target.value})
                     : setCreateForm({...createForm, subject_code: e.target.value})}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="program">Program *</Label>
+                <select
+                  id="program"
+                  value={selectedSubject ? editForm.program : createForm.program}
+                  onChange={e => selectedSubject
+                    ? setEditForm({ ...editForm, program: e.target.value })
+                    : setCreateForm({ ...createForm, program: e.target.value })}
+                  className="w-full border rounded p-2 bg-white dark:bg-gray-900"
+                >
+                  <option value="">Select Program</option>
+                  {programOptions.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description *</Label>
