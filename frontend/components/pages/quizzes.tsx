@@ -319,13 +319,14 @@ export default function Quizzes() {
       const transformedQuestions = data.questions.map((q: any) => ({
         id: q.question_id,
         question: q.question,
-        type: q.type || 'multiple-choice',
+        type: q.question_type || q.type || 'multiple-choice',
         options: q.choices || q.options || [],
         correctAnswer: q.answer || q.correct_answer,
         points: q.points || 1,
         explanation: q.explanation
       }))
 
+      console.log('Raw questions from database:', data.questions)
       console.log('Transformed questions:', transformedQuestions)
 
       // Set up quiz taking state
@@ -385,8 +386,32 @@ export default function Quizzes() {
       // For actual quiz, calculate score and save results
       let correctAnswers = 0
       takingQuiz.questions.forEach((question, index) => {
-        if (selectedAnswers[index] === question.correctAnswer) {
-          correctAnswers++
+        const userAnswer = selectedAnswers[index]
+        const correctAnswer = question.correctAnswer
+        
+        if (question.type === "enumeration") {
+          // For enumeration, check if all user answers match any of the correct answers
+          if (userAnswer && correctAnswer) {
+            const userAnswersArray = userAnswer.split(',').map(a => a.trim().toLowerCase()).filter(a => a)
+            const correctAnswersArray = correctAnswer.toString().split(',').map(a => a.trim().toLowerCase()).filter(a => a)
+            
+            // Check if user provided answers match the correct answers (order doesn't matter)
+            const userAnswersSet = new Set(userAnswersArray)
+            const correctAnswersSet = new Set(correctAnswersArray)
+            
+            // All user answers must be correct, and user must provide all required answers
+            const allUserAnswersCorrect = userAnswersArray.every(answer => correctAnswersSet.has(answer))
+            const allRequiredAnswersProvided = correctAnswersArray.every(answer => userAnswersSet.has(answer))
+            
+            if (allUserAnswersCorrect && allRequiredAnswersProvided && userAnswersArray.length === correctAnswersArray.length) {
+              correctAnswers++
+            }
+          }
+        } else {
+          // For other question types, direct comparison
+          if (userAnswer === correctAnswer) {
+            correctAnswers++
+          }
         }
       })
 
@@ -663,7 +688,6 @@ export default function Quizzes() {
       question: questionText,
       options: questionType === "multiple-choice" ? questionOptions.filter(opt => opt.trim())
         : questionType === "true-false" ? ["True", "False"]
-        : questionType === "enumeration" ? correctAnswer.split(',').map(a => a.trim()).filter(a => a)
         : undefined,
       correctAnswer: correctAnswer,
       explanation: questionExplanation,
@@ -1177,11 +1201,21 @@ export default function Quizzes() {
                             </div>
                           )}
 
-                          {(questionType === "enumeration" || questionType === "essay") && (
+                          {questionType === "enumeration" && (
                             <div className="space-y-2">
-                              <Label>{questionType === "enumeration" ? "Enumeration Answers (comma separated)" : "Sample Answer/Keywords"}</Label>
+                              <Label>Enumeration Answers (comma separated)</Label>
+                              <Input
+                                placeholder="Enter all correct answers, separated by commas"
+                                value={correctAnswer}
+                                onChange={(e) => setCorrectAnswer(e.target.value)}
+                              />
+                            </div>
+                          )}
+                          {questionType === "essay" && (
+                            <div className="space-y-2">
+                              <Label>Sample Answer/Keywords</Label>
                               <Textarea 
-                                placeholder={questionType === "enumeration" ? "Enter all correct answers, separated by commas" : "Enter sample answer or keywords for grading reference..."}
+                                placeholder="Enter sample answer or keywords for grading reference..."
                                 value={correctAnswer}
                                 onChange={(e) => setCorrectAnswer(e.target.value)}
                                 rows={2}
@@ -1586,6 +1620,60 @@ export default function Quizzes() {
                           </Label>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Enumeration Questions */}
+                  {takingQuiz.questions[currentQuestionIndex].type === "enumeration" && (
+                    <div className="space-y-3">
+                      <div className="text-sm font-medium text-muted-foreground mb-3">
+                        {isPreviewMode ? "Correct Answers:" : "Enter all correct answers (separated by commas):"}
+                      </div>
+                      
+                      {isPreviewMode ? (
+                        // Preview mode - show the correct answers
+                        <div className="p-3 border rounded-lg bg-muted/30">
+                          <div className="font-medium text-green-800 dark:text-green-200">
+                            {takingQuiz.questions[currentQuestionIndex].correctAnswer}
+                          </div>
+                        </div>
+                      ) : (
+                        // Quiz mode - show input field for student answers
+                        <Input
+                          type="text"
+                          placeholder="Enter your answers here"
+                          value={selectedAnswers[currentQuestionIndex] || ""}
+                          onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
+                          className="w-full"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Essay Questions */}
+                  {takingQuiz.questions[currentQuestionIndex].type === "essay" && (
+                    <div className="space-y-3">
+                      <div className="text-sm font-medium text-muted-foreground mb-3">
+                        {isPreviewMode ? "Sample Answer:" : "Enter your essay answer:"}
+                      </div>
+                      
+                      {isPreviewMode ? (
+                        // Preview mode - show the sample answer
+                        <div className="p-3 border rounded-lg bg-muted/30">
+                          <div className="text-muted-foreground">
+                            {takingQuiz.questions[currentQuestionIndex].correctAnswer}
+                          </div>
+                        </div>
+                      ) : (
+                        // Quiz mode - show textarea for student essay
+                        <Textarea
+                          placeholder="Enter your detailed answer here..."
+                          value={selectedAnswers[currentQuestionIndex] || ""}
+                          onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
+                          rows={6}
+                          className="w-full"
+                        />
+                      )}
                     </div>
                   )}
 
