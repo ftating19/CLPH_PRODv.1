@@ -813,9 +813,6 @@ export default function Flashcards() {
   }
 
   const FlashcardSetCard = ({ set }: { set: any }) => {
-    const [expanded, setExpanded] = useState(false)
-    const [revealedIndex, setRevealedIndex] = useState<number | null>(null)
-
     return (
       <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
         <CardHeader>
@@ -889,31 +886,7 @@ export default function Flashcards() {
               <Edit className="w-4 h-4 mr-2" />
               Edit Set
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)}>
-              <Star className="w-4 h-4 mr-2" />
-              {expanded ? 'Hide flashcards' : 'Show flashcards'}
-            </Button>
           </div>
-
-          {expanded && (
-            <div className="mt-4 space-y-2 max-h-56 overflow-y-auto">
-              {set.cards.map((card: any, idx: number) => (
-                <div key={card.id} className="p-2 border rounded flex items-start justify-between">
-                  <div>
-                    <div className="text-sm font-medium">{idx + 1}. {card.front}</div>
-                    {revealedIndex === idx && (
-                      <div className="text-xs text-muted-foreground mt-1">{card.back}</div>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end space-y-2">
-                    <Button size="sm" variant="outline" onClick={() => setRevealedIndex(revealedIndex === idx ? null : idx)}>
-                      {revealedIndex === idx ? 'Hide' : 'Answer'}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           {set.cardCount === 0 && (
             <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
