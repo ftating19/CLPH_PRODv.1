@@ -55,25 +55,24 @@ const createQuestion = async (pool, questionData) => {
       choices,
       answer,
       explanation,
-      points
+      points,
+      question_type
     } = questionData;
-    
     // Convert choices array to JSON string if needed
     const choicesData = Array.isArray(choices) ? JSON.stringify(choices) : choices;
-    
     const [result] = await pool.query(`
       INSERT INTO questions (
-        quizzes_id, question, choices, answer, points, explanation
-      ) VALUES (?, ?, ?, ?, ?, ?)
+        quizzes_id, question, choices, answer, points, explanation, question_type
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [
       quizzes_id, 
       question || '', 
       choicesData, 
       answer, 
       points || 1, 
-      explanation || null
+      explanation || null,
+      question_type
     ]);
-    
     return {
       question_id: result.insertId,
       quizzes_id: quizzes_id,
@@ -81,7 +80,8 @@ const createQuestion = async (pool, questionData) => {
       choices: Array.isArray(choices) ? choices : JSON.parse(choices || '[]'),
       answer: answer,
       points: points || 1,
-      explanation: explanation || null
+      explanation: explanation || null,
+      question_type
     };
   } catch (error) {
     console.error('Error creating question:', error);

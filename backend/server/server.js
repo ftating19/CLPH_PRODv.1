@@ -2610,17 +2610,14 @@ app.get('/api/questions/:id', async (req, res) => {
 // Create new question
 app.post('/api/questions', async (req, res) => {
   try {
-    const { quizzes_id, question, choices, answer, explanation, points } = req.body;
-    
-    if (!quizzes_id || !question || !answer) {
+    const { quizzes_id, question, choices, answer, explanation, points, question_type } = req.body;
+    if (!quizzes_id || !question || !answer || !question_type) {
       return res.status(400).json({ 
         success: false,
-        error: 'quizzes_id, question, and answer are required' 
+        error: 'quizzes_id, question, answer, and question_type are required' 
       });
     }
-    
-    console.log(`Creating new question for quiz ID: ${quizzes_id}`);
-    
+    console.log(`Creating new question for quiz ID: ${quizzes_id}, type: ${question_type}`);
     const pool = await db.getPool();
     const newQuestion = await createQuestion(pool, {
       quizzes_id,
@@ -2628,11 +2625,10 @@ app.post('/api/questions', async (req, res) => {
       choices,
       answer,
       explanation,
-      points
+      points,
+      question_type
     });
-    
     console.log(`✅ Question created successfully`);
-    
     res.status(201).json({
       success: true,
       message: 'Question created successfully',

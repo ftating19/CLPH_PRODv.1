@@ -42,7 +42,7 @@ import { useQuizzes, useQuizQuestions, useQuizAttempts } from "@/hooks/use-quizz
 import { useSubjects } from "@/hooks/use-subjects"
 
 // Question types
-type QuestionType = "multiple-choice" | "true-false" | "short-answer" | "essay"
+type QuestionType = "multiple-choice" | "true-false" | "enumeration" | "essay"
 
 interface Question {
   id: string
@@ -52,6 +52,7 @@ interface Question {
   correctAnswer: string | string[]
   explanation?: string
   points: number
+  question_type?: QuestionType
 }
 
 interface Quiz {
@@ -556,16 +557,15 @@ export default function Quizzes() {
           for (const [index, question] of quizQuestions.entries()) {
             try {
               const questionData = {
-                quizzes_id: createdQuizId,  // Changed from quiz_id to quizzes_id
-                question: question.question,  // Changed from question_text to question
+                quizzes_id: createdQuizId,
+                question: question.question,
                 choices: question.options || [],
-                answer: question.correctAnswer,  // Changed from correct_answer to answer
+                answer: question.correctAnswer,
                 explanation: question.explanation || null,
-                points: question.points || 1
+                points: question.points || 1,
+                question_type: question.question_type || question.type
               }
-
               console.log(`Saving question ${index + 1}:`, questionData)
-
               const questionResponse = await fetch('http://localhost:4000/api/questions', {
                 method: 'POST',
                 headers: {
@@ -573,10 +573,8 @@ export default function Quizzes() {
                 },
                 body: JSON.stringify(questionData)
               })
-
               const questionResult = await questionResponse.json()
               console.log(`Question ${index + 1} save result:`, questionResult)
-              
               if (!questionResult.success) {
                 console.error('Failed to save question:', questionResult.error)
               }
@@ -663,10 +661,14 @@ export default function Quizzes() {
       id: `q${Date.now()}`,
       type: questionType,
       question: questionText,
-      options: questionType === "multiple-choice" ? questionOptions.filter(opt => opt.trim()) : undefined,
+      options: questionType === "multiple-choice" ? questionOptions.filter(opt => opt.trim())
+        : questionType === "true-false" ? ["True", "False"]
+        : questionType === "enumeration" ? correctAnswer.split(',').map(a => a.trim()).filter(a => a)
+        : undefined,
       correctAnswer: correctAnswer,
       explanation: questionExplanation,
-      points: questionPoints
+      points: questionPoints,
+      question_type: questionType // For backend
     }
 
     if (editingQuestion) {
@@ -1107,7 +1109,7 @@ export default function Quizzes() {
                                 <SelectContent>
                                   <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
                                   <SelectItem value="true-false">True/False</SelectItem>
-                                  <SelectItem value="short-answer">Short Answer</SelectItem>
+                                  <SelectItem value="enumeration">Enumeration</SelectItem>
                                   <SelectItem value="essay">Essay</SelectItem>
                                 </SelectContent>
                               </Select>
@@ -1175,11 +1177,11 @@ export default function Quizzes() {
                             </div>
                           )}
 
-                          {(questionType === "short-answer" || questionType === "essay") && (
+                          {(questionType === "enumeration" || questionType === "essay") && (
                             <div className="space-y-2">
-                              <Label>Sample Answer/Keywords</Label>
+                              <Label>{questionType === "enumeration" ? "Enumeration Answers (comma separated)" : "Sample Answer/Keywords"}</Label>
                               <Textarea 
-                                placeholder="Enter sample answer or keywords for grading reference..."
+                                placeholder={questionType === "enumeration" ? "Enter all correct answers, separated by commas" : "Enter sample answer or keywords for grading reference..."}
                                 value={correctAnswer}
                                 onChange={(e) => setCorrectAnswer(e.target.value)}
                                 rows={2}
