@@ -157,8 +157,12 @@ const createFlashcard = async (pool, flashcardData) => {
 
     console.log('=== BACKEND FLASHCARD CREATION DEBUG ===');
     console.log('Received flashcard data:', JSON.stringify(flashcardData, null, 2));
-    console.log('Program value:', program);
-    console.log('Program type:', typeof program);
+    if (program === undefined || program === "") {
+      console.log('WARNING: Program value is missing or empty!');
+    } else {
+      console.log('Program value:', program);
+      console.log('Program type:', typeof program);
+    }
     console.log('========================================');
 
     const [result] = await pool.query(`

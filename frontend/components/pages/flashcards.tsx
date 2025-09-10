@@ -389,6 +389,20 @@ export default function Flashcards() {
     }
 
     try {
+          toast({
+            title: "Success",
+            description: "Flashcard created successfully!",
+            duration: 3000,
+          })
+          // Reset form
+          setQuestion("")
+          setAnswer("")
+          setSelectedSubject("")
+          setShowCreateDialog(false)
+      
+          // Refresh flashcards and progress
+          refetchFlashcards()
+          refetchProgress()
       // Find subject ID by name
       const subject = subjects.find(s => s.subject_name === selectedSubject)
       if (!subject) {
@@ -1030,6 +1044,7 @@ export default function Flashcards() {
             <DropdownMenuItem onClick={() => {
               setEditingFlashcard(null)
               setCurrentFlashcard(null)
+              console.log('Modal opened: flashcardProgram value is', flashcardProgram);
               setShowCreateDialog(true)
             }}>
               <BookOpen className="w-4 h-4 mr-2" />
@@ -1428,7 +1443,10 @@ export default function Flashcards() {
                   <div className="space-y-2">
                     <Label htmlFor="setProgram">Program</Label>
                     {userRole === "admin" ? (
-                      <Select value={flashcardProgram} onValueChange={setFlashcardProgram}>
+                      <Select value={flashcardProgram} onValueChange={val => {
+                        console.log('Dropdown selected program:', val);
+                        setFlashcardProgram(val);
+                      }}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select program" />
                         </SelectTrigger>
