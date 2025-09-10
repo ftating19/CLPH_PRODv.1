@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -28,6 +28,17 @@ import { useStudyMaterials } from "@/hooks/use-study-materials"
 import { useUser } from "@/contexts/UserContext"
 
 export default function LearningResources() {
+  // Program options
+  const programOptionsRaw = [
+    "Bachelor of Science in Computer Science",
+    "Bachelor of Science in Information Technology",
+    "Bachelor of Science in Information Systems",
+    "Bachelor of Library and Information Science",
+    "Bachelor of Science in Entertainment and Multimedia Computing"
+  ];
+  // Remove duplicates from program options
+  const programOptions = Array.from(new Set(programOptionsRaw));
+
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
   const { 
     materials, 
@@ -43,8 +54,33 @@ export default function LearningResources() {
   
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("all")
+  const [selectedProgramFilter, setSelectedProgramFilter] = useState<string>("all")
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [uploading, setUploading] = useState(false)
+
+  // Get user role from context, default to 'student' if not available
+  const userRole = currentUser?.role?.toLowerCase() || 'student'
+  const userProgram = currentUser?.program || ""
+  
+  // Program state for learning resource creation
+  const [resourceProgram, setResourceProgram] = useState(userRole === "admin" ? "" : userProgram)
+  
+  // Update resourceProgram when currentUser loads or changes
+  useEffect(() => {
+    if (currentUser && userRole !== "admin") {
+      setResourceProgram(currentUser.program || "");
+    }
+  }, [currentUser, userRole]);
+  
+  // Debug logging for user info
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Learning Resources - Current User Info:', {
+      role: userRole,
+      program: userProgram,
+      resourceProgram: resourceProgram,
+      fullUser: currentUser
+    })
+  }
   
   // Upload form state
   const [uploadForm, setUploadForm] = useState({
@@ -64,12 +100,27 @@ export default function LearningResources() {
     }
   }
 
-  // Filter materials based on selected subject
+  // Filter materials based on selected subject and program
   const filteredMaterials = materials.filter((material) => {
-    if (selectedSubject === "all") return true
-    // Note: You might need to add subject filtering logic here
-    // depending on how subjects are related to materials
-    return true
+    // Subject filter
+    const matchesSubject = selectedSubject === "all" || material.subject === selectedSubject;
+    
+    // Program filter - for students, automatically filter by their program
+    let matchesProgram = true
+    if (userRole === "student") {
+      // For students, only show materials that exactly match their program
+      matchesProgram = !!(material.program && material.program === userProgram)
+      
+      // Debug logging for program filtering
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Material "${material.title}": program="${material.program}", userProgram="${userProgram}", matches=${matchesProgram}`)
+      }
+    } else if (userRole === "admin" && selectedProgramFilter !== "all") {
+      // For admins, apply the selected program filter
+      matchesProgram = material.program === selectedProgramFilter
+    }
+
+    return matchesSubject && matchesProgram;
   })
 
   // Handle file upload
@@ -113,6 +164,12 @@ export default function LearningResources() {
       return
     }
 
+    // Validate program is selected
+    if (!resourceProgram || resourceProgram.trim() === '') {
+      alert('Please select a program')
+      return
+    }
+
     try {
       setUploading(true)
       
@@ -121,7 +178,15 @@ export default function LearningResources() {
       formData.append('description', uploadForm.description.trim())
       formData.append('subject', uploadForm.subject.trim() || 'General')
       formData.append('uploaded_by', currentUser.user_id.toString())
+      formData.append('program', resourceProgram)
       formData.append('file', uploadForm.file)
+
+      console.log('=== LEARNING RESOURCE UPLOAD DEBUG ===');
+      console.log('Resource Program State:', resourceProgram);
+      console.log('User Program:', userProgram);
+      console.log('User Role:', userRole);
+      console.log('FormData program value:', formData.get('program'));
+      console.log('====================================');
 
       await uploadMaterial(formData)
       
@@ -170,6 +235,22 @@ export default function LearningResources() {
         
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
+          {/* Program Filter - Only show for admins */}
+          {userRole === "admin" && (
+            <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter by program" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Programs</SelectItem>
+                {programOptions.map((program) => (
+                  <SelectItem key={program} value={program}>
+                    {program}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={subjectsLoading || !!subjectsError}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder={subjectsLoading ? "Loading..." : subjectsError ? "Error loading subjects" : "Filter by subject"} />
@@ -226,10 +307,18 @@ export default function LearningResources() {
                     <div className="flex items-center space-x-2">
                       <FileText className="w-5 h-5 text-blue-600" />
                       <Badge variant="outline">{material.file_type}</Badge>
+                      {material.subject && material.subject !== 'General' && (
+                        <Badge variant="secondary">{material.subject}</Badge>
+                      )}
                     </div>
                   </div>
                   <CardTitle className="text-lg leading-tight">{material.title}</CardTitle>
                   <CardDescription>{material.description || "No description provided"}</CardDescription>
+                  {material.program && (
+                    <div className="text-xs text-muted-foreground">
+                      Program: {material.program}
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -287,6 +376,34 @@ export default function LearningResources() {
                   placeholder="Enter resource title"
                   required
                 />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="program">Program *</Label>
+                {userRole === "admin" ? (
+                  <Select 
+                    value={resourceProgram} 
+                    onValueChange={setResourceProgram}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select program" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {programOptions.map((program) => (
+                        <SelectItem key={program} value={program}>
+                          {program}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id="program"
+                    value={resourceProgram}
+                    disabled
+                    className="bg-muted"
+                  />
+                )}
               </div>
               
               <div className="space-y-2">

@@ -13,6 +13,8 @@ export interface StudyMaterial {
   rating: number
   file_type: string
   view_count: number
+  subject: string
+  program: string
 }
 
 export function useStudyMaterials() {

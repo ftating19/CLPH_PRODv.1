@@ -1630,7 +1630,7 @@ app.post('/api/study-materials', upload.single('file'), async (req, res) => {
     console.log('Creating new pending study material:', req.body);
     console.log('Uploaded file:', req.file);
 
-    const { title, description, subject, uploaded_by } = req.body;
+    const { title, description, subject, uploaded_by, program } = req.body;
 
     // Validate required fields
     if (!title || !uploaded_by) {
@@ -1658,7 +1658,8 @@ app.post('/api/study-materials', upload.single('file'), async (req, res) => {
       file_path: `/pending-resources/${req.file.filename}`,
       uploaded_by,
       file_type: 'PDF',
-      file_size: req.file.size
+      file_size: req.file.size,
+      program
     });
 
     console.log(`✅ Pending study material created with ID: ${result.material_id}`);

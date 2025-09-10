@@ -21,6 +21,7 @@ const getAllPendingMaterials = async (pool) => {
         pm.file_size,
         pm.reviewed_by,
         pm.reviewed_at,
+        pm.program,
         CONCAT(u.first_name, ' ', u.last_name) as uploaded_by_name,
         CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
         s.user_id as subject_user_ids,
@@ -75,6 +76,7 @@ const getPendingMaterialById = async (pool, materialId) => {
         pm.file_size,
         pm.reviewed_by,
         pm.reviewed_at,
+        pm.program,
         CONCAT(u.first_name, ' ', u.last_name) as uploaded_by_name,
         CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
         u.email
@@ -103,7 +105,8 @@ const createPendingMaterial = async (pool, materialData) => {
       uploaded_by,
       file_type,
       subject,
-      file_size
+      file_size,
+      program
     } = materialData;
 
     const [result] = await pool.query(`
@@ -118,8 +121,9 @@ const createPendingMaterial = async (pool, materialData) => {
         file_type, 
         view_count, 
         subject, 
-        file_size
-      ) VALUES (?, ?, ?, ?, 'pending', 0, 0, ?, 0, ?, ?)
+        file_size,
+        program
+      ) VALUES (?, ?, ?, ?, 'pending', 0, 0, ?, 0, ?, ?, ?)
     `, [
       title,
       description || null,
@@ -127,7 +131,8 @@ const createPendingMaterial = async (pool, materialData) => {
       uploaded_by,
       file_type || 'PDF',
       subject || 'General',
-      file_size || 0
+      file_size || 0,
+      program || null
     ]);
 
     return {
@@ -142,7 +147,8 @@ const createPendingMaterial = async (pool, materialData) => {
       file_type: file_type || 'PDF',
       view_count: 0,
       subject: subject || 'General',
-      file_size: file_size || 0
+      file_size: file_size || 0,
+      program: program || null
     };
   } catch (error) {
     console.error('Error creating pending material:', error);
@@ -199,6 +205,7 @@ const getPendingMaterialsByStatus = async (pool, status) => {
         pm.file_size,
         pm.reviewed_by,
         pm.reviewed_at,
+        pm.program,
         CONCAT(u.first_name, ' ', u.last_name) as uploaded_by_name,
         CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
         s.user_id as subject_user_ids,
@@ -243,8 +250,14 @@ const transferToStudyMaterials = async (pool, pendingMaterial) => {
       uploaded_by,
       file_type,
       subject,
-      file_size
+      file_size,
+      program
     } = pendingMaterial;
+
+    console.log('=== TRANSFER TO STUDY MATERIALS DEBUG ===');
+    console.log('Pending Material Program:', program);
+    console.log('Full Pending Material:', pendingMaterial);
+    console.log('==========================================');
 
     // Create new file path for learning resources
     const filename = path.basename(file_path);
@@ -262,8 +275,9 @@ const transferToStudyMaterials = async (pool, pendingMaterial) => {
         file_type, 
         view_count, 
         subject, 
-        file_size
-      ) VALUES (?, ?, ?, ?, 'active', 0, 0, ?, 0, ?, ?)
+        file_size,
+        program
+      ) VALUES (?, ?, ?, ?, 'active', 0, 0, ?, 0, ?, ?, ?)
     `, [
       title,
       description || null,
@@ -271,7 +285,8 @@ const transferToStudyMaterials = async (pool, pendingMaterial) => {
       uploaded_by,
       file_type || 'PDF',
       subject || 'General',
-      file_size || 0
+      file_size || 0,
+      program || null
     ]);
 
     return {
@@ -286,7 +301,8 @@ const transferToStudyMaterials = async (pool, pendingMaterial) => {
       file_type: file_type || 'PDF',
       view_count: 0,
       subject: subject || 'General',
-      file_size: file_size || 0
+      file_size: file_size || 0,
+      program: program || null
     };
   } catch (error) {
     console.error('Error transferring to study materials:', error);

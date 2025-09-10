@@ -58,20 +58,22 @@ const createStudyMaterial = async (pool, materialData) => {
       description,
       file_path,
       uploaded_by,
-      file_type
+      file_type,
+      program
     } = materialData;
 
     const [result] = await pool.query(`
       INSERT INTO studymaterials (
         title, description, file_path, uploaded_by, status, 
-        download_count, rating, file_type, view_count
-      ) VALUES (?, ?, ?, ?, 'active', 0, 0, ?, 0)
+        download_count, rating, file_type, view_count, program
+      ) VALUES (?, ?, ?, ?, 'active', 0, 0, ?, 0, ?)
     `, [
       title,
       description || null,
       file_path,
       uploaded_by,
-      file_type || 'PDF'
+      file_type || 'PDF',
+      program || null
     ]);
 
     return {
