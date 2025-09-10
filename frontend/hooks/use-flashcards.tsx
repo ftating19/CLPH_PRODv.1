@@ -8,6 +8,7 @@ interface Flashcard {
   subject_name: string
   created_by: number
   creator_name: string
+  program?: string
   progress_id?: number
   progress_status?: 'not_started' | 'in_progress' | 'completed'
   completed_at?: string | null
@@ -133,6 +134,7 @@ export function useCreateFlashcard() {
     subject_id: number
     created_by: number
     sub_id?: number
+    program?: string
   }) => {
     try {
       setCreating(true)
@@ -173,6 +175,7 @@ export function useUpdateFlashcard() {
     question: string
     answer: string
     subject_id: number
+    program?: string
   }) => {
     try {
       setUpdating(true)

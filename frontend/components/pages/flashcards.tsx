@@ -47,6 +47,17 @@ import { useUpdateFlashcardProgress, useFlashcardProgress } from "@/hooks/use-fl
 import { useSubjects } from "@/hooks/use-subjects"
 
 export default function Flashcards() {
+  // Program options
+  const programOptionsRaw = [
+    "Bachelor of Science in Computer Science",
+    "Bachelor of Science in Information Technology",
+    "Bachelor of Science in Information Systems",
+    "Bachelor of Library and Information Science",
+    "Bachelor of Science in Entertainment and Multimedia Computing"
+  ];
+  // Remove duplicates from program options
+  const programOptions = Array.from(new Set(programOptionsRaw));
+
   const [selectedSet, setSelectedSet] = useState<any | null>(null)
   const [currentCardIndex, setCurrentCardIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
@@ -63,13 +74,48 @@ export default function Flashcards() {
   const [showFilters, setShowFilters] = useState(false)
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all")
   const [selectedDifficultyFilter, setSelectedDifficultyFilter] = useState<string>("all")
+  const [selectedProgramFilter, setSelectedProgramFilter] = useState<string>("all")
 
   const { currentUser } = useUser()
   const { toast } = useToast()
 
   // Get user role from context, default to 'student' if not available
   const userRole = currentUser?.role?.toLowerCase() || 'student'
+  const userProgram = currentUser?.program || ""
   const user_id = currentUser?.user_id
+  
+  // Program state for flashcard creation
+  const [flashcardProgram, setFlashcardProgram] = useState(userRole === "admin" ? "" : userProgram)
+  
+  // Update flashcardProgram when currentUser loads or changes
+  useEffect(() => {
+    console.log('=== PROGRAM STATE INITIALIZATION DEBUG ===');
+    console.log('currentUser:', currentUser);
+    console.log('currentUser.program:', currentUser?.program);
+    console.log('userRole:', userRole);
+    console.log('userProgram:', userProgram);
+    
+    if (currentUser) {
+      if (userRole === "admin") {
+        console.log('Setting flashcardProgram to empty string (admin)');
+        setFlashcardProgram("")
+      } else {
+        console.log('Setting flashcardProgram to:', currentUser.program || "");
+        setFlashcardProgram(currentUser.program || "")
+      }
+    }
+    console.log('=======================================');
+  }, [currentUser, userRole])
+  
+  // Debug logging for user info and program state
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Flashcards - Current User Info:', {
+      role: userRole,
+      program: userProgram,
+      flashcardProgram: flashcardProgram,
+      fullUser: currentUser
+    })
+  }
 
   // Permission helper functions
   // Permission logic for Students, Tutors, Faculty, Admin
@@ -151,7 +197,22 @@ export default function Flashcards() {
     // Difficulty filter (assuming difficulty is available, otherwise always match)
     const matchesDifficulty = selectedDifficultyFilter === "all" || (flashcard.difficulty || "Mixed") === selectedDifficultyFilter
 
-    return matchesSearch && matchesSubject && matchesDifficulty
+    // Program filter - for students, automatically filter by their program
+    let matchesProgram = true
+    if (userRole === "student") {
+      // For students, only show flashcards that exactly match their program
+      matchesProgram = flashcard.program && flashcard.program === userProgram
+      
+      // Debug logging for program filtering
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Flashcard "${flashcard.question}": program="${flashcard.program}", userProgram="${userProgram}", matches=${matchesProgram}`)
+      }
+    } else if (userRole === "admin" && selectedProgramFilter !== "all") {
+      // For admins, apply the selected program filter
+      matchesProgram = flashcard.program === selectedProgramFilter
+    }
+
+    return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram
   })
 
   // Group by flashcard_id if single, group by sub_id if multiple
@@ -277,12 +338,20 @@ export default function Flashcards() {
       }
       const newSubId = maxSubId + 1;
 
+      console.log('=== FLASHCARD CREATION DEBUG ===');
+      console.log('Flashcard Program State:', flashcardProgram);
+      console.log('User Program:', userProgram);
+      console.log('User Role:', userRole);
+      console.log('Current User:', currentUser);
+      console.log('====================================');
+
       await createFlashcard({
         question: question.trim(),
         answer: answer.trim(),
         subject_id: subject.subject_id,
         created_by: currentUser.user_id,
-        sub_id: newSubId
+        sub_id: newSubId,
+        program: flashcardProgram
       })
 
       toast({
@@ -334,7 +403,8 @@ export default function Flashcards() {
       await updateFlashcard(editingFlashcard.flashcard_id, {
         question: question.trim(),
         answer: answer.trim(),
-        subject_id: subject.subject_id
+        subject_id: subject.subject_id,
+        program: flashcardProgram
       })
 
       toast({
@@ -439,6 +509,17 @@ export default function Flashcards() {
       }
       const newSubId = maxSubId + 1;
 
+      console.log('=== FLASHCARD SET CREATION DEBUG ===');
+      console.log('Flashcard Program State:', flashcardProgram);
+      console.log('User Program:', userProgram);
+      console.log('User Role:', userRole);
+      console.log('Current User:', currentUser);
+      console.log('Set Title:', flashcardSetTitle);
+      console.log('Set Subject:', flashcardSetSubject);
+      console.log('Subject Object:', subject);
+      console.log('Flashcards List:', flashcardsList);
+      console.log('====================================');
+
       if (editingFlashcardSet) {
         // Update existing flashcard set
         // First, delete all existing flashcards in the set
@@ -453,12 +534,14 @@ export default function Flashcards() {
         // Then create new flashcards with the same sub_id
         for (const [index, flashcard] of flashcardsList.entries()) {
           try {
+            console.log(`Creating flashcard ${index + 1} with program:`, flashcardProgram);
             await createFlashcard({
               question: flashcard.question.trim(),
               answer: flashcard.answer.trim(),
               subject_id: subject.subject_id,
               created_by: currentUser?.user_id || 1,
-              sub_id: editingFlashcardSet.sub_id || newSubId
+              sub_id: editingFlashcardSet.sub_id || newSubId,
+              program: flashcardProgram
             })
           } catch (flashcardError) {
             console.error(`Error creating flashcard ${index + 1}:`, flashcardError)
@@ -473,12 +556,14 @@ export default function Flashcards() {
         // Create new flashcard set with new sub_id
         for (const [index, flashcard] of flashcardsList.entries()) {
           try {
+            console.log(`Creating new flashcard ${index + 1} with program:`, flashcardProgram);
             await createFlashcard({
               question: flashcard.question.trim(),
               answer: flashcard.answer.trim(),
               subject_id: subject.subject_id,
               created_by: currentUser?.user_id || 1,
-              sub_id: newSubId
+              sub_id: newSubId,
+              program: flashcardProgram
             })
           } catch (flashcardError) {
             console.error(`Error creating flashcard ${index + 1}:`, flashcardError)
@@ -984,9 +1069,9 @@ export default function Flashcards() {
             <Button variant="outline">
               <Filter className="w-4 h-4 mr-2" />
               Filters
-              {(selectedSubjectFilter !== "all" || selectedDifficultyFilter !== "all") && (
+              {(selectedSubjectFilter !== "all" || selectedDifficultyFilter !== "all" || (userRole === "admin" && selectedProgramFilter !== "all")) && (
                 <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                  {[selectedSubjectFilter, selectedDifficultyFilter].filter(f => f !== "all").length}
+                  {[selectedSubjectFilter, selectedDifficultyFilter, userRole === "admin" ? selectedProgramFilter : null].filter(f => f !== "all" && f !== null).length}
                 </span>
               )}
             </Button>
@@ -999,6 +1084,26 @@ export default function Flashcards() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Program Filter - Only show for admins */}
+              {userRole === "admin" && (
+                <div className="space-y-2">
+                  <Label>Program</Label>
+                  <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All programs" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Programs</SelectItem>
+                      {programOptions.map((program) => (
+                        <SelectItem key={program} value={program}>
+                          {program}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>Subject</Label>
                 <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
@@ -1035,6 +1140,7 @@ export default function Flashcards() {
                   onClick={() => {
                     setSelectedSubjectFilter("all")
                     setSelectedDifficultyFilter("all")
+                    setSelectedProgramFilter("all")
                   }}
                 >
                   Clear Filters
@@ -1227,6 +1333,30 @@ export default function Flashcards() {
           {(!currentFlashcard || editingFlashcard) && (
             <div className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="program">Program</Label>
+                {userRole === "admin" ? (
+                  <Select value={flashcardProgram} onValueChange={setFlashcardProgram}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select program" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Select Program</SelectItem>
+                      {programOptions.map((program) => (
+                        <SelectItem key={program} value={program}>
+                          {program}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={flashcardProgram}
+                    disabled
+                    className="bg-gray-100"
+                  />
+                )}
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="subject">Subject</Label>
                 <Select value={selectedSubject} onValueChange={setSelectedSubject}>
                   <SelectTrigger>
@@ -1294,6 +1424,30 @@ export default function Flashcards() {
                       value={flashcardSetTitle}
                       onChange={(e) => setFlashcardSetTitle(e.target.value)}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="setProgram">Program</Label>
+                    {userRole === "admin" ? (
+                      <Select value={flashcardProgram} onValueChange={setFlashcardProgram}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select program" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Select Program</SelectItem>
+                          {programOptions.map((program) => (
+                            <SelectItem key={program} value={program}>
+                              {program}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        value={flashcardProgram}
+                        disabled
+                        className="bg-gray-100"
+                      />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="setSubject">Subject</Label>
