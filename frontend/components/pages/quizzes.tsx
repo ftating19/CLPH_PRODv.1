@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit, X, ChevronLeft, ChevronRight, Layers, List, User } from "lucide-react"
+import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit, X, ChevronLeft, ChevronRight, Layers, List, User, Check, AlertCircle, Target } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useQuizzes, useQuizQuestions, useQuizAttempts } from "@/hooks/use-quizzes"
@@ -117,6 +117,22 @@ export default function Quizzes() {
   const [quizToStart, setQuizToStart] = useState<Quiz | null>(null)
   const [showTimeUpDialog, setShowTimeUpDialog] = useState(false)
   const [isTimeUp, setIsTimeUp] = useState(false)
+  
+  // Quiz results modal states
+  const [showResultsDialog, setShowResultsDialog] = useState(false)
+  const [quizResults, setQuizResults] = useState<{
+    quiz: Quiz | null
+    score: number
+    correctAnswers: number
+    totalQuestions: number
+    timeSpent: number
+    questionResults: {
+      question: Question
+      userAnswer: string
+      isCorrect: boolean
+      explanation?: string
+    }[]
+  } | null>(null)
   // Removed duplicate declaration of currentUser
   const { toast } = useToast()
 
@@ -385,9 +401,17 @@ export default function Quizzes() {
     } else {
       // For actual quiz, calculate score and save results
       let correctAnswers = 0
+      const questionResults: {
+        question: Question
+        userAnswer: string
+        isCorrect: boolean
+        explanation?: string
+      }[] = []
+
       takingQuiz.questions.forEach((question, index) => {
-        const userAnswer = selectedAnswers[index]
+        const userAnswer = selectedAnswers[index] || ""
         const correctAnswer = question.correctAnswer
+        let isCorrect = false
         
         if (question.type === "enumeration") {
           // For enumeration, check if all user answers match any of the correct answers
@@ -404,18 +428,37 @@ export default function Quizzes() {
             const allRequiredAnswersProvided = correctAnswersArray.every(answer => userAnswersSet.has(answer))
             
             if (allUserAnswersCorrect && allRequiredAnswersProvided && userAnswersArray.length === correctAnswersArray.length) {
+              isCorrect = true
               correctAnswers++
             }
           }
         } else {
           // For other question types, direct comparison
           if (userAnswer === correctAnswer) {
+            isCorrect = true
             correctAnswers++
           }
         }
+
+        questionResults.push({
+          question,
+          userAnswer,
+          isCorrect,
+          explanation: question.explanation
+        })
       })
 
       const score = Math.round((correctAnswers / takingQuiz.questions.length) * 100)
+      
+      // Prepare quiz results for the modal
+      setQuizResults({
+        quiz: takingQuiz,
+        score,
+        correctAnswers,
+        totalQuestions: takingQuiz.questions.length,
+        timeSpent,
+        questionResults
+      })
       
       // Save quiz attempt to database
       try {
@@ -440,25 +483,22 @@ export default function Quizzes() {
         const result = await response.json()
 
         if (result.success) {
-          toast({
-            title: "Quiz Completed!",
-            description: `Your score: ${score}% (${correctAnswers}/${takingQuiz.questions.length} correct) in ${timeSpent} minutes.`,
-          })
+          // Show results modal instead of toast
+          setShowResultsDialog(true)
         } else {
           throw new Error(result.error || 'Failed to save quiz attempt')
         }
       } catch (error) {
         console.error('Error saving quiz attempt:', error)
+        // Still show results even if saving failed
+        setShowResultsDialog(true)
         toast({
-          title: "Quiz Completed",
-          description: `Your score: ${score}% (${correctAnswers}/${takingQuiz.questions.length} correct), but failed to save results.`,
+          title: "Warning",
+          description: "Quiz completed but failed to save results to server.",
           variant: "destructive"
         })
       }
     }
-
-    // Reset quiz taking state
-    exitQuiz()
   }
 
   const exitQuiz = () => {
@@ -470,6 +510,12 @@ export default function Quizzes() {
     setElapsedTime(0)
     setIsTimeUp(false)
     setShowTimeUpDialog(false)
+  }
+
+  const closeResultsDialog = () => {
+    setShowResultsDialog(false)
+    setQuizResults(null)
+    exitQuiz() // Reset all quiz states
   }
 
   const handleCreateQuiz = async () => {
@@ -1796,6 +1842,186 @@ export default function Quizzes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Quiz Results Dialog */}
+      <Dialog open={showResultsDialog} onOpenChange={() => {}}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Trophy className="w-6 h-6 text-yellow-500" />
+              <span>Quiz Results</span>
+            </DialogTitle>
+            <DialogDescription>
+              {quizResults?.quiz?.title} - Detailed Results
+            </DialogDescription>
+          </DialogHeader>
+
+          {quizResults && (
+            <div className="space-y-6">
+              {/* Overall Results Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Overall Performance</span>
+                    <Badge 
+                      variant={
+                        quizResults.score >= 90 ? "default" : 
+                        quizResults.score >= 80 ? "secondary" : 
+                        quizResults.score >= 70 ? "outline" : 
+                        "destructive"
+                      }
+                      className="text-lg px-4 py-2"
+                    >
+                      {quizResults.score}%
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="flex items-center space-x-2">
+                      <Target className="w-5 h-5 text-green-500" />
+                      <span className="text-sm">
+                        <strong>{quizResults.correctAnswers}</strong> out of <strong>{quizResults.totalQuestions}</strong> correct
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Clock className="w-5 h-5 text-blue-500" />
+                      <span className="text-sm">
+                        Completed in <strong>{quizResults.timeSpent}</strong> minutes
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Trophy className="w-5 h-5 text-yellow-500" />
+                      <span className="text-sm">
+                        Grade: <strong>
+                          {quizResults.score >= 90 ? "Excellent" : 
+                           quizResults.score >= 80 ? "Good" : 
+                           quizResults.score >= 70 ? "Fair" : 
+                           quizResults.score >= 60 ? "Needs Improvement" : 
+                           "Poor"}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                  <Progress value={(quizResults.correctAnswers / quizResults.totalQuestions) * 100} className="w-full" />
+                </CardContent>
+              </Card>
+
+              {/* Question by Question Results */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Question Review</h3>
+                {quizResults.questionResults.map((result, index) => (
+                  <Card key={index} className={`border-l-4 ${result.isCorrect ? 'border-l-green-500' : 'border-l-red-500'}`}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-base font-medium">
+                          Question {index + 1}
+                        </CardTitle>
+                        <div className="flex items-center space-x-2">
+                          {result.isCorrect ? (
+                            <Badge variant="default" className="bg-green-100 text-green-800">
+                              <Check className="w-3 h-3 mr-1" />
+                              Correct
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="bg-red-100 text-red-800">
+                              <X className="w-3 h-3 mr-1" />
+                              Incorrect
+                            </Badge>
+                          )}
+                          <span className="text-sm text-muted-foreground">
+                            {result.question.points} {result.question.points === 1 ? 'point' : 'points'}
+                          </span>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div>
+                        <p className="font-medium text-sm mb-2">Question:</p>
+                        <p className="text-sm bg-muted p-3 rounded">{result.question.question}</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="font-medium text-sm mb-1">Your Answer:</p>
+                          <div className={`text-sm p-2 rounded ${result.isCorrect ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                            {result.userAnswer || <em className="text-muted-foreground">No answer provided</em>}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm mb-1">Correct Answer:</p>
+                          <div className="text-sm p-2 rounded bg-green-50 text-green-800">
+                            {Array.isArray(result.question.correctAnswer) 
+                              ? result.question.correctAnswer.join(', ')
+                              : result.question.correctAnswer}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Show options for multiple choice questions */}
+                      {result.question.type === "multiple-choice" && result.question.options && (
+                        <div>
+                          <p className="font-medium text-sm mb-2">Available Options:</p>
+                          <div className="grid grid-cols-1 gap-1">
+                            {result.question.options.map((option, optIndex) => (
+                              <div 
+                                key={optIndex} 
+                                className={`text-xs p-2 rounded border ${
+                                  option === result.question.correctAnswer 
+                                    ? 'border-green-300 bg-green-50 text-green-700'
+                                    : option === result.userAnswer && !result.isCorrect
+                                      ? 'border-red-300 bg-red-50 text-red-700'
+                                      : 'border-gray-200 bg-gray-50'
+                                }`}
+                              >
+                                {option}
+                                {option === result.question.correctAnswer && (
+                                  <Check className="w-3 h-3 inline ml-2 text-green-600" />
+                                )}
+                                {option === result.userAnswer && !result.isCorrect && (
+                                  <X className="w-3 h-3 inline ml-2 text-red-600" />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Show explanation if available */}
+                      {result.explanation && (
+                        <div>
+                          <p className="font-medium text-sm mb-1">Explanation:</p>
+                          <div className="text-sm p-3 rounded bg-blue-50 text-blue-800 border border-blue-200">
+                            <AlertCircle className="w-4 h-4 inline mr-1" />
+                            {result.explanation}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-center space-x-4 pt-6 border-t">
+                <Button onClick={closeResultsDialog} className="px-8">
+                  Close Results
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    closeResultsDialog()
+                    startQuiz(quizResults.quiz!, false)
+                  }}
+                  className="px-8"
+                >
+                  Retake Quiz
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
