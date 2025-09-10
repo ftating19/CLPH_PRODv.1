@@ -25,6 +25,7 @@ import {
 import { User, Calendar, Mail, Search, Filter, GraduationCap, Loader2, MessageSquare } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
+import { CICT_PROGRAMS } from "@/lib/constants"
 
 // TypeScript interface for student data
 interface Student {
@@ -51,6 +52,22 @@ export default function StudentMatching() {
   
   const { currentUser } = useUser()
   const { toast } = useToast()
+
+  // Get user role from context, default to 'student' if not available
+  const userRole = currentUser?.role?.toLowerCase() || 'student'
+  const userProgram = currentUser?.program || ""
+  
+  // Use constants for programs
+  const allPrograms = CICT_PROGRAMS
+
+  // Debug logging for user info
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Student Matching - Current User Info:', {
+      role: userRole,
+      program: userProgram,
+      fullUser: currentUser
+    })
+  }
 
   // Fetch students from API
   const fetchStudents = async () => {
@@ -90,6 +107,22 @@ export default function StudentMatching() {
   useEffect(() => {
     let filtered = students
 
+    // Program-based access control
+    if (userRole === "student") {
+      // For students, only show students from their own program
+      filtered = filtered.filter(student => 
+        student.program && student.program === userProgram
+      )
+      
+      // Debug logging for program filtering
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Student filtering: userProgram="${userProgram}", filtered count=${filtered.length}`)
+      }
+    } else if (userRole === "admin" && programFilter !== "all") {
+      // For admins, apply the selected program filter
+      filtered = filtered.filter(student => student.program === programFilter)
+    }
+
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(student =>
@@ -99,16 +132,11 @@ export default function StudentMatching() {
       )
     }
 
-    // Program filter
-    if (programFilter !== "all") {
-      filtered = filtered.filter(student => student.program === programFilter)
-    }
-
     setFilteredStudents(filtered)
-  }, [searchTerm, programFilter, students])
+  }, [searchTerm, programFilter, students, userRole, userProgram])
 
-  // Get unique programs for filter
-  const programs = [...new Set(students.map(student => student.program))].filter(Boolean)
+  // Get unique programs for filter - only for admins
+  const programs = userRole === "admin" ? allPrograms : []
 
   const handleContactStudent = (student: Student) => {
     setSelectedStudent(student)
@@ -308,20 +336,23 @@ export default function StudentMatching() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Select value={programFilter} onValueChange={setProgramFilter}>
-            <SelectTrigger className="w-[200px]">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by program" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Programs</SelectItem>
-              {programs.map((program) => (
-                <SelectItem key={program} value={program}>
-                  {program}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Program Filter - Only show for admins */}
+          {userRole === "admin" && (
+            <Select value={programFilter} onValueChange={setProgramFilter}>
+              <SelectTrigger className="w-[200px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filter by program" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Programs</SelectItem>
+                {programs.map((program) => (
+                  <SelectItem key={program} value={program}>
+                    {program}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button variant="outline" onClick={fetchStudents}>
             Refresh
           </Button>

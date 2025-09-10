@@ -50,6 +50,7 @@ interface Tutor {
 export default function TutorMatching() {
   // Subject filter state
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all')
+  const [selectedProgramFilter, setSelectedProgramFilter] = useState<string>("all")
   const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null)
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [showApplyModal, setShowApplyModal] = useState(false)
@@ -61,6 +62,19 @@ export default function TutorMatching() {
   const { currentUser } = useUser()
   const { toast } = useToast()
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
+
+  // Get user role from context, default to 'student' if not available
+  const userRole = currentUser?.role?.toLowerCase() || 'student'
+  const userProgram = currentUser?.program || ""
+  
+  // Debug logging for user info
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Tutor Matching - Current User Info:', {
+      role: userRole,
+      program: userProgram,
+      fullUser: currentUser
+    })
+  }
 
   // Application form state
   const [applicationForm, setApplicationForm] = useState({
@@ -494,19 +508,38 @@ export default function TutorMatching() {
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Filter by subject" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Subjects</SelectItem>
-            {subjects.map((subject) => (
-              <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                {subject.subject_code} - {subject.subject_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center space-x-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          {/* Program Filter - Only show for admins */}
+          {userRole === "admin" && (
+            <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filter by program" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Programs</SelectItem>
+                {programs.map((program) => (
+                  <SelectItem key={program} value={program}>
+                    {program}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by subject" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Subjects</SelectItem>
+              {subjects.map((subject) => (
+                <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                  {subject.subject_code} - {subject.subject_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -536,13 +569,33 @@ export default function TutorMatching() {
             .filter((tutor) => {
               // Subject filter
               const subjectMatch = selectedSubjectFilter === 'all' || tutor.subject_id.toString() === selectedSubjectFilter;
+              
+              // Program filter - for students, automatically filter by their program
+              let programMatch = true
+              if (userRole === "student") {
+                // For students, only show tutors that exactly match their program
+                programMatch = !!(tutor.program && tutor.program === userProgram)
+                
+                // Debug logging for program filtering
+                if (process.env.NODE_ENV === 'development') {
+                  console.log(`Tutor "${tutor.name}": program="${tutor.program}", userProgram="${userProgram}", matches=${programMatch}`)
+                }
+              } else if (userRole === "admin" && selectedProgramFilter !== "all") {
+                // For admins, apply the selected program filter
+                programMatch = tutor.program === selectedProgramFilter
+              }
+              
               // Search filter
               const term = searchTerm.trim().toLowerCase();
-              if (!term) return subjectMatch;
-              const nameMatch = tutor.name?.toLowerCase().includes(term);
-              const specialtyMatch = tutor.specialties?.toLowerCase().includes(term);
-              const subjectNameMatch = tutor.subject_name?.toLowerCase().includes(term);
-              return subjectMatch && (nameMatch || specialtyMatch || subjectNameMatch);
+              let searchMatch = true;
+              if (term) {
+                const nameMatch = tutor.name?.toLowerCase().includes(term);
+                const specialtyMatch = tutor.specialties?.toLowerCase().includes(term);
+                const subjectNameMatch = tutor.subject_name?.toLowerCase().includes(term);
+                searchMatch = nameMatch || specialtyMatch || subjectNameMatch;
+              }
+              
+              return subjectMatch && programMatch && searchMatch;
             })
             .sort((a, b) => {
               const ratingA = typeof a.ratings === 'string' ? parseFloat(a.ratings) : a.ratings || 0;
