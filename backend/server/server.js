@@ -3249,7 +3249,7 @@ app.get('/api/flashcards/creator/:userId', async (req, res) => {
 // Create new flashcard
 app.post('/api/flashcards', async (req, res) => {
   try {
-    const { question, answer, subject_id, created_by, sub_id } = req.body;
+    const { question, answer, subject_id, created_by, sub_id, program } = req.body;
 
     if (!question || !answer || !subject_id || !created_by) {
       return res.status(400).json({ 
@@ -3258,7 +3258,7 @@ app.post('/api/flashcards', async (req, res) => {
       });
     }
 
-    console.log(`Creating new flashcard: ${question}, sub_id: ${sub_id}`);
+    console.log(`Creating new flashcard: ${question}, sub_id: ${sub_id}, program: ${program}`);
 
     const pool = await db.getPool();
     const flashcard = await createFlashcard(pool, {
@@ -3266,7 +3266,8 @@ app.post('/api/flashcards', async (req, res) => {
       answer,
       subject_id,
       created_by,
-      sub_id
+      sub_id,
+      program
     });
 
     console.log(`✅ Flashcard created successfully: ${question}`);
@@ -3289,7 +3290,7 @@ app.post('/api/flashcards', async (req, res) => {
 app.put('/api/flashcards/:id', async (req, res) => {
   try {
     const flashcardId = parseInt(req.params.id);
-    const { question, answer, subject_id } = req.body;
+    const { question, answer, subject_id, program } = req.body;
     
     if (!flashcardId) {
       return res.status(400).json({ 
@@ -3305,7 +3306,7 @@ app.put('/api/flashcards/:id', async (req, res) => {
       });
     }
     
-    console.log(`Updating flashcard ID: ${flashcardId}`);
+    console.log(`Updating flashcard ID: ${flashcardId}, program: ${program}`);
     
     const pool = await db.getPool();
     
@@ -3321,7 +3322,8 @@ app.put('/api/flashcards/:id', async (req, res) => {
     const updated = await updateFlashcard(pool, flashcardId, {
       question,
       answer,
-      subject_id
+      subject_id,
+      program
     });
     
     if (!updated) {

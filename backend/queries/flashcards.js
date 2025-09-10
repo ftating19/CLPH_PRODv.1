@@ -161,7 +161,7 @@ const createFlashcard = async (pool, flashcardData) => {
       console.log('WARNING: Program value is missing or empty!');
     } else {
       console.log('Program value:', program);
-      console.log('Program type:', typeof program);
+
     }
     console.log('========================================');
 
@@ -177,7 +177,7 @@ const createFlashcard = async (pool, flashcardData) => {
       subject_id,
       created_by,
       sub_id,
-      program: program || ""
+      program,
     };
   } catch (error) {
     console.error('Error creating flashcard:', error);

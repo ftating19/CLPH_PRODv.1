@@ -343,16 +343,38 @@ export default function Flashcards() {
       console.log('User Program:', userProgram);
       console.log('User Role:', userRole);
       console.log('Current User:', currentUser);
-      console.log('====================================');
-
-      await createFlashcard({
+      console.log('currentUser.program:', currentUser.program);
+      
+      // Use currentUser.program directly if flashcardProgram is empty for students
+      const programToSend = userRole === "admin" ? flashcardProgram : (flashcardProgram || currentUser.program || userProgram);
+      console.log('Final program value to send:', programToSend);
+      console.log('Program value type:', typeof programToSend);
+      console.log('Program value length:', programToSend ? programToSend.length : 'null/undefined');
+      
+      // Validate program is selected
+      if (!programToSend || programToSend.trim() === '') {
+        toast({
+          title: "Error",
+          description: "Please select a program.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Create the flashcard data object first
+      const flashcardData = {
         question: question.trim(),
         answer: answer.trim(),
         subject_id: subject.subject_id,
         created_by: currentUser.user_id,
         sub_id: newSubId,
-        program: flashcardProgram
-      })
+        program: programToSend
+      };
+      
+      console.log('Complete flashcard data object:', JSON.stringify(flashcardData, null, 2));
+      console.log('====================================');
+
+      await createFlashcard(flashcardData)
 
       toast({
         title: "Success",
@@ -1349,27 +1371,21 @@ export default function Flashcards() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="program">Program</Label>
-                {userRole === "admin" ? (
-                  <Select value={flashcardProgram} onValueChange={setFlashcardProgram}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select program" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Select Program</SelectItem>
-                      {programOptions.map((program) => (
-                        <SelectItem key={program} value={program}>
-                          {program}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    value={flashcardProgram}
-                    disabled
-                    className="bg-gray-100"
-                  />
-                )}
+                <Select value={flashcardProgram} onValueChange={(value) => {
+                  console.log('Program dropdown selected:', value);
+                  setFlashcardProgram(value);
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {programOptions.map((program) => (
+                      <SelectItem key={program} value={program}>
+                        {program}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="subject">Subject</Label>
@@ -1442,30 +1458,21 @@ export default function Flashcards() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="setProgram">Program</Label>
-                    {userRole === "admin" ? (
-                      <Select value={flashcardProgram} onValueChange={val => {
-                        console.log('Dropdown selected program:', val);
-                        setFlashcardProgram(val);
-                      }}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select program" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Select Program</SelectItem>
-                          {programOptions.map((program) => (
-                            <SelectItem key={program} value={program}>
-                              {program}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input
-                        value={flashcardProgram}
-                        disabled
-                        className="bg-gray-100"
-                      />
-                    )}
+                    <Select value={flashcardProgram} onValueChange={val => {
+                      console.log('Set dropdown selected program:', val);
+                      setFlashcardProgram(val);
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select program" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {programOptions.map((program) => (
+                          <SelectItem key={program} value={program}>
+                            {program}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="setSubject">Subject</Label>

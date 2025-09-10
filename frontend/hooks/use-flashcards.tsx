@@ -140,6 +140,11 @@ export function useCreateFlashcard() {
       setCreating(true)
       setError(null)
 
+      console.log('=== HOOK: Sending flashcard data ===');
+      console.log('Data received in hook:', JSON.stringify(flashcardData, null, 2));
+      console.log('Program in hook:', flashcardData.program);
+      console.log('===================================');
+
       const response = await fetch('http://localhost:4000/api/flashcards', {
         method: 'POST',
         headers: {
