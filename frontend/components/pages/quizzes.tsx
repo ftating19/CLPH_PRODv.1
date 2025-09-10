@@ -72,13 +72,15 @@ interface Quiz {
 
 export default function Quizzes() {
   // Program options
-  const programOptions = [
+  const programOptionsRaw = [
     "Bachelor of Science in Computer Science",
     "Bachelor of Science in Information Technology",
     "Bachelor of Science in Information Systems",
     "Bachelor of Library and Information Science",
     "Bachelor of Science in Entertainment and Multimedia Computing"
   ];
+  // Remove duplicates from program options
+  const programOptions = Array.from(new Set(programOptionsRaw));
 
   const { currentUser } = useUser();
   const userRole = currentUser?.role?.toLowerCase() || "student";
@@ -981,22 +983,6 @@ export default function Quizzes() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Quiz Details Section */}
                 <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Program</Label>
-                <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All programs" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Programs</SelectItem>
-                    {programOptions.map((program) => (
-                      <SelectItem key={program} value={program}>
-                        {program}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="space-y-2">
                 <Label>Program</Label>
                 <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
