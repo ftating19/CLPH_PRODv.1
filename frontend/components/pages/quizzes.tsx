@@ -144,25 +144,70 @@ export default function Quizzes() {
   const { subjects, loading: subjectsLoading } = useSubjects()
   const { questions, loading: questionsLoading } = useQuizQuestions(currentQuiz?.id || currentQuiz?.quiz_id || null)
   const { createAttempt } = useQuizAttempts()
+  
+  // User attempts state
+  const [userAttempts, setUserAttempts] = useState<{[quizId: number]: any[]}>({})
+  const [attemptsLoading, setAttemptsLoading] = useState(true)
+
+  // Fetch user attempts when user is available
+  useEffect(() => {
+    const fetchUserAttempts = async () => {
+      if (!currentUser?.user_id) {
+        setAttemptsLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch(`http://localhost:4000/api/quiz-attempts/user/${currentUser.user_id}`)
+        const data = await response.json()
+        
+        if (data.success && data.attempts) {
+          // Group attempts by quiz_id
+          const attemptsByQuiz: {[quizId: number]: any[]} = {}
+          data.attempts.forEach((attempt: any) => {
+            // Convert quiz_id to number to match the frontend quiz ID type
+            const quizId = parseInt(attempt.quizzes_id || attempt.quiz_id)
+            if (!attemptsByQuiz[quizId]) {
+              attemptsByQuiz[quizId] = []
+            }
+            attemptsByQuiz[quizId].push(attempt)
+          })
+          setUserAttempts(attemptsByQuiz)
+        }
+      } catch (error) {
+        console.error('Error fetching user attempts:', error)
+      } finally {
+        setAttemptsLoading(false)
+      }
+    }
+
+    fetchUserAttempts()
+  }, [currentUser?.user_id])
 
   // Convert database quiz to component Quiz format
-  const quizList = quizzes.map((dbQuiz: any) => ({
-    id: dbQuiz.quizzes_id,
-    quiz_id: dbQuiz.quizzes_id,
-    title: dbQuiz.title,
-    subject: dbQuiz.subject_name,
-    questions: [], // Will be loaded separately when needed
-    questionCount: dbQuiz.item_counts || 0, // Add question count from database
-    duration: `${dbQuiz.duration || 15}`, // Remove hardcoded "min" - will be formatted by formatDuration
-    duration_unit: dbQuiz.duration_unit || 'minutes', // Add duration unit from database
-    difficulty: dbQuiz.difficulty || 'Medium',
-    description: dbQuiz.description || 'Test your knowledge in this subject area',
-    completedTimes: 0, // TODO: Get from attempts
-    bestScore: null, // TODO: Get from attempts
-    lastAttempt: null, // TODO: Get from attempts
-    created_by: dbQuiz.created_by,
-    creator_name: `${dbQuiz.first_name || ''} ${dbQuiz.last_name || ''}`.trim(),
-  }))
+  const quizList = quizzes.map((dbQuiz: any) => {
+    const quizAttempts = userAttempts[dbQuiz.quizzes_id] || []
+    const bestScore = quizAttempts.length > 0 ? Math.max(...quizAttempts.map(attempt => attempt.score)) : null
+    const lastAttempt = quizAttempts.length > 0 ? quizAttempts[quizAttempts.length - 1].created_at : null
+    
+    return {
+      id: dbQuiz.quizzes_id,
+      quiz_id: dbQuiz.quizzes_id,
+      title: dbQuiz.title,
+      subject: dbQuiz.subject_name,
+      questions: [], // Will be loaded separately when needed
+      questionCount: dbQuiz.item_counts || 0, // Add question count from database
+      duration: `${dbQuiz.duration || 15}`, // Remove hardcoded "min" - will be formatted by formatDuration
+      duration_unit: dbQuiz.duration_unit || 'minutes', // Add duration unit from database
+      difficulty: dbQuiz.difficulty || 'Medium',
+      description: dbQuiz.description || 'Test your knowledge in this subject area',
+      completedTimes: quizAttempts.length,
+      bestScore: bestScore,
+      lastAttempt: lastAttempt,
+      created_by: dbQuiz.created_by,
+      creator_name: `${dbQuiz.first_name || ''} ${dbQuiz.last_name || ''}`.trim(),
+    }
+  })
 
   // Filter quizzes based on search and filter criteria
   const filteredQuizList = quizList.filter((quiz: any) => {
@@ -532,6 +577,24 @@ export default function Quizzes() {
         const result = await response.json()
 
         if (result.success) {
+          // Refresh user attempts to update UI immediately
+          if (currentUser) {
+            const attemptsResponse = await fetch(`http://localhost:4000/api/quiz-attempts/user/${currentUser.user_id}`)
+            if (attemptsResponse.ok) {
+              const attemptsData = await attemptsResponse.json()
+              if (attemptsData.success && attemptsData.attempts) {
+                const attemptsByQuiz = attemptsData.attempts.reduce((acc: {[key: number]: any[]}, attempt: any) => {
+                  // Convert quiz_id to number to match frontend expectations
+                  const quizId = parseInt(attempt.quizzes_id || attempt.quiz_id)
+                  if (!acc[quizId]) acc[quizId] = []
+                  acc[quizId].push(attempt)
+                  return acc
+                }, {})
+                setUserAttempts(attemptsByQuiz)
+              }
+            }
+          }
+          
           // Show results modal instead of toast
           setShowResultsDialog(true)
         } else {
@@ -1844,13 +1907,25 @@ export default function Quizzes() {
       <AlertDialog open={showStartConfirmation} onOpenChange={setShowStartConfirmation}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Start Quiz</AlertDialogTitle>
+            <AlertDialogTitle>{(quizToStart?.completedTimes || 0) > 0 ? "Retake Quiz" : "Start Quiz"}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you ready to start the quiz "{quizToStart?.title}"?
+              Are you ready to {(quizToStart?.completedTimes || 0) > 0 ? "retake" : "start"} the quiz "{quizToStart?.title}"?
               <br /><br />
               <strong>Duration:</strong> {quizToStart?.duration} {quizToStart?.duration_unit}
               <br />
               <strong>Questions:</strong> {quizToStart?.questionCount || 'Unknown'} questions
+              {(quizToStart?.completedTimes || 0) > 0 && (
+                <>
+                  <br />
+                  <strong>Previous attempts:</strong> {quizToStart?.completedTimes || 0}
+                  {quizToStart?.bestScore && (
+                    <>
+                      <br />
+                      <strong>Best score:</strong> {quizToStart.bestScore}%
+                    </>
+                  )}
+                </>
+              )}
               <br /><br />
               Once you start, the timer will begin counting down. Make sure you have enough time to complete the quiz.
             </AlertDialogDescription>
@@ -1869,7 +1944,7 @@ export default function Quizzes() {
               setShowStartConfirmation(false)
               setQuizToStart(null)
             }}>
-              Start Quiz
+              {(quizToStart?.completedTimes || 0) > 0 ? "Retake Quiz" : "Start Quiz"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
