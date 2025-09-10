@@ -2376,7 +2376,8 @@ app.post('/api/quizzes', async (req, res) => {
       quiz_type,
       duration,
       difficulty,
-      item_counts
+      item_counts,
+      program: req.body.program || ""
     });
     
     console.log(`✅ Quiz created successfully: ${title}`);
@@ -2399,7 +2400,7 @@ app.post('/api/quizzes', async (req, res) => {
 app.put('/api/quizzes/:id', async (req, res) => {
   try {
     const quizId = parseInt(req.params.id);
-    const { title, subject_id, description, quiz_type, duration, difficulty, item_counts } = req.body;
+  const { title, subject_id, description, quiz_type, duration, difficulty, item_counts, program } = req.body;
     
     if (!quizId) {
       return res.status(400).json({ 
@@ -2435,7 +2436,8 @@ app.put('/api/quizzes/:id', async (req, res) => {
       quiz_type,
       duration,
       difficulty,
-      item_counts
+      item_counts,
+      program: program || ""
     });
     
     console.log(`✅ Quiz updated successfully: ${title}`);

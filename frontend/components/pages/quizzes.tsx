@@ -71,6 +71,22 @@ interface Quiz {
 }
 
 export default function Quizzes() {
+  // Program options
+  const programOptions = [
+    "Bachelor of Science in Computer Science",
+    "Bachelor of Science in Information Technology",
+    "Bachelor of Science in Information Systems",
+    "Bachelor of Library and Information Science",
+    "Bachelor of Science in Entertainment and Multimedia Computing"
+  ];
+
+  const { currentUser } = useUser();
+  const userRole = currentUser?.role?.toLowerCase() || "student";
+  const userProgram = currentUser?.program || "";
+  const programDropdownOptions = userRole === "admin"
+    ? programOptions
+    : programOptions.filter(opt => opt === userProgram);
+  const [quizProgram, setQuizProgram] = useState(userRole === "admin" ? "" : userProgram);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showQuestionDialog, setShowQuestionDialog] = useState(false)
@@ -91,13 +107,14 @@ export default function Quizzes() {
   const [showFilters, setShowFilters] = useState(false)
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all")
   const [selectedDifficultyFilter, setSelectedDifficultyFilter] = useState<string>("all")
+  const [selectedProgramFilter, setSelectedProgramFilter] = useState<string>("all")
   
   // Confirmation and time-up dialogs
   const [showStartConfirmation, setShowStartConfirmation] = useState(false)
   const [quizToStart, setQuizToStart] = useState<Quiz | null>(null)
   const [showTimeUpDialog, setShowTimeUpDialog] = useState(false)
   const [isTimeUp, setIsTimeUp] = useState(false)
-  const { currentUser } = useUser()
+  // Removed duplicate declaration of currentUser
   const { toast } = useToast()
 
   // Database hooks
@@ -139,7 +156,10 @@ export default function Quizzes() {
     // Difficulty filter
     const matchesDifficulty = selectedDifficultyFilter === "all" || quiz.difficulty === selectedDifficultyFilter
 
-    return matchesSearch && matchesSubject && matchesDifficulty
+    // Program filter
+    const matchesProgram = selectedProgramFilter === "all" || quiz.program === selectedProgramFilter
+
+    return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram
   })
 
   // Removed quizGroupedSets logic
@@ -162,7 +182,7 @@ export default function Quizzes() {
   const [questionPoints, setQuestionPoints] = useState(5)
 
   // Get user role from context, default to 'student' if not available
-  const userRole = currentUser?.role?.toLowerCase() || 'student'
+  // Removed duplicate declaration of userRole
   const user_id = currentUser?.user_id
 
   // Permission helper functions
@@ -961,6 +981,38 @@ export default function Quizzes() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Quiz Details Section */}
                 <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Program</Label>
+                <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All programs" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Programs</SelectItem>
+                    {programOptions.map((program) => (
+                      <SelectItem key={program} value={program}>
+                        {program}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Program</Label>
+                <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All programs" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Programs</SelectItem>
+                    {programOptions.map((program) => (
+                      <SelectItem key={program} value={program}>
+                        {program}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
                   <h3 className="text-lg font-semibold">Quiz Details</h3>
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -972,6 +1024,29 @@ export default function Quizzes() {
                         onChange={(e) => setQuizTitle(e.target.value)}
                       />
                     </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="program">Program</Label>
+                        {userRole === "admin" ? (
+                          <select
+                            id="program"
+                            value={quizProgram}
+                            onChange={e => setQuizProgram(e.target.value)}
+                            className="w-full border rounded p-2 bg-white dark:bg-gray-900"
+                          >
+                            <option value="">Select Program</option>
+                            {programDropdownOptions.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <Input
+                            id="program"
+                            value={userProgram}
+                            disabled
+                            className="w-full border rounded p-2 bg-white dark:bg-gray-900"
+                          />
+                        )}
+                      </div>
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject</Label>
                       <Select value={quizSubject} onValueChange={setQuizSubject}>
@@ -1276,6 +1351,23 @@ export default function Quizzes() {
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
+                <Label>Program</Label>
+                <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All programs" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Programs</SelectItem>
+                    {programOptions.map((program) => (
+                      <SelectItem key={program} value={program}>
+                        {program}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Subject</Label>
                 <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
                   <SelectTrigger>
@@ -1313,6 +1405,7 @@ export default function Quizzes() {
                   onClick={() => {
                     setSelectedSubjectFilter("all")
                     setSelectedDifficultyFilter("all")
+                    setSelectedProgramFilter("all")
                   }}
                 >
                   Clear Filters

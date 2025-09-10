@@ -222,11 +222,11 @@ const createQuiz = async (pool, quizData) => {
       const [result] = await pool.query(`
         INSERT INTO quizzes (
           title, subject_id, subject_name, description, 
-          created_by, quiz_type, duration, duration_unit, difficulty, item_counts
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          created_by, quiz_type, duration, duration_unit, difficulty, item_counts, program
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         title, subject_id, finalSubjectName, description,
-        created_by, quiz_type, duration, finalDurationUnit, difficulty, item_counts
+        created_by, quiz_type, duration, finalDurationUnit, difficulty, item_counts, quizData.program || ""
       ]);
       
       console.log('✅ Quiz inserted successfully with ID:', result.insertId);
@@ -319,17 +319,18 @@ const updateQuiz = async (pool, quizId, quizData) => {
       quiz_type,
       duration,
       difficulty,
-      item_counts
+      item_counts,
+      program
     } = quizData;
     
     const [result] = await pool.query(`
       UPDATE quizzes SET 
         title = ?, subject_id = ?, subject_name = ?, description = ?,
-        quiz_type = ?, duration = ?, difficulty = ?, item_counts = ?
+        quiz_type = ?, duration = ?, difficulty = ?, item_counts = ?, program = ?
       WHERE quizzes_id = ?
     `, [
       title, subject_id, subject_name, description,
-      quiz_type, duration, difficulty, item_counts, quizId
+      quiz_type, duration, difficulty, item_counts, program || "", quizId
     ]);
     
     return result.affectedRows > 0;
