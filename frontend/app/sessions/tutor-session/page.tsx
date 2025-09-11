@@ -161,7 +161,7 @@ export default function TutorSessionPage() {
     })
   }
 
-  // Check if session time has passed and should be auto-completed
+  // Check if session time has passed and should be marked as expired
   const isSessionExpired = (booking: Booking): boolean => {
     if (!booking.start_date || !booking.preferred_time) return false
     
@@ -184,16 +184,16 @@ export default function TutorSessionPage() {
     }
   }
 
-  // Auto-complete expired sessions
+  // Auto-expire sessions that have passed their scheduled time
   const autoCompleteExpiredSessions = async (sessions: Booking[]) => {
     const expiredSessions = sessions.filter(booking => 
       booking.status === 'accepted' && isSessionExpired(booking)
     )
     
     if (expiredSessions.length > 0) {
-      console.log(`Auto-completing ${expiredSessions.length} expired sessions`)
+      console.log(`Auto-expiring ${expiredSessions.length} expired sessions`)
       
-      // Update each expired session to completed
+      // Update each expired session to completed (but will show as expired in UI)
       const updatePromises = expiredSessions.map(async (session) => {
         try {
           const response = await fetch(`http://localhost:4000/api/sessions/${session.booking_id}/status`, {
@@ -203,7 +203,7 @@ export default function TutorSessionPage() {
           })
           return await response.json()
         } catch (error) {
-          console.error(`Failed to auto-complete session ${session.booking_id}:`, error)
+          console.error(`Failed to auto-expire session ${session.booking_id}:`, error)
           return null
         }
       })
@@ -233,7 +233,7 @@ export default function TutorSessionPage() {
       const response = await fetch(url)
       const data = await response.json()
       if (data.success && Array.isArray(data.sessions)) {
-        // Auto-complete expired sessions before setting the state
+        // Auto-expire sessions that have passed their scheduled time before setting the state
         await autoCompleteExpiredSessions(data.sessions)
         setBookings(data.sessions)
       } else {
@@ -253,7 +253,7 @@ export default function TutorSessionPage() {
   const StatusBadge = ({ status, isExpired }: { status?: string; isExpired?: boolean }) => {
     const getStatusConfig = (status?: string, isExpired?: boolean) => {
       if (isExpired && status?.toLowerCase() !== 'completed') {
-        return { variant: 'secondary' as const, bg: 'bg-gray-100 text-gray-800', icon: Clock, label: 'Auto-Completed' }
+        return { variant: 'secondary' as const, bg: 'bg-gray-100 text-gray-800', icon: Clock, label: 'Expired' }
       }
       
       switch (status?.toLowerCase()) {
@@ -373,15 +373,15 @@ export default function TutorSessionPage() {
                     </div>
                   )}
 
-                  {/* Completion Status for Auto-Completed Sessions */}
+                  {/* Completion Status for Expired Sessions */}
                   {isSessionExpired(booking) && booking.status?.toLowerCase() !== 'completed' && (
                     <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-400">
                       <div className="flex items-center space-x-2 text-sm text-gray-700">
                         <Clock className="w-4 h-4" />
-                        <span className="font-medium">Session automatically marked as completed</span>
+                        <span className="font-medium">Session automatically marked as expired</span>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        This session has passed its scheduled time and was auto-completed.
+                        This session has passed its scheduled time and was marked as expired.
                       </p>
                     </div>
                   )}
