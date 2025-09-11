@@ -19,6 +19,7 @@ import {
   Star
 } from "lucide-react"
 import { format, addDays, startOfDay, endOfDay } from "date-fns"
+import { useToast } from "@/hooks/use-toast"
 
 interface TimeSlot {
   slot: string
@@ -41,6 +42,7 @@ interface EnhancedBookingFormProps {
 }
 
 export default function EnhancedBookingForm({ tutor, currentUser, onClose }: EnhancedBookingFormProps) {
+  const { toast } = useToast()
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("")
   const [availability, setAvailability] = useState<AvailabilityData[]>([])
@@ -99,11 +101,23 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
         console.log('Existing bookings:', data.existingBookings)
       } else {
         console.error('Failed to fetch availability:', data.error)
+        toast({
+          title: "Availability Error",
+          description: data.error || "Unable to load tutor availability. Please try again.",
+          variant: "destructive",
+          duration: 4000,
+        })
         setStatus(`Error: ${data.error}`)
       }
     } catch (error) {
       console.error('Error fetching availability:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      toast({
+        title: "Connection Error",
+        description: "Unable to load tutor availability. Please check your connection.",
+        variant: "destructive",
+        duration: 4000,
+      })
       setStatus(`Failed to load availability: ${errorMessage}`)
     } finally {
       setLoading(false)
@@ -168,15 +182,45 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
       const data = await response.json()
 
       if (data.success) {
-        setStatus("Booking successful! The tutor will be notified.")
-        setTimeout(() => {
-          onClose()
-        }, 2000)
+        // Show success toast notification
+        toast({
+          title: "Booking Confirmed! 🎉",
+          description: `Your session with ${tutor.first_name} ${tutor.last_name} has been booked for ${format(selectedDate, 'yyyy-MM-dd')} at ${selectedTimeSlot.replace('-', ' - ')}.`,
+          duration: 6000,
+        })
+        
+        setStatus("✅ Booking successful! Updating calendar...")
+        
+        // Force refresh availability data to immediately reflect the new booking
+        console.log('🔄 Refreshing availability after booking...')
+        await fetchAvailability()
+        
+        // Reset form after calendar is updated
+        setSelectedDate(undefined)
+        setSelectedTimeSlot("")
+        
+        // Update status to show calendar has been refreshed
+        setStatus("✅ Booking confirmed! Calendar updated - the booked slot is now unavailable for future bookings.")
+        
+        // Don't auto-close the modal so user can see the updated calendar
       } else {
+        // Show error toast notification
+        toast({
+          title: "Booking Failed",
+          description: data.error || "Please try again later.",
+          variant: "destructive",
+          duration: 4000,
+        })
         setStatus("Booking failed. Please try again.")
       }
     } catch (error) {
       console.error('Booking error:', error)
+      toast({
+        title: "Connection Error",
+        description: "Unable to process your booking. Please check your connection and try again.",
+        variant: "destructive",
+        duration: 4000,
+      })
       setStatus("Booking failed. Please try again.")
     } finally {
       setBookingLoading(false)

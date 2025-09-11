@@ -3696,6 +3696,7 @@ app.get('/api/tutors/:tutorId/availability', async (req, res) => {
     console.log('=== AVAILABILITY REQUEST ===');
     console.log('Tutor ID:', tutorId);
     console.log('Date Range:', startDate, 'to', endDate);
+    console.log('Request URL params:', req.query);
 
     if (!tutorId || !startDate || !endDate) {
       return res.status(400).json({ 
@@ -3713,21 +3714,23 @@ app.get('/api/tutors/:tutorId/availability', async (req, res) => {
       WHERE tutor_id = ? 
       AND status IN ('pending', 'confirmed', 'accepted')
       AND (
-        (DATE(start_date) <= ? AND DATE(end_date) >= ?) OR
-        (DATE(start_date) <= ? AND DATE(end_date) >= ?) OR
-        (DATE(start_date) >= ? AND DATE(start_date) <= ?)
+        (DATE(start_date) <= DATE(?) AND DATE(end_date) >= DATE(?)) OR
+        (DATE(start_date) >= DATE(?) AND DATE(start_date) <= DATE(?))
       )
       ORDER BY start_date, preferred_time
-    `, [tutorId, endDate, startDate, endDate, endDate, startDate, endDate]);
+    `, [tutorId, endDate, startDate, startDate, endDate]);
 
-    console.log('Existing bookings found:', existingBookings.length);
+    console.log('=== EXISTING BOOKINGS FOUND ===');
+    console.log('Total bookings:', existingBookings.length);
     existingBookings.forEach((booking, index) => {
       console.log(`Booking ${index + 1}:`, {
         id: booking.booking_id,
         dates: `${booking.start_date} to ${booking.end_date}`,
         time: booking.preferred_time,
         status: booking.status,
-        student: booking.student_name
+        student: booking.student_name,
+        rawStartDate: booking.start_date,
+        rawEndDate: booking.end_date
       });
     });
 
@@ -3768,12 +3771,17 @@ app.get('/api/tutors/:tutorId/availability', async (req, res) => {
       const daySlots = timeSlots.filter(slot => {
         // Check if this slot conflicts with any existing booking
         const hasConflict = existingBookings.some(booking => {
-          const bookingStart = new Date(booking.start_date);
-          const bookingEnd = new Date(booking.end_date);
-          const currentDateObj = new Date(currentDate);
+          const bookingStartDate = new Date(booking.start_date);
+          const bookingEndDate = new Date(booking.end_date);
+          const currentDateObj = new Date(currentDate + 'T00:00:00');
+          
+          // Normalize dates to compare only the date part (ignore time)
+          const bookingStartStr = bookingStartDate.toISOString().split('T')[0];
+          const bookingEndStr = bookingEndDate.toISOString().split('T')[0];
+          const currentDateStr = currentDateObj.toISOString().split('T')[0];
           
           // Check if current date falls within booking date range
-          if (currentDateObj >= bookingStart && currentDateObj <= bookingEnd) {
+          if (currentDateStr >= bookingStartStr && currentDateStr <= bookingEndStr) {
             // Parse preferred_time - handle different formats
             let bookingTimeSlot = '';
             if (booking.preferred_time) {
@@ -3785,19 +3793,31 @@ app.get('/api/tutors/:tutorId/availability', async (req, res) => {
                 bookingTimeSlot = `${startTime}-${endTime}`;
               } else {
                 // Handle other formats or direct slot format
-                bookingTimeSlot = booking.preferred_time.replace(' - ', '-');
+                bookingTimeSlot = booking.preferred_time.replace(/ - /g, '-').replace(/\s+/g, '');
               }
             }
             
+            // Normalize the current slot format for comparison
+            const normalizedSlot = slot.replace(/ - /g, '-').replace(/\s+/g, '');
+            const normalizedBookingSlot = bookingTimeSlot.replace(/ - /g, '-').replace(/\s+/g, '');
+            
             // Check if the time slots match
-            const conflict = slot === bookingTimeSlot;
+            const conflict = normalizedSlot === normalizedBookingSlot;
             
             if (conflict) {
-              console.log(`Conflict found for ${currentDate} ${slot}:`, {
+              console.log(`🚫 CONFLICT FOUND for ${currentDate} ${slot}:`, {
                 bookingId: booking.booking_id,
                 bookingTime: booking.preferred_time,
-                parsedSlot: bookingTimeSlot,
-                status: booking.status
+                normalizedBookingSlot: normalizedBookingSlot,
+                currentSlot: normalizedSlot,
+                status: booking.status,
+                dateRange: `${bookingStartStr} to ${bookingEndStr}`
+              });
+            } else {
+              console.log(`✅ No conflict for ${currentDate} ${slot}:`, {
+                bookingTime: booking.preferred_time || 'No time',
+                normalizedBookingSlot: normalizedBookingSlot,
+                currentSlot: normalizedSlot
               });
             }
             
