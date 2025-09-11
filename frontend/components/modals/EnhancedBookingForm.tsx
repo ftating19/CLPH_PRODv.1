@@ -182,10 +182,15 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
       const data = await response.json()
 
       if (data.success) {
+        // Get tutor name - handle different object structures
+        const tutorName = tutor.first_name && tutor.last_name 
+          ? `${tutor.first_name} ${tutor.last_name}`
+          : (tutor as any).name || 'your tutor'
+        
         // Show success toast notification
         toast({
           title: "Booking Confirmed! 🎉",
-          description: `Your session with ${tutor.first_name} ${tutor.last_name} has been booked for ${format(selectedDate, 'yyyy-MM-dd')} at ${selectedTimeSlot.replace('-', ' - ')}.`,
+          description: `Your session with ${tutorName} has been booked for ${format(selectedDate, 'yyyy-MM-dd')} at ${selectedTimeSlot.replace('-', ' - ')}.`,
           duration: 6000,
         })
         
@@ -199,10 +204,13 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
         setSelectedDate(undefined)
         setSelectedTimeSlot("")
         
-        // Update status to show calendar has been refreshed
-        setStatus("✅ Booking confirmed! Calendar updated - the booked slot is now unavailable for future bookings.")
+        // Update status to show booking success
+        setStatus("✅ Booking confirmed! Closing...")
         
-        // Don't auto-close the modal so user can see the updated calendar
+        // Auto-close the modal after showing success message briefly
+        setTimeout(() => {
+          onClose()
+        }, 2000)
       } else {
         // Show error toast notification
         toast({
