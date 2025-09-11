@@ -310,7 +310,6 @@ export default function TutorSessionPage() {
                         <>
                           <Button 
                             size="sm"
-                            className="bg-green-600 hover:bg-green-700 text-white"
                             onClick={() => handleStatusUpdate(booking.booking_id, "Accepted")}
                           >
                             <CheckCircle className="w-4 h-4 mr-2" />
@@ -319,7 +318,6 @@ export default function TutorSessionPage() {
                           <Button 
                             size="sm" 
                             variant="destructive"
-                            className="bg-red-600 hover:bg-red-700 text-white"
                             onClick={() => handleStatusUpdate(booking.booking_id, "Declined")}
                           >
                             <XCircle className="w-4 h-4 mr-2" />
@@ -332,7 +330,6 @@ export default function TutorSessionPage() {
                       {currentUser?.user_id === booking.tutor_id && (booking.status === "Accepted" || booking.status === "accepted") && (
                         <Button 
                           size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
                           onClick={() => handleComplete(booking.booking_id)}
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
@@ -344,7 +341,6 @@ export default function TutorSessionPage() {
                       {currentUser?.user_id === booking.student_id && (booking.status === "Accepted" || booking.status === "accepted") && (
                         <Button 
                           size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
                           onClick={() => handleStudentComplete(booking.booking_id)}
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
@@ -409,7 +405,7 @@ export default function TutorSessionPage() {
                   Cancel
                 </Button>
                 <Button
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  className="flex-1"
                   disabled={pendingRating === 0}
                   onClick={async () => {
                     await handleRating(showRatingModal.bookingId!, pendingRating, remarksInput[showRatingModal.bookingId!] || "")
