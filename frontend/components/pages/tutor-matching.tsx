@@ -1,5 +1,6 @@
 "use client"
 import BookingForm from "@/components/modals/BookingForm"
+import EnhancedBookingForm from "@/components/modals/EnhancedBookingForm"
 
 import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -614,12 +615,20 @@ export default function TutorMatching() {
 
       {/* Booking Modal */}
       <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Book a Tutoring Session</DialogTitle>
-            <DialogDescription>Schedule a session with your selected tutor.</DialogDescription>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0">
+          <DialogHeader className="px-8 pt-8 pb-4">
+            <DialogTitle className="text-2xl font-bold">Professional Tutoring Session</DialogTitle>
+            <DialogDescription className="text-lg text-gray-600">
+              Schedule your personalized learning session with an expert tutor
+            </DialogDescription>
           </DialogHeader>
-          <BookingForm tutor={selectedTutor} currentUser={currentUser} onClose={() => setShowBookingModal(false)} />
+          <div className="px-8 pb-8">
+            <EnhancedBookingForm 
+              tutor={selectedTutor} 
+              currentUser={currentUser} 
+              onClose={() => setShowBookingModal(false)} 
+            />
+          </div>
         </DialogContent>
       </Dialog>
 

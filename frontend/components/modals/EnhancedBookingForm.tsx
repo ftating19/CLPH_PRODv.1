@@ -1,0 +1,551 @@
+"use client"
+
+import React, { useState, useEffect } from "react"
+import { Calendar } from "@/components/ui/calendar"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import { 
+  Clock, 
+  Calendar as CalendarIcon, 
+  User, 
+  CheckCircle2, 
+  AlertCircle, 
+  MapPin, 
+  GraduationCap,
+  BookOpen,
+  Star
+} from "lucide-react"
+import { format, addDays, startOfDay, endOfDay } from "date-fns"
+
+interface TimeSlot {
+  slot: string
+  available: boolean
+  label: string
+  startTime: string
+  endTime: string
+}
+
+interface AvailabilityData {
+  date: string
+  slots: string[]
+  dayName: string
+}
+
+interface EnhancedBookingFormProps {
+  tutor: any
+  currentUser: any
+  onClose: () => void
+}
+
+export default function EnhancedBookingForm({ tutor, currentUser, onClose }: EnhancedBookingFormProps) {
+  const [selectedDate, setSelectedDate] = useState<Date>()
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("")
+  const [availability, setAvailability] = useState<AvailabilityData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [bookingLoading, setBookingLoading] = useState(false)
+  const [status, setStatus] = useState("")
+  const [dateRange, setDateRange] = useState({
+    start: startOfDay(new Date()),
+    end: endOfDay(addDays(new Date(), 30)) // Show next 30 days
+  })
+
+  // Define time slots with enhanced structure
+  const timeSlots: TimeSlot[] = [
+    { slot: '09:00-10:00', available: false, label: '9:00 AM - 10:00 AM', startTime: '09:00', endTime: '10:00' },
+    { slot: '10:00-11:00', available: false, label: '10:00 AM - 11:00 AM', startTime: '10:00', endTime: '11:00' },
+    { slot: '11:00-12:00', available: false, label: '11:00 AM - 12:00 PM', startTime: '11:00', endTime: '12:00' },
+    { slot: '12:00-13:00', available: false, label: '12:00 PM - 1:00 PM', startTime: '12:00', endTime: '13:00' },
+    { slot: '13:00-14:00', available: false, label: '1:00 PM - 2:00 PM', startTime: '13:00', endTime: '14:00' },
+    { slot: '14:00-15:00', available: false, label: '2:00 PM - 3:00 PM', startTime: '14:00', endTime: '15:00' },
+    { slot: '15:00-16:00', available: false, label: '3:00 PM - 4:00 PM', startTime: '15:00', endTime: '16:00' },
+    { slot: '16:00-17:00', available: false, label: '4:00 PM - 5:00 PM', startTime: '16:00', endTime: '17:00' },
+  ]
+
+  // Fetch tutor availability
+  const fetchAvailability = async () => {
+    if (!tutor?.user_id) return
+
+    try {
+      setLoading(true)
+      const startDate = format(dateRange.start, 'yyyy-MM-dd')
+      const endDate = format(dateRange.end, 'yyyy-MM-dd')
+      
+      console.log('=== FETCHING AVAILABILITY ===')
+      console.log('Tutor ID:', tutor.user_id)
+      console.log('Date Range:', startDate, 'to', endDate)
+      console.log('Request URL:', `http://localhost:4000/api/tutors/${tutor.user_id}/availability?startDate=${startDate}&endDate=${endDate}`)
+      
+      const response = await fetch(
+        `http://localhost:4000/api/tutors/${tutor.user_id}/availability?startDate=${startDate}&endDate=${endDate}`
+      )
+      
+      console.log('Response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Response error:', errorText)
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
+      
+      const data = await response.json()
+      console.log('Availability data received:', data)
+
+      if (data.success) {
+        setAvailability(data.availability)
+        console.log('Available days:', data.availability.filter((day: any) => day.slots.length > 0).length)
+        console.log('Existing bookings:', data.existingBookings)
+      } else {
+        console.error('Failed to fetch availability:', data.error)
+        setStatus(`Error: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('Error fetching availability:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setStatus(`Failed to load availability: ${errorMessage}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Load availability when component mounts
+  useEffect(() => {
+    fetchAvailability()
+  }, [tutor?.user_id, dateRange])
+
+  // Get available slots for selected date
+  const getAvailableSlotsForDate = (date: Date): string[] => {
+    const dateStr = format(date, 'yyyy-MM-dd')
+    const dayAvailability = availability.find(a => a.date === dateStr)
+    return dayAvailability ? dayAvailability.slots : []
+  }
+
+  // Check if a date has available slots
+  const hasAvailableSlots = (date: Date): boolean => {
+    const availableSlots = getAvailableSlotsForDate(date)
+    return availableSlots.length > 0
+  }
+
+  // Handle date selection
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date)
+    setSelectedTimeSlot("") // Reset time slot selection
+  }
+
+  // Handle booking submission
+  const handleBooking = async () => {
+    if (!selectedDate || !selectedTimeSlot || !tutor || !currentUser) {
+      setStatus("Please select both date and time slot.")
+      return
+    }
+
+    // Prevent tutors from booking themselves
+    if (tutor.user_id === currentUser.user_id) {
+      setStatus("You cannot book yourself as a tutor.")
+      return
+    }
+
+    try {
+      setBookingLoading(true)
+      setStatus("")
+
+      const bookingDate = format(selectedDate, 'yyyy-MM-dd')
+      const [startTime, endTime] = selectedTimeSlot.split('-')
+      
+      const response = await fetch("http://localhost:4000/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tutor_id: tutor.user_id,
+          student_id: currentUser.user_id,
+          preferred_dates: [bookingDate, bookingDate], // Same day booking
+          preferred_time: `${startTime} - ${endTime}`
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setStatus("Booking successful! The tutor will be notified.")
+        setTimeout(() => {
+          onClose()
+        }, 2000)
+      } else {
+        setStatus("Booking failed. Please try again.")
+      }
+    } catch (error) {
+      console.error('Booking error:', error)
+      setStatus("Booking failed. Please try again.")
+    } finally {
+      setBookingLoading(false)
+    }
+  }
+
+  // Custom day renderer for calendar
+  const modifiers = {
+    available: (date: Date) => hasAvailableSlots(date),
+    unavailable: (date: Date) => !hasAvailableSlots(date) && date >= dateRange.start,
+  }
+
+  const modifiersStyles = {
+    available: {
+      backgroundColor: '#dcfce7',
+      color: '#166534',
+      fontWeight: 'bold'
+    },
+    unavailable: {
+      backgroundColor: '#fecaca',
+      color: '#dc2626',
+      opacity: 0.6
+    }
+  }
+
+  return (
+    <div className="space-y-8 max-w-6xl mx-auto">
+      {/* Professional Header Section */}
+      <div className="relative bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-6 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+              <User className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Book a Session</h2>
+              <p className="text-blue-100">Schedule your learning session with a professional tutor</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm text-blue-100">Session with</div>
+            <div className="text-xl font-semibold">{tutor?.name || 'Tutor'}</div>
+            <div className="text-sm text-blue-200">{tutor?.subject_name}</div>
+          </div>
+        </div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+        <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full -ml-10 -mb-10"></div>
+      </div>
+
+      {/* Tutor Information Card */}
+      <Card className="border-2 border-gray-100 shadow-sm">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <GraduationCap className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Program</div>
+                <div className="font-medium text-gray-900">{tutor?.program || 'Not specified'}</div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Expertise</div>
+                <div className="font-medium text-gray-900">{tutor?.subject_name || 'General'}</div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <Star className="w-5 h-5 text-yellow-600" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Rating</div>
+                <div className="font-medium text-gray-900">
+                  {tutor?.ratings ? `${tutor.ratings}/5.0` : 'New Tutor'}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">Mode</div>
+                <div className="font-medium text-gray-900">Online Session</div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Booking Interface */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        
+        {/* Calendar Section - Enhanced */}
+        <div className="xl:col-span-2">
+          <Card className="h-full border-2 border-gray-100 shadow-sm">
+            <CardHeader className="border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <CalendarIcon className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Select Date</CardTitle>
+                    <p className="text-sm text-gray-600 mt-1">Choose your preferred session date</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-emerald-200 border border-emerald-400 rounded-full"></div>
+                    <span className="text-gray-600">Available</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-200 border border-red-400 rounded-full"></div>
+                    <span className="text-gray-600">Unavailable</span>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="relative">
+                    <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                  </div>
+                  <p className="text-gray-600 mt-4">Loading availability...</p>
+                  <p className="text-sm text-gray-500 mt-1">Please wait while we check the tutor's schedule</p>
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={handleDateSelect}
+                    disabled={(date) => 
+                      date < dateRange.start || 
+                      date > dateRange.end ||
+                      !hasAvailableSlots(date)
+                    }
+                    modifiers={modifiers}
+                    modifiersStyles={{
+                      available: {
+                        backgroundColor: '#d1fae5',
+                        color: '#065f46',
+                        fontWeight: '600',
+                        border: '2px solid #34d399'
+                      },
+                      unavailable: {
+                        backgroundColor: '#fee2e2',
+                        color: '#dc2626',
+                        opacity: 0.6,
+                        textDecoration: 'line-through'
+                      }
+                    }}
+                    className="rounded-lg border-2 border-gray-200 shadow-inner bg-white"
+                    initialFocus
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Time Slots Section - Enhanced */}
+        <div className="xl:col-span-1">
+          <Card className="h-full border-2 border-gray-100 shadow-sm">
+            <CardHeader className="border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Available Times</CardTitle>
+                  {selectedDate ? (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {format(selectedDate, 'EEEE, MMMM dd')}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-600 mt-1">Select a date first</p>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {!selectedDate ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Clock className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-600 font-medium mb-2">Choose a Date</p>
+                  <p className="text-sm text-gray-500">Select a date from the calendar to see available time slots</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(() => {
+                    const availableSlots = getAvailableSlotsForDate(selectedDate)
+                    
+                    if (availableSlots.length === 0) {
+                      return (
+                        <div className="text-center py-12">
+                          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertCircle className="w-8 h-8 text-red-500" />
+                          </div>
+                          <p className="text-gray-600 font-medium mb-2">No Available Slots</p>
+                          <p className="text-sm text-gray-500">This date is fully booked. Please choose another date.</p>
+                        </div>
+                      )
+                    }
+
+                    return timeSlots.map((slot) => {
+                      const isAvailable = availableSlots.includes(slot.slot)
+                      const isSelected = selectedTimeSlot === slot.slot
+
+                      return (
+                        <Button
+                          key={slot.slot}
+                          variant={isSelected ? "default" : "outline"}
+                          className={`w-full h-14 justify-between text-left transition-all duration-200 ${
+                            !isAvailable 
+                              ? "opacity-50 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400" 
+                              : isSelected 
+                              ? "bg-blue-600 text-white shadow-lg transform scale-[1.02] border-blue-600" 
+                              : "hover:bg-blue-50 hover:border-blue-300 hover:shadow-md border-gray-300"
+                          }`}
+                          disabled={!isAvailable}
+                          onClick={() => setSelectedTimeSlot(slot.slot)}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-3 h-3 rounded-full ${
+                              isSelected 
+                                ? "bg-white" 
+                                : isAvailable 
+                                ? "bg-green-400" 
+                                : "bg-gray-300"
+                            }`}></div>
+                            <div>
+                              <div className="font-medium">{slot.label}</div>
+                              <div className={`text-xs ${
+                                isSelected ? "text-blue-100" : isAvailable ? "text-gray-500" : "text-gray-400"
+                              }`}>
+                                60 minute session
+                              </div>
+                            </div>
+                          </div>
+                          {isSelected && <CheckCircle2 className="w-5 h-5" />}
+                          {!isAvailable && <span className="text-xs font-medium">Booked</span>}
+                        </Button>
+                      )
+                    })
+                  })()}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Booking Summary - Enhanced */}
+      {selectedDate && selectedTimeSlot && (
+        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900">Session Details</h3>
+                  <p className="text-blue-700">Review your booking information</p>
+                </div>
+              </div>
+            </div>
+            
+            <Separator className="my-4 bg-blue-200" />
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+              <div className="bg-white/50 p-4 rounded-lg">
+                <div className="font-medium text-blue-900 mb-1">Tutor</div>
+                <div className="text-blue-800">{tutor?.name}</div>
+                <div className="text-blue-600 text-xs mt-1">{tutor?.subject_name}</div>
+              </div>
+              <div className="bg-white/50 p-4 rounded-lg">
+                <div className="font-medium text-blue-900 mb-1">Date</div>
+                <div className="text-blue-800">{format(selectedDate, 'EEEE')}</div>
+                <div className="text-blue-600 text-xs mt-1">{format(selectedDate, 'MMMM dd, yyyy')}</div>
+              </div>
+              <div className="bg-white/50 p-4 rounded-lg">
+                <div className="font-medium text-blue-900 mb-1">Time</div>
+                <div className="text-blue-800">{timeSlots.find(s => s.slot === selectedTimeSlot)?.label}</div>
+                <div className="text-blue-600 text-xs mt-1">60 minutes</div>
+              </div>
+              <div className="bg-white/50 p-4 rounded-lg">
+                <div className="font-medium text-blue-900 mb-1">Mode</div>
+                <div className="text-blue-800">Online Session</div>
+                <div className="text-blue-600 text-xs mt-1">Video call</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Action Buttons - Enhanced */}
+      <div className="flex justify-between items-center pt-4">
+        <div className="text-sm text-gray-600">
+          <p>• Session will be conducted online via video call</p>
+          <p>• You will receive confirmation and meeting details via email</p>
+        </div>
+        <div className="flex space-x-4">
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            disabled={bookingLoading}
+            className="px-8 py-3 border-2 border-gray-300 hover:bg-gray-50"
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleBooking} 
+            disabled={!selectedDate || !selectedTimeSlot || bookingLoading}
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 shadow-lg transform hover:scale-105 transition-all duration-200"
+          >
+            {bookingLoading ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Processing...</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="w-5 h-5" />
+                <span>Confirm Booking</span>
+              </div>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Status Message - Enhanced */}
+      {status && (
+        <Card className={`border-2 ${
+          status.includes('successful') 
+            ? 'border-green-200 bg-green-50' 
+            : 'border-red-200 bg-red-50'
+        }`}>
+          <CardContent className="p-4">
+            <div className={`flex items-center space-x-3 ${
+              status.includes('successful') ? 'text-green-800' : 'text-red-800'
+            }`}>
+              {status.includes('successful') ? (
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
+              ) : (
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              )}
+              <div>
+                <div className="font-medium">{status}</div>
+                {status.includes('successful') && (
+                  <div className="text-sm text-green-600 mt-1">
+                    Check your email for session details and meeting link.
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}

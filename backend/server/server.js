@@ -3643,6 +3643,258 @@ app.post('/api/flashcards/:flashcardId/reset', async (req, res) => {
   }
 });
 
+// API endpoint: Get all bookings for debugging (admin only)
+app.get('/api/bookings', async (req, res) => {
+  try {
+    const { tutor_id, status } = req.query;
+    
+    const pool = await db.getPool();
+    let query = 'SELECT * FROM bookings';
+    let params = [];
+    
+    const conditions = [];
+    
+    if (tutor_id) {
+      conditions.push('tutor_id = ?');
+      params.push(tutor_id);
+    }
+    
+    if (status) {
+      conditions.push('status = ?');
+      params.push(status);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    query += ' ORDER BY start_date DESC, preferred_time ASC';
+    
+    const [bookings] = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      bookings: bookings,
+      total: bookings.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// API endpoint: Get tutor availability
+app.get('/api/tutors/:tutorId/availability', async (req, res) => {
+  try {
+    const { tutorId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    console.log('=== AVAILABILITY REQUEST ===');
+    console.log('Tutor ID:', tutorId);
+    console.log('Date Range:', startDate, 'to', endDate);
+
+    if (!tutorId || !startDate || !endDate) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required parameters: tutorId, startDate, endDate' 
+      });
+    }
+
+    const pool = await db.getPool();
+    
+    // Get all existing bookings for the tutor within the date range
+    const [existingBookings] = await pool.query(`
+      SELECT booking_id, start_date, end_date, preferred_time, status, student_name, created_at
+      FROM bookings 
+      WHERE tutor_id = ? 
+      AND status IN ('pending', 'confirmed', 'accepted')
+      AND (
+        (DATE(start_date) <= ? AND DATE(end_date) >= ?) OR
+        (DATE(start_date) <= ? AND DATE(end_date) >= ?) OR
+        (DATE(start_date) >= ? AND DATE(start_date) <= ?)
+      )
+      ORDER BY start_date, preferred_time
+    `, [tutorId, endDate, startDate, endDate, endDate, startDate, endDate]);
+
+    console.log('Existing bookings found:', existingBookings.length);
+    existingBookings.forEach((booking, index) => {
+      console.log(`Booking ${index + 1}:`, {
+        id: booking.booking_id,
+        dates: `${booking.start_date} to ${booking.end_date}`,
+        time: booking.preferred_time,
+        status: booking.status,
+        student: booking.student_name
+      });
+    });
+
+    // Define available time slots (9 AM to 5 PM)
+    const timeSlots = [
+      '09:00-10:00', '10:00-11:00', '11:00-12:00', '12:00-13:00',
+      '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00'
+    ];
+
+    // Generate available slots for each day in the date range
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const availableSlots = [];
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const currentDate = d.toISOString().split('T')[0];
+      
+      // Skip past dates (before today)
+      const today = new Date();
+      const currentDateObj = new Date(currentDate);
+      if (currentDateObj < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+        continue;
+      }
+      
+      // Skip weekends (optional - remove if tutors work weekends)
+      const dayOfWeek = d.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        availableSlots.push({
+          date: currentDate,
+          slots: [], // No slots on weekends
+          dayName: d.toLocaleDateString('en-US', { weekday: 'long' }),
+          reason: 'Weekend'
+        });
+        continue;
+      }
+      
+      // Check which time slots are available for this date
+      const daySlots = timeSlots.filter(slot => {
+        // Check if this slot conflicts with any existing booking
+        const hasConflict = existingBookings.some(booking => {
+          const bookingStart = new Date(booking.start_date);
+          const bookingEnd = new Date(booking.end_date);
+          const currentDateObj = new Date(currentDate);
+          
+          // Check if current date falls within booking date range
+          if (currentDateObj >= bookingStart && currentDateObj <= bookingEnd) {
+            // Parse preferred_time - handle different formats
+            let bookingTimeSlot = '';
+            if (booking.preferred_time) {
+              // Handle "HH:MM - HH:MM" format
+              const timeParts = booking.preferred_time.trim().split(' - ');
+              if (timeParts.length === 2) {
+                const startTime = timeParts[0].trim();
+                const endTime = timeParts[1].trim();
+                bookingTimeSlot = `${startTime}-${endTime}`;
+              } else {
+                // Handle other formats or direct slot format
+                bookingTimeSlot = booking.preferred_time.replace(' - ', '-');
+              }
+            }
+            
+            // Check if the time slots match
+            const conflict = slot === bookingTimeSlot;
+            
+            if (conflict) {
+              console.log(`Conflict found for ${currentDate} ${slot}:`, {
+                bookingId: booking.booking_id,
+                bookingTime: booking.preferred_time,
+                parsedSlot: bookingTimeSlot,
+                status: booking.status
+              });
+            }
+            
+            return conflict;
+          }
+          return false;
+        });
+
+        return !hasConflict;
+      });
+
+      availableSlots.push({
+        date: currentDate,
+        slots: daySlots,
+        dayName: d.toLocaleDateString('en-US', { weekday: 'long' }),
+        totalSlots: timeSlots.length,
+        bookedSlots: timeSlots.length - daySlots.length
+      });
+
+      console.log(`${currentDate} (${d.toLocaleDateString('en-US', { weekday: 'long' })}):`, {
+        available: daySlots.length,
+        booked: timeSlots.length - daySlots.length,
+        slots: daySlots
+      });
+    }
+
+    console.log('=== AVAILABILITY RESPONSE ===');
+    console.log('Total days processed:', availableSlots.length);
+    console.log('Days with available slots:', availableSlots.filter(day => day.slots.length > 0).length);
+
+    res.json({
+      success: true,
+      availability: availableSlots,
+      totalDays: availableSlots.length,
+      tutorId: parseInt(tutorId),
+      existingBookings: existingBookings.map(booking => ({
+        id: booking.booking_id,
+        dates: `${booking.start_date} - ${booking.end_date}`,
+        time: booking.preferred_time,
+        status: booking.status
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error fetching tutor availability:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// API endpoint: Check specific time slot availability
+app.post('/api/tutors/:tutorId/check-availability', async (req, res) => {
+  try {
+    const { tutorId } = req.params;
+    const { date, timeSlot } = req.body;
+
+    if (!tutorId || !date || !timeSlot) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: date, timeSlot'
+      });
+    }
+
+    const pool = await db.getPool();
+    
+    // Check if the specific time slot is already booked
+    const [conflicts] = await pool.query(`
+      SELECT booking_id, start_date, end_date, preferred_time, status
+      FROM bookings
+      WHERE tutor_id = ?
+      AND status IN ('pending', 'confirmed', 'accepted')
+      AND ? BETWEEN start_date AND end_date
+      AND preferred_time LIKE ?
+    `, [tutorId, date, `${timeSlot}%`]);
+
+    const isAvailable = conflicts.length === 0;
+
+    res.json({
+      success: true,
+      available: isAvailable,
+      conflicts: conflicts.length,
+      date,
+      timeSlot,
+      tutorId: parseInt(tutorId)
+    });
+
+  } catch (error) {
+    console.error('Error checking time slot availability:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
 // API endpoint: Create a new session booking
 app.post('/api/sessions', async (req, res) => {
   try {
