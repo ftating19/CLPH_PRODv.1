@@ -317,7 +317,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
               </div>
               <div>
                 <div className="text-sm text-gray-500">Mode</div>
-                <div className="font-medium text-gray-900">Online Session</div>
+                <div className="font-medium text-gray-900">As per Tutor's Preference</div>
               </div>
             </div>
           </div>
@@ -527,8 +527,8 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
               </div>
               <div className="bg-white/50 p-4 rounded-lg">
                 <div className="font-medium text-blue-900 mb-1">Mode</div>
-                <div className="text-blue-800">Online Session</div>
-                <div className="text-blue-600 text-xs mt-1">Video call</div>
+                <div className="text-blue-800">Tutor's Choice</div>
+                <div className="text-blue-600 text-xs mt-1">Online or Face-to-face</div>
               </div>
             </div>
           </CardContent>
@@ -538,7 +538,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
       {/* Action Buttons - Enhanced */}
       <div className="flex justify-between items-center pt-4">
         <div className="text-sm text-gray-600">
-          <p>• Session will be conducted online via video call</p>
+          <p>• Session format (online/face-to-face) will be determined by your tutor</p>
           <p>• You will receive confirmation and meeting details via email</p>
         </div>
         <div className="flex space-x-4">
