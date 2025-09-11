@@ -1,8 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Label } from "@/components/ui/label"
+import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2 } from "lucide-react"
 import Layout from "@/components/dashboard/layout"
 import { useUser } from "@/contexts/UserContext"
 
@@ -190,13 +194,13 @@ export default function TutorSessionPage() {
     const getStatusConfig = (status?: string) => {
       switch (status?.toLowerCase()) {
         case 'completed':
-          return { bg: 'bg-gradient-to-r from-green-50 to-green-100', text: 'text-green-800', icon: CheckCircle, label: 'Completed' }
+          return { variant: 'default' as const, bg: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Completed' }
         case 'accepted':
-          return { bg: 'bg-gradient-to-r from-blue-50 to-blue-100', text: 'text-blue-800', icon: CheckCircle, label: 'Accepted' }
+          return { variant: 'secondary' as const, bg: 'bg-blue-100 text-blue-800', icon: CheckCircle, label: 'Accepted' }
         case 'declined':
-          return { bg: 'bg-gradient-to-r from-red-50 to-red-100', text: 'text-red-800', icon: XCircle, label: 'Declined' }
+          return { variant: 'destructive' as const, bg: 'bg-red-100 text-red-800', icon: XCircle, label: 'Declined' }
         default:
-          return { bg: 'bg-gradient-to-r from-yellow-50 to-orange-100', text: 'text-orange-800', icon: Clock, label: 'Pending' }
+          return { variant: 'outline' as const, bg: 'bg-yellow-100 text-orange-800', icon: Clock, label: 'Pending' }
       }
     }
 
@@ -204,258 +208,221 @@ export default function TutorSessionPage() {
     const IconComponent = config.icon
 
     return (
-      <div className={`${config.bg} ${config.text} px-3 py-1.5 rounded-full flex items-center gap-1.5 text-sm font-semibold shadow-sm border border-opacity-20`}>
-        <IconComponent className="w-4 h-4" />
+      <Badge variant={config.variant} className="ml-2">
         {config.label}
-      </div>
+      </Badge>
     )
   }
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-        <div className="space-y-8 p-6">
-          {/* Header Section */}
-          <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 rounded-2xl shadow-xl p-8 text-white">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
-                <Calendar className="w-8 h-8" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold tracking-tight">Tutor Sessions</h1>
-                <p className="text-blue-100 text-lg mt-1">Manage your tutoring sessions and bookings</p>
-              </div>
-            </div>
-          </div>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Tutor Sessions</h1>
+        </div>
 
-          {/* Session Cards */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="text-center">
-                <div className="animate-spin w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
-                <p className="text-gray-600 text-lg">Loading sessions...</p>
+            <div className="col-span-full flex items-center justify-center py-12">
+              <div className="flex items-center space-x-2">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span>Loading sessions...</span>
               </div>
             </div>
           ) : bookings.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="bg-white rounded-2xl shadow-lg p-12 max-w-md mx-auto">
-                <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">No Sessions Found</h3>
-                <p className="text-gray-500">No tutor sessions found. Book a session to get started!</p>
-              </div>
+            <div className="col-span-full text-center py-12">
+              <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">No Sessions Found</h3>
+              <p className="text-gray-500">No tutor sessions found. Book a session to get started!</p>
             </div>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-              {bookings.map((booking) => (
-                <Card key={booking.booking_id} className="bg-white/80 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 rounded-2xl overflow-hidden">
-                  {/* Card Header with Gradient */}
-                  <CardHeader className="bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 text-white p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-white/20 rounded-full p-2">
-                          <User className="w-5 h-5" />
+            bookings.map((booking) => (
+              <Card key={booking.booking_id} className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
+                {/* Card Header */}
+                <CardHeader className="pb-4">
+                  <div className="flex items-start space-x-4">
+                    <Avatar className="w-16 h-16">
+                      <AvatarFallback className="text-lg font-semibold">
+                        {booking.tutor_name
+                          ? booking.tutor_name.split(" ").map((n) => n[0]).join("")
+                          : 'T'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-xl">{booking.tutor_name}</CardTitle>
+                          <CardDescription className="text-base mt-1">
+                            Session with {booking.student_name}
+                          </CardDescription>
                         </div>
-                        <div>
-                          <CardTitle className="text-xl font-bold">{booking.tutor_name}</CardTitle>
-                          <p className="text-blue-100 text-sm">Tutor Session</p>
+                        <StatusBadge status={booking.status} />
+                      </div>
+                      <div className="flex items-center space-x-4 mt-2">
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          {formatDate(booking.start_date)}
+                        </div>
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Clock className="w-4 h-4 mr-1" />
+                          {formatTimeRange(booking.preferred_time)}
                         </div>
                       </div>
-                      <StatusBadge status={booking.status} />
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="p-6 space-y-4">
-                    {/* Session Details Grid */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <User className="w-4 h-4 text-blue-600" />
-                          <span className="text-sm font-semibold text-gray-700">Student</span>
-                        </div>
-                        <p className="text-gray-800 font-medium text-sm">{booking.student_name}</p>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Calendar className="w-4 h-4 text-green-600" />
-                          <span className="text-sm font-semibold text-gray-700">Start Date</span>
-                        </div>
-                        <p className="text-gray-800 font-medium text-sm">{formatDate(booking.start_date)}</p>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Calendar className="w-4 h-4 text-purple-600" />
-                          <span className="text-sm font-semibold text-gray-700">End Date</span>
-                        </div>
-                        <p className="text-gray-800 font-medium text-sm">{formatDate(booking.end_date)}</p>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Clock className="w-4 h-4 text-orange-600" />
-                          <span className="text-sm font-semibold text-gray-700">Time</span>
-                        </div>
-                        <p className="text-gray-800 font-medium text-sm">{formatTimeRange(booking.preferred_time)}</p>
-                      </div>
-                    </div>
-
-                    {/* Remarks Section */}
-                    {booking.remarks && (
-                      <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <MessageCircle className="w-4 h-4 text-gray-600" />
-                          <span className="text-sm font-semibold text-gray-700">Remarks</span>
-                        </div>
-                        <p className="text-gray-600 text-sm italic">{booking.remarks}</p>
-                      </div>
-                    )}
-
-                    {/* Rating Display */}
-                    {booking.rating && (
-                      <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Award className="w-4 h-4 text-yellow-600" />
-                            <span className="text-sm font-semibold text-gray-700">Rating</span>
-                          </div>
+                      {/* Rating Display */}
+                      {booking.rating && (
+                        <div className="flex items-center text-sm font-semibold group relative mt-2" title={`Rated ${booking.rating} out of 5`}>
+                          <span className="mr-1 text-yellow-700">Rating:</span>
                           <StarRating value={booking.rating} onChange={() => {}} disabled={true} />
+                          <span className="ml-2 text-xs text-gray-500">{booking.rating}</span>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
 
-                    {/* Action Buttons Section */}
-                    <div className="pt-4 border-t border-gray-100">
+                <CardContent className="space-y-4">
+                  {/* Session Details Grid */}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      <span>Student: {booking.student_name}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span>End: {formatDate(booking.end_date)}</span>
+                    </div>
+                  </div>
+
+                  {/* Remarks Section */}
+                  {booking.remarks && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Remarks</Label>
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        {booking.remarks}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end pt-4 border-t">
+                    <div className="flex space-x-2">
                       {/* Tutor Accept/Reject Buttons */}
                       {currentUser?.user_id === booking.tutor_id && (booking.status === "Pending" || booking.status === "pending") && (
-                        <div className="flex gap-3">
-                          <button
-                            className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl px-4 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                        <>
+                          <Button 
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
                             onClick={() => handleStatusUpdate(booking.booking_id, "Accepted")}
                           >
-                            <CheckCircle className="w-4 h-4" />
+                            <CheckCircle className="w-4 h-4 mr-2" />
                             Accept
-                          </button>
-                          <button
-                            className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-xl px-4 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            className="bg-red-600 hover:bg-red-700 text-white"
                             onClick={() => handleStatusUpdate(booking.booking_id, "Declined")}
                           >
-                            <XCircle className="w-4 h-4" />
+                            <XCircle className="w-4 h-4 mr-2" />
                             Reject
-                          </button>
-                        </div>
+                          </Button>
+                        </>
                       )}
 
                       {/* Tutor Mark Complete Button */}
                       {currentUser?.user_id === booking.tutor_id && (booking.status === "Accepted" || booking.status === "accepted") && (
-                        <button
-                          className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl px-4 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                        <Button 
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
                           onClick={() => handleComplete(booking.booking_id)}
                         >
-                          <CheckCircle className="w-4 h-4" />
-                          Mark as Complete
-                        </button>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Mark Complete
+                        </Button>
                       )}
 
                       {/* Student Mark Complete Button */}
                       {currentUser?.user_id === booking.student_id && (booking.status === "Accepted" || booking.status === "accepted") && (
-                        <button
-                          className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl px-4 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                        <Button 
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
                           onClick={() => handleStudentComplete(booking.booking_id)}
                         >
-                          <CheckCircle className="w-4 h-4" />
-                          Mark as Complete
-                        </button>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Mark Complete
+                        </Button>
                       )}
 
                       {/* Student Rating Success Message */}
                       {currentUser?.user_id === booking.student_id && (booking.status === "Completed" || booking.status === "completed") && booking.rating && (
-                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="w-5 h-5 text-green-600" />
-                              <span className="text-green-800 font-semibold">Thank you for rating!</span>
-                            </div>
-                            <StarRating value={booking.rating} onChange={() => {}} disabled={true} />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Tutor Rating Display */}
-                      {currentUser?.user_id === booking.tutor_id && booking.rating && (
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Award className="w-5 h-5 text-blue-600" />
-                              <span className="text-blue-800 font-semibold">Your Rating</span>
-                            </div>
-                            <StarRating value={booking.rating} onChange={() => {}} disabled={true} />
-                          </div>
+                        <div className="flex items-center text-green-600 text-sm font-medium">
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Thank you for rating!
                         </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* Rating Modal */}
-          {showRatingModal.open && showRatingModal.bookingId && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md animate-in fade-in duration-200">
-                <div className="text-center mb-6">
-                  <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full p-3 w-16 h-16 mx-auto mb-4">
-                    <Star className="w-10 h-10 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Rate Your Tutor</h3>
-                  <p className="text-gray-600">How was your tutoring session?</p>
-                </div>
-
-                <div className="flex justify-center mb-6">
-                  <StarRating
-                    value={pendingRating}
-                    onChange={r => setPendingRating(r)}
-                    disabled={false}
-                  />
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Additional Comments (Optional)
-                  </label>
-                  <textarea
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    rows={3}
-                    placeholder="Share your experience with this tutor..."
-                    value={remarksInput[showRatingModal.bookingId] || ""}
-                    onChange={e => setRemarksInput(prev => ({ ...prev, [showRatingModal.bookingId!]: e.target.value }))}
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl px-4 py-3 font-semibold transition-colors"
-                    onClick={() => setShowRatingModal({open: false})}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl px-4 py-3 font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                    disabled={pendingRating === 0}
-                    onClick={async () => {
-                      await handleRating(showRatingModal.bookingId!, pendingRating, remarksInput[showRatingModal.bookingId!] || "")
-                      setShowRatingModal({open: false})
-                      fetchBookings()
-                    }}
-                  >
-                    Submit Rating
-                  </button>
-                </div>
-              </div>
-            </div>
+                </CardContent>
+              </Card>
+            ))
           )}
         </div>
+
+        {/* Rating Modal */}
+        {showRatingModal.open && showRatingModal.bookingId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+              <div className="text-center mb-6">
+                <div className="bg-blue-100 rounded-full p-3 w-16 h-16 mx-auto mb-4">
+                  <Star className="w-10 h-10 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Rate Your Tutor</h3>
+                <p className="text-gray-600">How was your tutoring session?</p>
+              </div>
+
+              <div className="flex justify-center mb-6">
+                <StarRating
+                  value={pendingRating}
+                  onChange={r => setPendingRating(r)}
+                  disabled={false}
+                />
+              </div>
+
+              <div className="mb-6">
+                <Label className="text-sm font-medium text-gray-700 mb-2">
+                  Additional Comments (Optional)
+                </Label>
+                <textarea
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none mt-2"
+                  rows={3}
+                  placeholder="Share your experience with this tutor..."
+                  value={remarksInput[showRatingModal.bookingId] || ""}
+                  onChange={e => setRemarksInput(prev => ({ ...prev, [showRatingModal.bookingId!]: e.target.value }))}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setShowRatingModal({open: false})}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={pendingRating === 0}
+                  onClick={async () => {
+                    await handleRating(showRatingModal.bookingId!, pendingRating, remarksInput[showRatingModal.bookingId!] || "")
+                    setShowRatingModal({open: false})
+                    fetchBookings()
+                  }}
+                >
+                  Submit Rating
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   )
