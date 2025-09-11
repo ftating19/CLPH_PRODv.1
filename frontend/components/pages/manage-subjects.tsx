@@ -335,10 +335,10 @@ export default function ManageSubjects() {
             )}
           </div>
           <div className="flex gap-2 pt-4">
-            <Button size="sm" variant="outline" onClick={() => handleEditSubject(subject)} className="flex items-center text-black border-black hover:bg-black hover:text-white">
+            <Button size="sm" variant="outline" onClick={() => handleEditSubject(subject)} className="flex items-center text-foreground border-foreground hover:bg-foreground hover:text-background">
               <Edit className="w-4 h-4 mr-1" /> Edit
             </Button>
-            <Button size="sm" variant="outline" onClick={() => handleDeleteSubject(subject)} className="flex items-center text-black border-black hover:bg-black hover:text-white">
+            <Button size="sm" variant="outline" onClick={() => handleDeleteSubject(subject)} className="flex items-center text-foreground border-foreground hover:bg-foreground hover:text-background">
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>

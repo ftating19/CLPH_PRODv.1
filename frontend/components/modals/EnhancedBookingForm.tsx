@@ -391,45 +391,45 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
       </div>
 
       {/* Tutor Information Card */}
-      <Card className="border-2 border-gray-100 shadow-sm">
+      <Card className="border-2 border-gray-100 dark:border-gray-800 shadow-sm">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <GraduationCap className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                <GraduationCap className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <div className="text-sm text-gray-500">Program</div>
-                <div className="font-medium text-gray-900">{tutor?.program || 'Not specified'}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Program</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">{tutor?.program || 'Not specified'}</div>
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-green-600" />
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <div className="text-sm text-gray-500">Expertise</div>
-                <div className="font-medium text-gray-900">{tutor?.subject_name || 'General'}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Expertise</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">{tutor?.subject_name || 'General'}</div>
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Star className="w-5 h-5 text-yellow-600" />
+              <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
+                <Star className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
               </div>
               <div>
-                <div className="text-sm text-gray-500">Rating</div>
-                <div className="font-medium text-gray-900">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Rating</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">
                   {tutor?.ratings ? `${tutor.ratings}/5.0` : 'New Tutor'}
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <div className="text-sm text-gray-500">Mode</div>
-                <div className="font-medium text-gray-900">As per Tutor's Preference</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Mode</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">As per Tutor's Preference</div>
               </div>
             </div>
           </div>
@@ -441,26 +441,26 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
         
         {/* Calendar Section - Enhanced */}
         <div className="xl:col-span-2">
-          <Card className="h-full border-2 border-gray-100 shadow-sm">
-            <CardHeader className="border-b border-gray-100 bg-gray-50/50">
+          <Card className="h-full border-2 border-gray-100 dark:border-gray-800 shadow-sm">
+            <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <CalendarIcon className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                    <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
                     <CardTitle className="text-lg">Select Date</CardTitle>
-                    <p className="text-sm text-gray-600 mt-1">Choose your preferred session date</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Choose your preferred session date</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4 text-sm">
                   <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-emerald-200 border border-emerald-400 rounded-full"></div>
-                    <span className="text-gray-600">Available</span>
+                    <div className="w-3 h-3 bg-emerald-200 dark:bg-emerald-900/50 border border-emerald-400 dark:border-emerald-600 rounded-full"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Available</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-red-200 border border-red-400 rounded-full"></div>
-                    <span className="text-gray-600">Unavailable</span>
+                    <div className="w-3 h-3 bg-red-200 dark:bg-red-900/50 border border-red-400 dark:border-red-600 rounded-full"></div>
+                    <span className="text-gray-600 dark:text-gray-400">Unavailable</span>
                   </div>
                 </div>
               </div>
@@ -469,12 +469,12 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
               {loading || navigatingMonth ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <div className="relative">
-                    <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                    <div className="w-12 h-12 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
                   </div>
-                  <p className="text-gray-600 mt-4">
+                  <p className="text-gray-600 dark:text-gray-400 mt-4">
                     {navigatingMonth ? 'Navigating calendar...' : 'Loading availability...'}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     {navigatingMonth ? 'Please wait while we update the calendar view' : 'Please wait while we check the tutor\'s schedule'}
                   </p>
                 </div>
@@ -537,26 +537,26 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
 
         {/* Time Slots Section - Enhanced */}
         <div className="xl:col-span-1">
-          <Card className="h-full border-2 border-gray-100 shadow-sm">
-            <CardHeader className="border-b border-gray-100 bg-gray-50/50">
+          <Card className="h-full border-2 border-gray-100 dark:border-gray-800 shadow-sm">
+            <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-green-600" />
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <CardTitle className="text-lg">Available Times</CardTitle>
                   {selectedDate ? (
                     <div className="mt-1">
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
                         {format(selectedDate, 'EEEE, MMMM dd')}
                       </p>
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                         <div className="flex items-center space-x-1">
-                          <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                          <div className="w-2 h-2 rounded-full bg-green-400 dark:bg-green-500"></div>
                           <span>Available</span>
                         </div>
                         <div className="flex items-center space-x-1">
-                          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+                          <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600"></div>
                           <span>Booked</span>
                         </div>
                         <div className="flex items-center space-x-1">

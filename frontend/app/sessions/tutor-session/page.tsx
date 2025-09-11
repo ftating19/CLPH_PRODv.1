@@ -295,16 +295,16 @@ export default function TutorSessionPage() {
             </div>
           ) : bookings.length === 0 ? (
             <div className="col-span-full text-center py-12">
-              <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">No Sessions Found</h3>
-              <p className="text-gray-500">No tutor sessions found. Book a session to get started!</p>
+              <Calendar className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">No Sessions Found</h3>
+              <p className="text-gray-500 dark:text-gray-400">No tutor sessions found. Book a session to get started!</p>
             </div>
           ) : (
             bookings.map((booking) => {
               const isCompleted = booking.status?.toLowerCase() === 'completed' || isSessionExpired(booking)
               const cardClassName = isCompleted 
-                ? "transition-all duration-200 border-2 bg-gray-50 opacity-75 cursor-not-allowed"
-                : "hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200"
+                ? "transition-all duration-200 border-2 bg-gray-50 dark:bg-gray-800/50 opacity-75 cursor-not-allowed"
+                : "hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 dark:hover:border-blue-400"
               
               return (
               <Card key={booking.booking_id} className={cardClassName}>
