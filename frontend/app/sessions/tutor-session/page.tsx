@@ -161,6 +161,64 @@ export default function TutorSessionPage() {
     })
   }
 
+  // Check if session time has passed and should be auto-completed
+  const isSessionExpired = (booking: Booking): boolean => {
+    if (!booking.start_date || !booking.preferred_time) return false
+    
+    try {
+      const sessionDate = new Date(booking.start_date)
+      const [timeRange] = booking.preferred_time.split(' - ')
+      const [hours, minutes] = timeRange.split(':').map(Number)
+      
+      // Set the session time
+      sessionDate.setHours(hours, minutes, 0, 0)
+      
+      // Add 1 hour for session duration
+      const sessionEndTime = new Date(sessionDate.getTime() + (60 * 60 * 1000))
+      
+      // Check if current time is past session end time
+      return new Date() > sessionEndTime
+    } catch (error) {
+      console.error('Error parsing session time:', error)
+      return false
+    }
+  }
+
+  // Auto-complete expired sessions
+  const autoCompleteExpiredSessions = async (sessions: Booking[]) => {
+    const expiredSessions = sessions.filter(booking => 
+      booking.status === 'accepted' && isSessionExpired(booking)
+    )
+    
+    if (expiredSessions.length > 0) {
+      console.log(`Auto-completing ${expiredSessions.length} expired sessions`)
+      
+      // Update each expired session to completed
+      const updatePromises = expiredSessions.map(async (session) => {
+        try {
+          const response = await fetch(`http://localhost:4000/api/sessions/${session.booking_id}/status`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "Completed" })
+          })
+          return await response.json()
+        } catch (error) {
+          console.error(`Failed to auto-complete session ${session.booking_id}:`, error)
+          return null
+        }
+      })
+      
+      await Promise.all(updatePromises)
+      
+      // Update local state
+      setBookings(prev => prev.map(booking => 
+        expiredSessions.some(expired => expired.booking_id === booking.booking_id)
+          ? { ...booking, status: "Completed" }
+          : booking
+      ))
+    }
+  }
+
   // Refetch bookings helper
   const fetchBookings = async () => {
     if (!currentUser) return
@@ -175,6 +233,8 @@ export default function TutorSessionPage() {
       const response = await fetch(url)
       const data = await response.json()
       if (data.success && Array.isArray(data.sessions)) {
+        // Auto-complete expired sessions before setting the state
+        await autoCompleteExpiredSessions(data.sessions)
         setBookings(data.sessions)
       } else {
         setBookings([])
@@ -190,8 +250,12 @@ export default function TutorSessionPage() {
   }, [currentUser])
 
   // Status badge component
-  const StatusBadge = ({ status }: { status?: string }) => {
-    const getStatusConfig = (status?: string) => {
+  const StatusBadge = ({ status, isExpired }: { status?: string; isExpired?: boolean }) => {
+    const getStatusConfig = (status?: string, isExpired?: boolean) => {
+      if (isExpired && status?.toLowerCase() !== 'completed') {
+        return { variant: 'secondary' as const, bg: 'bg-gray-100 text-gray-800', icon: Clock, label: 'Auto-Completed' }
+      }
+      
       switch (status?.toLowerCase()) {
         case 'completed':
           return { variant: 'default' as const, bg: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Completed' }
@@ -204,7 +268,7 @@ export default function TutorSessionPage() {
       }
     }
 
-    const config = getStatusConfig(status)
+    const config = getStatusConfig(status, isExpired)
     const IconComponent = config.icon
 
     return (
@@ -236,8 +300,14 @@ export default function TutorSessionPage() {
               <p className="text-gray-500">No tutor sessions found. Book a session to get started!</p>
             </div>
           ) : (
-            bookings.map((booking) => (
-              <Card key={booking.booking_id} className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
+            bookings.map((booking) => {
+              const isCompleted = booking.status?.toLowerCase() === 'completed' || isSessionExpired(booking)
+              const cardClassName = isCompleted 
+                ? "transition-all duration-200 border-2 bg-gray-50 opacity-75 cursor-not-allowed"
+                : "hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200"
+              
+              return (
+              <Card key={booking.booking_id} className={cardClassName}>
                 {/* Card Header */}
                 <CardHeader className="pb-4">
                   <div className="flex items-start space-x-4">
@@ -256,7 +326,7 @@ export default function TutorSessionPage() {
                             Session with {booking.student_name}
                           </CardDescription>
                         </div>
-                        <StatusBadge status={booking.status} />
+                        <StatusBadge status={booking.status} isExpired={isSessionExpired(booking)} />
                       </div>
                       <div className="flex items-center space-x-4 mt-2">
                         <div className="flex items-center text-sm text-muted-foreground">
@@ -303,10 +373,38 @@ export default function TutorSessionPage() {
                     </div>
                   )}
 
+                  {/* Completion Status for Auto-Completed Sessions */}
+                  {isSessionExpired(booking) && booking.status?.toLowerCase() !== 'completed' && (
+                    <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-400">
+                      <div className="flex items-center space-x-2 text-sm text-gray-700">
+                        <Clock className="w-4 h-4" />
+                        <span className="font-medium">Session automatically marked as completed</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        This session has passed its scheduled time and was auto-completed.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Completed Status for Manually Completed Sessions */}
+                  {booking.status?.toLowerCase() === 'completed' && !isSessionExpired(booking) && (
+                    <div className="bg-green-50 p-3 rounded-lg border-l-4 border-green-400">
+                      <div className="flex items-center space-x-2 text-sm text-green-700">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="font-medium">Session completed successfully</span>
+                      </div>
+                      <p className="text-xs text-green-600 mt-1">
+                        This session was manually marked as completed by the participant.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-end pt-4 border-t">
                     <div className="flex space-x-2">
-                      {/* Tutor Accept/Reject Buttons */}
-                      {currentUser?.user_id === booking.tutor_id && (booking.status === "Pending" || booking.status === "pending") && (
+                      {/* Tutor Accept/Reject Buttons - Only for pending sessions */}
+                      {currentUser?.user_id === booking.tutor_id && 
+                       (booking.status === "Pending" || booking.status === "pending") && 
+                       !isSessionExpired(booking) && (
                         <>
                           <Button 
                             size="sm"
@@ -326,8 +424,10 @@ export default function TutorSessionPage() {
                         </>
                       )}
 
-                      {/* Tutor Mark Complete Button */}
-                      {currentUser?.user_id === booking.tutor_id && (booking.status === "Accepted" || booking.status === "accepted") && (
+                      {/* Tutor Mark Complete Button - Only for accepted sessions that haven't expired */}
+                      {currentUser?.user_id === booking.tutor_id && 
+                       (booking.status === "Accepted" || booking.status === "accepted") && 
+                       !isSessionExpired(booking) && (
                         <Button 
                           size="sm"
                           onClick={() => handleComplete(booking.booking_id)}
@@ -337,8 +437,10 @@ export default function TutorSessionPage() {
                         </Button>
                       )}
 
-                      {/* Student Mark Complete Button */}
-                      {currentUser?.user_id === booking.student_id && (booking.status === "Accepted" || booking.status === "accepted") && (
+                      {/* Student Mark Complete Button - Only for accepted sessions that haven't expired */}
+                      {currentUser?.user_id === booking.student_id && 
+                       (booking.status === "Accepted" || booking.status === "accepted") && 
+                       !isSessionExpired(booking) && (
                         <Button 
                           size="sm"
                           onClick={() => handleStudentComplete(booking.booking_id)}
@@ -359,7 +461,7 @@ export default function TutorSessionPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))
+            )})
           )}
         </div>
 

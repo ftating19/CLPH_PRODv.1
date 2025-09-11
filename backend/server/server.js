@@ -3755,17 +3755,8 @@ app.get('/api/tutors/:tutorId/availability', async (req, res) => {
         continue;
       }
       
-      // Skip weekends (optional - remove if tutors work weekends)
-      const dayOfWeek = d.getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        availableSlots.push({
-          date: currentDate,
-          slots: [], // No slots on weekends
-          dayName: d.toLocaleDateString('en-US', { weekday: 'long' }),
-          reason: 'Weekend'
-        });
-        continue;
-      }
+      // Allow all days including weekends - tutors may work on Saturdays and Sundays
+      // Removed weekend restriction to allow flexible scheduling
       
       // Check which time slots are available for this date
       const daySlots = timeSlots.filter(slot => {

@@ -47,12 +47,14 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("")
   const [availability, setAvailability] = useState<AvailabilityData[]>([])
   const [loading, setLoading] = useState(false)
+  const [navigatingMonth, setNavigatingMonth] = useState(false)
   const [bookingLoading, setBookingLoading] = useState(false)
   const [status, setStatus] = useState("")
   const [dateRange, setDateRange] = useState({
     start: startOfDay(new Date()),
-    end: endOfDay(addDays(new Date(), 30)) // Show next 30 days
+    end: endOfDay(addDays(new Date(), 60)) // Initial load: next 60 days, but will expand dynamically
   })
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date())
 
   // Define time slots with enhanced structure
   const timeSlots: TimeSlot[] = [
@@ -65,6 +67,40 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
     { slot: '15:00-16:00', available: false, label: '3:00 PM - 4:00 PM', startTime: '15:00', endTime: '16:00' },
     { slot: '16:00-17:00', available: false, label: '4:00 PM - 5:00 PM', startTime: '16:00', endTime: '17:00' },
   ]
+
+  // Handle month navigation - fetch availability for new month
+  const handleMonthChange = async (month: Date) => {
+    console.log(`📅 Calendar navigated to: ${format(month, 'MMMM yyyy')}`)
+    setCurrentCalendarMonth(month)
+    setNavigatingMonth(true)
+    
+    if (!tutor?.user_id) {
+      setNavigatingMonth(false)
+      return
+    }
+
+    // Calculate the date range for the new month (and a buffer around it)
+    const bufferStart = new Date(month.getFullYear(), month.getMonth() - 1, 1)
+    const bufferEnd = new Date(month.getFullYear(), month.getMonth() + 2, 0)
+    
+    // Only expand dateRange if the new month is outside our current range
+    const needsExpansion = bufferStart < dateRange.start || bufferEnd > dateRange.end
+    
+    if (needsExpansion) {
+      const newStart = bufferStart < dateRange.start ? bufferStart : dateRange.start
+      const newEnd = bufferEnd > dateRange.end ? bufferEnd : dateRange.end
+      
+      console.log(`📅 Expanding date range for month navigation: ${format(newStart, 'yyyy-MM-dd')} to ${format(newEnd, 'yyyy-MM-dd')}`)
+      
+      // Use a timeout to prevent interfering with calendar navigation
+      setTimeout(() => {
+        setDateRange({ start: newStart, end: newEnd })
+        setTimeout(() => setNavigatingMonth(false), 500)
+      }, 100)
+    } else {
+      setTimeout(() => setNavigatingMonth(false), 100)
+    }
+  }
 
   // Fetch tutor availability
   const fetchAvailability = async () => {
@@ -124,21 +160,97 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
     }
   }
 
-  // Load availability when component mounts
+  // Load availability when component mounts or when tutor changes
   useEffect(() => {
     fetchAvailability()
-  }, [tutor?.user_id, dateRange])
+  }, [tutor?.user_id])
+  
+  // Load availability when dateRange changes (with debounce)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchAvailability()
+    }, 300)
+    
+    return () => clearTimeout(timeoutId)
+  }, [dateRange])
+
+  // Check if a time slot is in the past for today's date
+  const isTimeSlotInPast = (date: Date, timeSlot: string): boolean => {
+    const today = new Date()
+    const selectedDate = new Date(date)
+    
+    // Only check for past time if the selected date is today
+    if (selectedDate.toDateString() !== today.toDateString()) {
+      return false
+    }
+    
+    try {
+      // Parse time slot (e.g., "09:00-10:00")
+      const [startTime] = timeSlot.split('-')
+      const [hours, minutes] = startTime.split(':').map(Number)
+      
+      // Create a date object for the time slot
+      const slotTime = new Date(selectedDate)
+      slotTime.setHours(hours, minutes, 0, 0)
+      
+      // Add a 30-minute buffer to allow booking slightly in advance
+      const bufferTime = new Date(today.getTime() + (30 * 60 * 1000))
+      
+      return slotTime < bufferTime
+    } catch (error) {
+      console.error('Error parsing time slot:', error)
+      return false
+    }
+  }
 
   // Get available slots for selected date
   const getAvailableSlotsForDate = (date: Date): string[] => {
     const dateStr = format(date, 'yyyy-MM-dd')
     const dayAvailability = availability.find(a => a.date === dateStr)
-    return dayAvailability ? dayAvailability.slots : []
+    
+    if (dayAvailability) {
+      // If we have explicit data for this date, use it
+      const slots = dayAvailability.slots
+      return slots.filter(slot => !isTimeSlotInPast(date, slot))
+    } else {
+      // For dates without explicit data (like weekends), provide default slots
+      const isWeekend = date.getDay() === 0 || date.getDay() === 6
+      const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+      const isPastDate = date < startOfDay(new Date())
+      
+      if (isPastDate) {
+        return [] // No slots for past dates
+      }
+      
+      // Provide default time slots for any future date (including weekends)
+      const defaultSlots = [
+        '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+        '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'
+      ]
+      
+      if (isWeekend) {
+        console.log(`🗓️ Providing default weekend slots for ${format(date, 'yyyy-MM-dd')}:`, defaultSlots)
+      }
+      
+      // Filter out past time slots for today's date
+      return defaultSlots.filter(slot => !isTimeSlotInPast(date, slot))
+    }
   }
 
   // Check if a date has available slots
   const hasAvailableSlots = (date: Date): boolean => {
     const availableSlots = getAvailableSlotsForDate(date)
+    const dayOfWeek = date.getDay()
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+    
+    // Debug logging for weekends
+    if (isWeekend) {
+      console.log(`🗓️ Weekend check for ${format(date, 'yyyy-MM-dd')} (${date.toLocaleDateString('en-US', { weekday: 'long' })}):`, {
+        availableSlots: availableSlots.length,
+        slots: availableSlots
+      })
+    }
+    
     return availableSlots.length > 0
   }
 
@@ -237,7 +349,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
 
   // Custom day renderer for calendar
   const modifiers = {
-    available: (date: Date) => hasAvailableSlots(date),
+    available: (date: Date) => hasAvailableSlots(date) && date >= dateRange.start,
     unavailable: (date: Date) => !hasAvailableSlots(date) && date >= dateRange.start,
   }
 
@@ -354,25 +466,51 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
               </div>
             </CardHeader>
             <CardContent className="p-6">
-              {loading ? (
+              {loading || navigatingMonth ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <div className="relative">
                     <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
                   </div>
-                  <p className="text-gray-600 mt-4">Loading availability...</p>
-                  <p className="text-sm text-gray-500 mt-1">Please wait while we check the tutor's schedule</p>
+                  <p className="text-gray-600 mt-4">
+                    {navigatingMonth ? 'Navigating calendar...' : 'Loading availability...'}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {navigatingMonth ? 'Please wait while we update the calendar view' : 'Please wait while we check the tutor\'s schedule'}
+                  </p>
                 </div>
               ) : (
                 <div className="flex justify-center">
                   <Calendar
                     mode="single"
+                    month={currentCalendarMonth}
+                    defaultMonth={currentCalendarMonth}
                     selected={selectedDate}
                     onSelect={handleDateSelect}
-                    disabled={(date) => 
-                      date < dateRange.start || 
-                      date > dateRange.end ||
-                      !hasAvailableSlots(date)
-                    }
+                    onMonthChange={handleMonthChange}
+                    fromDate={new Date()} // Allow from today onwards
+                    toYear={2030} // Allow up to year 2030
+                    weekStartsOn={1} // Start week on Monday
+                    showWeekNumber={false}
+                    disabled={(date) => {
+                      const isPastDate = date < dateRange.start
+                      const hasNoSlots = !hasAvailableSlots(date)
+                      
+                      // Explicitly allow weekends - only disable if past date or no available slots
+                      const shouldDisable = isPastDate || hasNoSlots
+                      
+                      // Debug logging for weekends
+                      const isWeekend = date.getDay() === 0 || date.getDay() === 6
+                      if (isWeekend) {
+                        console.log(`🗓️ Weekend date ${format(date, 'yyyy-MM-dd')}:`, {
+                          isPastDate,
+                          hasNoSlots,
+                          shouldDisable,
+                          dayName: date.toLocaleDateString('en-US', { weekday: 'long' })
+                        })
+                      }
+                      
+                      return shouldDisable
+                    }}
                     modifiers={modifiers}
                     modifiersStyles={{
                       available: {
@@ -408,9 +546,25 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                 <div>
                   <CardTitle className="text-lg">Available Times</CardTitle>
                   {selectedDate ? (
-                    <p className="text-sm text-gray-600 mt-1">
-                      {format(selectedDate, 'EEEE, MMMM dd')}
-                    </p>
+                    <div className="mt-1">
+                      <p className="text-sm text-gray-600">
+                        {format(selectedDate, 'EEEE, MMMM dd')}
+                      </p>
+                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                          <span>Available</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+                          <span>Booked</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-red-300"></div>
+                          <span>Past time</span>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <p className="text-sm text-gray-600 mt-1">Select a date first</p>
                   )}
@@ -446,6 +600,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                     return timeSlots.map((slot) => {
                       const isAvailable = availableSlots.includes(slot.slot)
                       const isSelected = selectedTimeSlot === slot.slot
+                      const isPastTime = selectedDate ? isTimeSlotInPast(selectedDate, slot.slot) : false
 
                       return (
                         <Button
@@ -453,7 +608,9 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                           variant={isSelected ? "default" : "outline"}
                           className={`w-full h-14 justify-between text-left transition-all duration-200 ${
                             !isAvailable 
-                              ? "opacity-50 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400" 
+                              ? isPastTime
+                                ? "opacity-40 cursor-not-allowed bg-red-50 border-red-200 text-red-400" 
+                                : "opacity-50 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
                               : isSelected 
                               ? "bg-blue-600 text-white shadow-lg transform scale-[1.02] border-blue-600" 
                               : "hover:bg-blue-50 hover:border-blue-300 hover:shadow-md border-gray-300"
@@ -467,19 +624,31 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                                 ? "bg-white" 
                                 : isAvailable 
                                 ? "bg-green-400" 
+                                : isPastTime
+                                ? "bg-red-300"
                                 : "bg-gray-300"
                             }`}></div>
                             <div>
                               <div className="font-medium">{slot.label}</div>
                               <div className={`text-xs ${
-                                isSelected ? "text-blue-100" : isAvailable ? "text-gray-500" : "text-gray-400"
+                                isSelected 
+                                  ? "text-blue-100" 
+                                  : isAvailable 
+                                  ? "text-gray-500" 
+                                  : isPastTime 
+                                  ? "text-red-400" 
+                                  : "text-gray-400"
                               }`}>
-                                60 minute session
+                                {isPastTime ? "Past time" : "60 minute session"}
                               </div>
                             </div>
                           </div>
                           {isSelected && <CheckCircle2 className="w-5 h-5" />}
-                          {!isAvailable && <span className="text-xs font-medium">Booked</span>}
+                          {!isAvailable && (
+                            <span className={`text-xs font-medium ${isPastTime ? "text-red-400" : "text-gray-400"}`}>
+                              {isPastTime ? "Expired" : "Booked"}
+                            </span>
+                          )}
                         </Button>
                       )
                     })
