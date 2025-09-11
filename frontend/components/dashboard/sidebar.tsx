@@ -121,6 +121,70 @@ export default function Sidebar() {
     )
   }
 
+  function TutorSessionNavItem({
+    href,
+    icon: Icon,
+    children,
+  }: {
+    href: string
+    icon: any
+    children: React.ReactNode
+  }) {
+    const [pendingCount, setPendingCount] = useState<number | undefined>(undefined)
+    const { currentUser } = useUser();
+
+    useEffect(() => {
+      let isMounted = true;
+      
+      if (currentUser?.user_id) {
+        // Fetch sessions where current user is tutor and status is pending
+        fetch(`http://localhost:4000/api/sessions?user_id=${currentUser.user_id}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (isMounted && data.success && Array.isArray(data.sessions)) {
+              // Count pending sessions where current user is the tutor
+              const count = data.sessions.filter((session: any) => 
+                session.tutor_id === currentUser.user_id && 
+                session.status === 'pending'
+              ).length;
+              setPendingCount(count)
+            } else {
+              setPendingCount(0)
+            }
+          })
+          .catch(() => {
+            if (isMounted) setPendingCount(undefined)
+          })
+      }
+      
+      return () => { isMounted = false }
+    }, [currentUser])
+
+    const isActive = pathname === href
+    
+    return (
+      <Link
+        href={href}
+        onClick={handleNavigation}
+        className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors ${
+          isActive
+            ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+            : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#1F1F23]"
+        }`}
+      >
+        <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
+        <span className="flex items-center gap-2">
+          {children}
+          {pendingCount !== undefined && pendingCount > 0 && (
+            <span className="inline-flex items-center justify-center bg-red-500 text-white rounded-full min-w-[20px] h-5 text-xs font-bold ml-2">
+              {pendingCount}
+            </span>
+          )}
+        </span>
+      </Link>
+    )
+  }
+
   function PendingApplicantsNavItem({
     href,
     icon: Icon,
@@ -294,9 +358,9 @@ export default function Sidebar() {
                       Sessions
                     </div>
                     <div className="space-y-1">
-                      <NavItem href="/sessions/tutor-session" icon={UserCheck}>
+                      <TutorSessionNavItem href="/sessions/tutor-session" icon={UserCheck}>
                         Tutor Session
-                      </NavItem>
+                      </TutorSessionNavItem>
                     </div>
                   </div>
                   {(userRole === "student" || userRole === "tutor") && (
