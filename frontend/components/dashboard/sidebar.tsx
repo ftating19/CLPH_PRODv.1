@@ -251,6 +251,11 @@ export default function Sidebar() {
                     Management
                   </div>
                   <div className="space-y-1">
+                    {userRole === "admin" && (
+                      <NavItem href="/admin-dashboard" icon={Shield}>
+                        Admin Dashboard
+                      </NavItem>
+                    )}
                     <NavItem href="/user-management" icon={Users}>
                       User Management
                     </NavItem>
@@ -260,11 +265,6 @@ export default function Sidebar() {
                     <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
                       Pending Materials
                     </PendingMaterialsNavItem>
-                    {userRole === "admin" && (
-                      <NavItem href="/admin-dashboard" icon={Shield}>
-                        Admin Dashboard
-                      </NavItem>
-                    )}
                   </div>
                 </div>
               )}
