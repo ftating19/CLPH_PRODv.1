@@ -44,7 +44,7 @@ interface EnhancedBookingFormProps {
 export default function EnhancedBookingForm({ tutor, currentUser, onClose }: EnhancedBookingFormProps) {
   const { toast } = useToast()
   const [selectedDate, setSelectedDate] = useState<Date>()
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("")
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]) // Changed to array for multiple selection
   const [availability, setAvailability] = useState<AvailabilityData[]>([])
   const [loading, setLoading] = useState(false)
   const [navigatingMonth, setNavigatingMonth] = useState(false)
@@ -257,17 +257,18 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
   // Handle date selection
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date)
-    setSelectedTimeSlot("") // Reset time slot selection
+    setSelectedTimeSlots([]) // Reset time slot selections
   }
 
   // Handle booking submission
   const handleBooking = async () => {
-    if (!selectedDate || !selectedTimeSlot || !tutor || !currentUser) {
-      setStatus("Please select both date and time slot.")
+    if (!selectedDate || selectedTimeSlots.length === 0 || !tutor || !currentUser) {
+      setStatus("Please select date and at least one time slot.")
       return
     }
 
-    // Prevent tutors from booking themselves
+    // Prevent tutors from booking themselves (only restriction)
+    // Note: Students can book the same tutor multiple times for different time slots
     if (tutor.user_id === currentUser.user_id) {
       setStatus("You cannot book yourself as a tutor.")
       return
@@ -278,60 +279,85 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
       setStatus("")
 
       const bookingDate = format(selectedDate, 'yyyy-MM-dd')
-      const [startTime, endTime] = selectedTimeSlot.split('-')
       
-      const response = await fetch("http://localhost:4000/api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tutor_id: tutor.user_id,
-          student_id: currentUser.user_id,
-          preferred_dates: [bookingDate, bookingDate], // Same day booking
-          preferred_time: `${startTime} - ${endTime}`
+      // Create multiple bookings for each selected time slot
+      const bookingPromises = selectedTimeSlots.map(async (timeSlot) => {
+        const [startTime, endTime] = timeSlot.split('-')
+        
+        const response = await fetch("http://localhost:4000/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tutor_id: tutor.user_id,
+            student_id: currentUser.user_id,
+            preferred_dates: [bookingDate, bookingDate], // Same day booking
+            preferred_time: `${startTime} - ${endTime}`
+          })
         })
+
+        return await response.json()
       })
 
-      const data = await response.json()
+      // Wait for all bookings to complete
+      const results = await Promise.all(bookingPromises)
+      
+      // Check if all bookings were successful
+      const successfulBookings = results.filter(result => result.success)
+      const failedBookings = results.filter(result => !result.success)
 
-      if (data.success) {
+      if (successfulBookings.length > 0) {
         // Get tutor name - handle different object structures
         const tutorName = tutor.first_name && tutor.last_name 
           ? `${tutor.first_name} ${tutor.last_name}`
           : (tutor as any).name || 'your tutor'
         
+        const timeSlotLabels = selectedTimeSlots.map(slot => 
+          timeSlots.find(s => s.slot === slot)?.label || slot
+        ).join(', ')
+        
         // Show success toast notification
         toast({
           title: "Booking Confirmed! 🎉",
-          description: `Your session with ${tutorName} has been booked for ${format(selectedDate, 'yyyy-MM-dd')} at ${selectedTimeSlot.replace('-', ' - ')}.`,
+          description: `${successfulBookings.length} session${successfulBookings.length > 1 ? 's' : ''} with ${tutorName} booked for ${format(selectedDate, 'yyyy-MM-dd')} at ${timeSlotLabels}.`,
           duration: 6000,
         })
         
-        setStatus("✅ Booking successful! Updating calendar...")
+        setStatus(`✅ ${successfulBookings.length} booking${successfulBookings.length > 1 ? 's' : ''} successful! Updating calendar...`)
         
-        // Force refresh availability data to immediately reflect the new booking
+        // Force refresh availability data to immediately reflect the new bookings
         console.log('🔄 Refreshing availability after booking...')
         await fetchAvailability()
         
         // Reset form after calendar is updated
         setSelectedDate(undefined)
-        setSelectedTimeSlot("")
+        setSelectedTimeSlots([])
         
         // Update status to show booking success
-        setStatus("✅ Booking confirmed! Closing...")
+        setStatus(`✅ ${successfulBookings.length} booking${successfulBookings.length > 1 ? 's' : ''} confirmed! Closing...`)
+        
+        // Show warning if some bookings failed
+        if (failedBookings.length > 0) {
+          toast({
+            title: "Partial Success",
+            description: `${failedBookings.length} booking${failedBookings.length > 1 ? 's' : ''} failed. ${successfulBookings.length} booking${successfulBookings.length > 1 ? 's' : ''} confirmed.`,
+            variant: "destructive",
+            duration: 4000,
+          })
+        }
         
         // Auto-close the modal after showing success message briefly
         setTimeout(() => {
           onClose()
         }, 2000)
       } else {
-        // Show error toast notification
+        // All bookings failed
         toast({
           title: "Booking Failed",
-          description: data.error || "Please try again later.",
+          description: "All selected time slots failed to book. Please try again later.",
           variant: "destructive",
           duration: 4000,
         })
-        setStatus("Booking failed. Please try again.")
+        setStatus("All bookings failed. Please try again.")
       }
     } catch (error) {
       console.error('Booking error:', error)
@@ -548,12 +574,16 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                   {selectedDate ? (
                     <div className="mt-1">
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {format(selectedDate, 'EEEE, MMMM dd')}
+                        {format(selectedDate, 'EEEE, MMMM dd')} - Click to select multiple slots
                       </p>
                       <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                         <div className="flex items-center space-x-1">
                           <div className="w-2 h-2 rounded-full bg-green-400 dark:bg-green-500"></div>
                           <span>Available</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400"></div>
+                          <span>Selected</span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600"></div>
@@ -599,8 +629,22 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
 
                     return timeSlots.map((slot) => {
                       const isAvailable = availableSlots.includes(slot.slot)
-                      const isSelected = selectedTimeSlot === slot.slot
+                      const isSelected = selectedTimeSlots.includes(slot.slot)
                       const isPastTime = selectedDate ? isTimeSlotInPast(selectedDate, slot.slot) : false
+
+                      const handleTimeSlotClick = () => {
+                        if (!isAvailable) return
+                        
+                        setSelectedTimeSlots(prev => {
+                          if (prev.includes(slot.slot)) {
+                            // Remove if already selected
+                            return prev.filter(s => s !== slot.slot)
+                          } else {
+                            // Add to selection
+                            return [...prev, slot.slot]
+                          }
+                        })
+                      }
 
                       return (
                         <Button
@@ -616,7 +660,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                               : "hover:bg-blue-50 hover:border-blue-300 hover:shadow-md border-gray-300"
                           }`}
                           disabled={!isAvailable}
-                          onClick={() => setSelectedTimeSlot(slot.slot)}
+                          onClick={handleTimeSlotClick}
                         >
                           <div className="flex items-center space-x-3">
                             <div className={`w-3 h-3 rounded-full ${
@@ -661,7 +705,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
       </div>
 
       {/* Booking Summary - Enhanced */}
-      {selectedDate && selectedTimeSlot && (
+      {selectedDate && selectedTimeSlots.length > 0 && (
         <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -671,7 +715,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-blue-900">Session Details</h3>
-                  <p className="text-blue-700">Review your booking information</p>
+                  <p className="text-blue-700">Review your booking information ({selectedTimeSlots.length} session{selectedTimeSlots.length > 1 ? 's' : ''})</p>
                 </div>
               </div>
             </div>
@@ -690,9 +734,15 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                 <div className="text-blue-600 text-xs mt-1">{format(selectedDate, 'MMMM dd, yyyy')}</div>
               </div>
               <div className="bg-white/50 p-4 rounded-lg">
-                <div className="font-medium text-blue-900 mb-1">Time</div>
-                <div className="text-blue-800">{timeSlots.find(s => s.slot === selectedTimeSlot)?.label}</div>
-                <div className="text-blue-600 text-xs mt-1">60 minutes</div>
+                <div className="font-medium text-blue-900 mb-1">Time Slots</div>
+                <div className="text-blue-800 space-y-1">
+                  {selectedTimeSlots.map(slot => (
+                    <div key={slot} className="text-sm">
+                      {timeSlots.find(s => s.slot === slot)?.label}
+                    </div>
+                  ))}
+                </div>
+                <div className="text-blue-600 text-xs mt-1">{selectedTimeSlots.length} × 60 minutes</div>
               </div>
               <div className="bg-white/50 p-4 rounded-lg">
                 <div className="font-medium text-blue-900 mb-1">Mode</div>
@@ -707,6 +757,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
       {/* Action Buttons - Enhanced */}
       <div className="flex justify-between items-center pt-4">
         <div className="text-sm text-gray-600">
+          <p>• Select multiple time slots to book separate sessions for each slot</p>
           <p>• Session format (online/face-to-face) will be determined by your tutor</p>
           <p>• You will receive confirmation and meeting details via email</p>
         </div>
@@ -721,7 +772,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
           </Button>
           <Button 
             onClick={handleBooking} 
-            disabled={!selectedDate || !selectedTimeSlot || bookingLoading}
+            disabled={!selectedDate || selectedTimeSlots.length === 0 || bookingLoading}
             className="px-8 py-3 bg-blue-600 hover:bg-blue-700 shadow-lg transform hover:scale-105 transition-all duration-200"
           >
             {bookingLoading ? (
@@ -732,7 +783,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
             ) : (
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="w-5 h-5" />
-                <span>Confirm Booking</span>
+                <span>Confirm {selectedTimeSlots.length > 0 ? `${selectedTimeSlots.length} ` : ''}Booking{selectedTimeSlots.length > 1 ? 's' : ''}</span>
               </div>
             )}
           </Button>

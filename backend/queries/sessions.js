@@ -2,9 +2,11 @@
 const db = require('../dbconnection/mysql')
 
 // Create a new session booking (supports date range and preferred time)
+// Note: Students can book the same tutor multiple times for different time slots
 async function createSession({ tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time }) {
   const pool = await db.getPool()
   try {
+    // No restrictions on multiple bookings - students can book same tutor multiple times
     const [result] = await pool.query(
       `INSERT INTO bookings (tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW())`,
       [tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time]

@@ -3907,6 +3907,7 @@ app.post('/api/tutors/:tutorId/check-availability', async (req, res) => {
 });
 
 // API endpoint: Create a new session booking
+// Note: Students can book the same tutor multiple times for different time slots
 app.post('/api/sessions', async (req, res) => {
   try {
     console.log('Received request payload:', req.body);
