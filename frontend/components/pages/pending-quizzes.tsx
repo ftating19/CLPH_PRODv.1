@@ -96,10 +96,27 @@ export default function PendingQuizzes() {
               console.log('DEBUG - All Subjects:', subjectsData.subjects)
               
               // Filter subjects where user_id matches current faculty user_id
+              // Note: subject.user_id can be a JSON array like ["35"] or an array [35]
               const facultySubjects = subjectsData.subjects
                 ?.filter((subject: any) => {
-                  const matches = subject.user_id === currentUser.user_id
-                  console.log(`DEBUG - Subject ${subject.subject_id} (${subject.subject_name}): user_id=${subject.user_id}, matches=${matches}`)
+                  let userIds = []
+                  // Parse user_id if it's a JSON string
+                  if (typeof subject.user_id === 'string') {
+                    try {
+                      userIds = JSON.parse(subject.user_id)
+                    } catch {
+                      userIds = [subject.user_id]
+                    }
+                  } else if (Array.isArray(subject.user_id)) {
+                    userIds = subject.user_id
+                  } else {
+                    userIds = [subject.user_id]
+                  }
+                  // Convert to numbers for comparison
+                  userIds = userIds.map((id: any) => parseInt(id))
+                  const currentUserId = typeof currentUser.user_id === 'string' ? parseInt(currentUser.user_id) : currentUser.user_id
+                  const matches = userIds.includes(currentUserId)
+                  console.log(`DEBUG - Subject ${subject.subject_id} (${subject.subject_name}): user_id=${JSON.stringify(subject.user_id)}, parsed=${JSON.stringify(userIds)}, matches=${matches}`)
                   return matches
                 }) || []
               
@@ -111,8 +128,9 @@ export default function PendingQuizzes() {
               
               // Filter quizzes where subject_id matches faculty's subjects
               filtered = data.quizzes.filter((quiz: PendingQuiz) => {
-                const matches = facultySubjectIds.includes(quiz.subject_id)
-                console.log(`DEBUG - Quiz ${quiz.quizzes_id}: subject_id=${quiz.subject_id}, matches=${matches}`)
+                const quizSubjectId = typeof quiz.subject_id === 'string' ? parseInt(quiz.subject_id) : quiz.subject_id
+                const matches = facultySubjectIds.includes(quizSubjectId)
+                console.log(`DEBUG - Quiz ${quiz.quizzes_id}: subject_id=${quiz.subject_id}, parsed=${quizSubjectId}, matches=${matches}`)
                 return matches
               })
               
