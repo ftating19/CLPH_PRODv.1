@@ -82,9 +82,67 @@ export default function PendingFlashcards() {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const data = await response.json()
+      let filteredFlashcards = []
       if (data.success && data.flashcards) {
+        // Admins see all, faculty see only their assigned subjects (based on subjects.user_id)
+        if (currentUser?.role?.toLowerCase() === 'faculty') {
+          // Fetch all subjects to find which ones belong to this faculty
+          try {
+            const subjectsResponse = await fetch('http://localhost:4000/api/subjects')
+            if (subjectsResponse.ok) {
+              const subjectsData = await subjectsResponse.json()
+              
+              console.log('DEBUG - Current User:', {
+                user_id: currentUser.user_id,
+                role: currentUser.role,
+                email: currentUser.email
+              })
+              console.log('DEBUG - All Subjects:', subjectsData.subjects)
+              
+              // Filter subjects where user_id matches current faculty user_id
+              const facultySubjects = subjectsData.subjects
+                ?.filter((subject: any) => {
+                  const matches = subject.user_id === currentUser.user_id
+                  console.log(`DEBUG - Subject ${subject.subject_id} (${subject.subject_name}): user_id=${subject.user_id}, matches=${matches}`)
+                  return matches
+                }) || []
+              
+              const facultySubjectIds = facultySubjects.map((subject: any) => subject.subject_id)
+              
+              console.log('DEBUG - Faculty Subjects:', facultySubjects)
+              console.log('DEBUG - Faculty Subject IDs:', facultySubjectIds)
+              console.log('DEBUG - All Flashcards:', data.flashcards)
+              
+              // Filter flashcards where subject_id matches faculty's subjects
+              filteredFlashcards = data.flashcards.filter((flashcard: PendingFlashcard) => {
+                const matches = facultySubjectIds.includes(flashcard.subject_id)
+                console.log(`DEBUG - Flashcard ${flashcard.flashcard_id}: subject_id=${flashcard.subject_id}, matches=${matches}`)
+                return matches
+              })
+              
+              console.log('Faculty filtering result (flashcards):', {
+                currentUserRole: currentUser.role,
+                currentUserId: currentUser.user_id,
+                totalFlashcards: data.flashcards.length,
+                facultySubjectIds,
+                filteredCount: filteredFlashcards.length,
+                filteredFlashcards
+              })
+            } else {
+              filteredFlashcards = []
+            }
+          } catch (error) {
+            console.error('Error fetching subjects for faculty filter:', error)
+            filteredFlashcards = []
+          }
+        } else {
+          // Admin or other roles see all
+          console.log('Admin viewing all flashcards:', data.flashcards.length)
+          filteredFlashcards = data.flashcards
+        }
+        
         // Group flashcards by sub_id
-        const grouped = data.flashcards.reduce((acc: { [key: string]: GroupedFlashcards }, flashcard: PendingFlashcard) => {
+        const grouped = filteredFlashcards.reduce((acc: { [key: string]: GroupedFlashcards }, flashcard: PendingFlashcard) => {
           if (!acc[flashcard.sub_id]) {
             acc[flashcard.sub_id] = {
               sub_id: flashcard.sub_id,

@@ -78,8 +78,65 @@ export default function PendingQuizzes() {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const data = await response.json()
+      let filtered = []
       if (data.success && data.quizzes) {
-        setQuizzes(data.quizzes)
+        // Admins see all, faculty see only their assigned subjects (based on subjects.user_id)
+        if (currentUser?.role?.toLowerCase() === 'faculty') {
+          // Fetch all subjects to find which ones belong to this faculty
+          try {
+            const subjectsResponse = await fetch('http://localhost:4000/api/subjects')
+            if (subjectsResponse.ok) {
+              const subjectsData = await subjectsResponse.json()
+              
+              console.log('DEBUG - Current User:', {
+                user_id: currentUser.user_id,
+                role: currentUser.role,
+                email: currentUser.email
+              })
+              console.log('DEBUG - All Subjects:', subjectsData.subjects)
+              
+              // Filter subjects where user_id matches current faculty user_id
+              const facultySubjects = subjectsData.subjects
+                ?.filter((subject: any) => {
+                  const matches = subject.user_id === currentUser.user_id
+                  console.log(`DEBUG - Subject ${subject.subject_id} (${subject.subject_name}): user_id=${subject.user_id}, matches=${matches}`)
+                  return matches
+                }) || []
+              
+              const facultySubjectIds = facultySubjects.map((subject: any) => subject.subject_id)
+              
+              console.log('DEBUG - Faculty Subjects:', facultySubjects)
+              console.log('DEBUG - Faculty Subject IDs:', facultySubjectIds)
+              console.log('DEBUG - All Quizzes:', data.quizzes)
+              
+              // Filter quizzes where subject_id matches faculty's subjects
+              filtered = data.quizzes.filter((quiz: PendingQuiz) => {
+                const matches = facultySubjectIds.includes(quiz.subject_id)
+                console.log(`DEBUG - Quiz ${quiz.quizzes_id}: subject_id=${quiz.subject_id}, matches=${matches}`)
+                return matches
+              })
+              
+              console.log('Faculty filtering result:', {
+                currentUserRole: currentUser.role,
+                currentUserId: currentUser.user_id,
+                totalQuizzes: data.quizzes.length,
+                facultySubjectIds,
+                filteredCount: filtered.length,
+                filteredQuizzes: filtered
+              })
+            } else {
+              filtered = []
+            }
+          } catch (error) {
+            console.error('Error fetching subjects for faculty filter:', error)
+            filtered = []
+          }
+        } else {
+          // Admin or other roles see all
+          console.log('Admin viewing all quizzes:', data.quizzes.length)
+          filtered = data.quizzes
+        }
+        setQuizzes(filtered)
       } else {
         setQuizzes([])
       }
