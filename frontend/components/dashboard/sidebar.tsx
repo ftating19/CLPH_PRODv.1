@@ -310,29 +310,28 @@ export default function Sidebar() {
               )}
 
               {(userRole === "faculty" || userRole === "admin") && (
-                <div>
-                  <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Management
-                  </div>
-                  <div className="space-y-1">
-                    {userRole === "admin" && (
-                      <NavItem href="/admin-dashboard" icon={Shield}>
-                        Admin Dashboard
+                <>
+                  <div>
+                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      Management
+                    </div>
+                    <div className="space-y-1">
+                      {userRole === "admin" && (
+                        <NavItem href="/admin-dashboard" icon={Shield}>
+                          Admin Dashboard
+                        </NavItem>
+                      )}
+                      <NavItem href="/user-management" icon={Users}>
+                        User Management
                       </NavItem>
-                    )}
-                    <NavItem href="/user-management" icon={Users}>
-                      User Management
-                    </NavItem>
-                    <PendingApplicantsNavItem href="/pending-applicants" icon={Clock}>
-                      Pending Applicants
-                    </PendingApplicantsNavItem>
-                    <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
-                      Pending Materials
-                    </PendingMaterialsNavItem>
+                      <PendingApplicantsNavItem href="/pending-applicants" icon={Clock}>
+                        Pending Applicants
+                      </PendingApplicantsNavItem>
+                      <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
+                        Pending Materials
+                      </PendingMaterialsNavItem>
+                    </div>
                   </div>
-                </div>
-              )}
-                {(userRole === "faculty" || userRole === "admin") && (
                   <div>
                     <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mt-6">
                       Tools
@@ -349,7 +348,8 @@ export default function Sidebar() {
                       </NavItem>
                     </div>
                   </div>
-                )}
+                </>
+              )}
 
               {(userRole === "student" || userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
                 <>
@@ -365,7 +365,7 @@ export default function Sidebar() {
                   </div>
                   {(userRole === "student" || userRole === "tutor") && (
                     <div>
-                      <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mt-6">
                         Tools
                       </div>
                       <div className="space-y-1">
@@ -382,22 +382,7 @@ export default function Sidebar() {
               )}
 
               {userRole === "admin" && (
-                <div>
-                  <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Tools
-                  </div>
-                  <div className="space-y-1">
-                    <NavItem href="/quizzes" icon={Brain}>
-                      Manage Quizzes
-                    </NavItem>
-                    <NavItem href="/flashcards" icon={Layers}>
-                      Manage Flashcards
-                    </NavItem>
-                    <NavItem href="/manage-subjects" icon={Library}>
-                      Manage Subjects
-                    </NavItem>
-                  </div>
-                </div>
+                <></>
               )}
             </div>
           </div>
