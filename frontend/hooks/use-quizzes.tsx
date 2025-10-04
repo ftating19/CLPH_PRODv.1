@@ -12,6 +12,9 @@ interface Quiz {
   difficulty: string
   item_counts: number
   created_at: string
+  quiz_view?: 'Personal' | 'Public'
+  program?: string
+  duration_unit?: string
 }
 
 interface Question {

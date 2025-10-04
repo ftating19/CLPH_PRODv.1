@@ -214,7 +214,7 @@ export default function Quizzes() {
     const bestScore = quizAttempts.length > 0 ? Math.max(...quizAttempts.map(attempt => attempt.score)) : null
     const lastAttempt = quizAttempts.length > 0 ? quizAttempts[quizAttempts.length - 1].created_at : null
     
-    return {
+    const mappedQuiz = {
       id: dbQuiz.quizzes_id,
       quiz_id: dbQuiz.quizzes_id,
       title: dbQuiz.title,
@@ -231,11 +231,22 @@ export default function Quizzes() {
       created_by: dbQuiz.created_by,
       creator_name: `${dbQuiz.first_name || ''} ${dbQuiz.last_name || ''}`.trim(),
       program: dbQuiz.program || '', // Add program from database
+      quiz_view: dbQuiz.quiz_view || 'Personal', // Add quiz_view from database
     }
+    
+    // Debug log
+    console.log(`📋 Quiz "${mappedQuiz.title}": quiz_view="${mappedQuiz.quiz_view}", program="${mappedQuiz.program}"`)
+    
+    return mappedQuiz
   })
 
   // Filter quizzes based on search and filter criteria
   const filteredQuizList = quizList.filter((quiz: any) => {
+    // Debug: Log quiz_view for all quizzes
+    if (simpleView) {
+      console.log(`🔍 Quiz "${quiz.title}": quiz_view="${quiz.quiz_view}", simpleView=${simpleView}`)
+    }
+    
     // Search filter
     const matchesSearch = searchQuery.trim() === "" || 
       quiz.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -268,6 +279,11 @@ export default function Quizzes() {
     const matchesView = simpleView 
       ? (quiz.quiz_view === 'Public')  // Learning section: only public
       : (userRole === 'admin' || userRole === 'faculty' || Number(quiz.created_by) === Number(user_id))  // Tools: own quizzes or admin/faculty sees all
+
+    // Debug logging for view filter
+    if (simpleView) {
+      console.log(`🔍 Filter Check - "${quiz.title}": quiz_view="${quiz.quiz_view}", matchesView=${matchesView}, simpleView=${simpleView}`)
+    }
 
     return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram && matchesView
   })
