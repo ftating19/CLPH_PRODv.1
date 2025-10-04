@@ -208,6 +208,9 @@ export default function Quizzes() {
     fetchUserAttempts()
   }, [currentUser?.user_id])
 
+  // Get user_id early for use in filters
+  const user_id = currentUser?.user_id
+
   // Convert database quiz to component Quiz format
   const quizList = quizzes.map((dbQuiz: any) => {
     const quizAttempts = userAttempts[dbQuiz.quizzes_id] || []
@@ -310,7 +313,7 @@ export default function Quizzes() {
 
   // Get user role from context, default to 'student' if not available
   // Removed duplicate declaration of userRole
-  const user_id = currentUser?.user_id
+  // user_id already declared above before quizList mapping
 
   // Permission helper functions
   const canManageQuiz = (quiz: any) => {

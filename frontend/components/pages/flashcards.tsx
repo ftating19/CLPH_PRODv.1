@@ -189,6 +189,11 @@ export default function Flashcards() {
 
   // Filter flashcards based on search and filter criteria
   const filteredFlashcards = flashcards.filter((flashcard: any) => {
+    // Debug log for flashcard_view
+    if (simpleView) {
+      console.log(`🃏 Flashcard "${flashcard.question?.substring(0, 30)}...": flashcard_view="${flashcard.flashcard_view}", program="${flashcard.program}"`)
+    }
+    
     // Search filter
     const matchesSearch = searchQuery.trim() === "" || 
       flashcard.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -221,6 +226,11 @@ export default function Flashcards() {
     const matchesView = simpleView 
       ? (flashcard.flashcard_view === 'Public')  // Learning section: only public
       : (userRole === 'admin' || userRole === 'faculty' || Number(flashcard.created_by) === Number(user_id))  // Tools: own flashcards or admin/faculty sees all
+
+    // Debug logging for view filter
+    if (simpleView) {
+      console.log(`🔍 Filter Check - Flashcard: flashcard_view="${flashcard.flashcard_view}", matchesView=${matchesView}, simpleView=${simpleView}`)
+    }
 
     return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram && matchesView
   })
