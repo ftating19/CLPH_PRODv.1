@@ -271,6 +271,7 @@ export default function Quizzes() {
   const [quizDuration, setQuizDuration] = useState("")
   const [quizDurationUnit, setQuizDurationUnit] = useState("minutes") // Add duration unit state
   const [quizDifficulty, setQuizDifficulty] = useState("")
+  const [quizView, setQuizView] = useState("Personal") // Quiz view: Personal or Public
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([])
 
   // Form states for question creation
@@ -733,7 +734,8 @@ export default function Quizzes() {
         duration_unit: quizDurationUnit, // Store the original unit for reference
         difficulty: quizDifficulty,
         item_counts: quizQuestions.length,
-        program: quizProgram // Add program field
+        program: quizProgram, // Add program field
+        quiz_view: quizView // Add quiz view field (Personal or Public)
       }
 
       console.log('=== QUIZ DATA BEING SENT ===');
@@ -834,6 +836,7 @@ export default function Quizzes() {
         setQuizDuration("")
         setQuizDurationUnit("minutes")
         setQuizDifficulty("")
+        setQuizView("Personal")
         setQuizQuestions([])
         setCurrentQuiz(null)
         setShowCreateDialog(false)
@@ -994,6 +997,7 @@ export default function Quizzes() {
     }
     
     setQuizDifficulty(quiz.difficulty)
+    setQuizView((quiz as any).quiz_view || "Personal") // Set quiz view from database or default to Personal
     
     // Load questions from database for existing quiz
     try {
@@ -1313,6 +1317,18 @@ export default function Quizzes() {
                         </Select>
                       </div>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="quizView">Quiz View</Label>
+                      <Select value={quizView} onValueChange={setQuizView}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select quiz view" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Personal">Personal</SelectItem>
+                          <SelectItem value="Public">Public</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
 
@@ -1520,6 +1536,7 @@ export default function Quizzes() {
                   setQuizDuration("")
                   setQuizDurationUnit("minutes")
                   setQuizDifficulty("")
+                  setQuizView("Personal")
                   setQuizQuestions([])
                 }}>
                   Cancel
@@ -1655,12 +1672,14 @@ export default function Quizzes() {
             <>
               <h3 className="text-lg font-medium text-muted-foreground mb-2">No quizzes available</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Create your first quiz to start testing knowledge
+                {simpleView ? "Check back later for quizzes" : "Create your first quiz to start testing knowledge"}
               </p>
-              <Button onClick={() => setShowCreateDialog(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Quiz
-              </Button>
+              {!simpleView && (
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Your First Quiz
+                </Button>
+              )}
             </>
           ) : (
             <>
@@ -1676,10 +1695,12 @@ export default function Quizzes() {
                 }}>
                   Clear All Filters
                 </Button>
-                <Button onClick={() => setShowCreateDialog(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create New Quiz
-                </Button>
+                {!simpleView && (
+                  <Button onClick={() => setShowCreateDialog(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create New Quiz
+                  </Button>
+                )}
               </div>
             </>
           )}

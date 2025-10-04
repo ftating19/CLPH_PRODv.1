@@ -20,6 +20,7 @@ const getAllQuizzes = async (pool) => {
           q.difficulty,
           q.item_counts,
           COALESCE(q.program, '') as program,
+          COALESCE(q.quiz_view, 'Personal') as quiz_view,
           COALESCE(q.subject_name, s.subject_name) as subject_name,
           s.subject_code,
           u.first_name,
@@ -68,6 +69,7 @@ const getAllQuizzes = async (pool) => {
           q.difficulty,
           q.item_counts,
           COALESCE(q.program, '') as program,
+          COALESCE(q.quiz_view, 'Personal') as quiz_view,
           s.subject_name,
           s.subject_code,
           u.first_name,
@@ -178,7 +180,8 @@ const createQuiz = async (pool, quizData) => {
       duration,
       duration_unit, // Remove default value to see actual value from frontend
       difficulty,
-      item_counts
+      item_counts,
+      quiz_view // Add quiz_view field
     } = quizData;
     
     // Add debugging
@@ -224,11 +227,11 @@ const createQuiz = async (pool, quizData) => {
       const [result] = await pool.query(`
         INSERT INTO quizzes (
           title, subject_id, subject_name, description, 
-          created_by, quiz_type, duration, duration_unit, difficulty, item_counts, program
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          created_by, quiz_type, duration, duration_unit, difficulty, item_counts, program, quiz_view
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         title, subject_id, finalSubjectName, description,
-        created_by, quiz_type, duration, finalDurationUnit, difficulty, item_counts, quizData.program || ""
+        created_by, quiz_type, duration, finalDurationUnit, difficulty, item_counts, quizData.program || "", quiz_view || "Personal"
       ]);
       
       console.log('✅ Quiz inserted successfully with ID:', result.insertId);
@@ -322,17 +325,18 @@ const updateQuiz = async (pool, quizId, quizData) => {
       duration,
       difficulty,
       item_counts,
-      program
+      program,
+      quiz_view
     } = quizData;
     
     const [result] = await pool.query(`
       UPDATE quizzes SET 
         title = ?, subject_id = ?, subject_name = ?, description = ?,
-        quiz_type = ?, duration = ?, difficulty = ?, item_counts = ?, program = ?
+        quiz_type = ?, duration = ?, difficulty = ?, item_counts = ?, program = ?, quiz_view = ?
       WHERE quizzes_id = ?
     `, [
       title, subject_id, subject_name, description,
-      quiz_type, duration, difficulty, item_counts, program || "", quizId
+      quiz_type, duration, difficulty, item_counts, program || "", quiz_view || "Personal", quizId
     ]);
     
     return result.affectedRows > 0;

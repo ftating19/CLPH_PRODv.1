@@ -103,6 +103,25 @@ const {
   getPendingMaterialsByStatus, 
   transferToStudyMaterials 
 } = require('../queries/pendingMaterials')
+const {
+  getAllPendingQuizzes,
+  getPendingQuizById,
+  createPendingQuiz,
+  updatePendingQuizStatus,
+  deletePendingQuiz,
+  getPendingQuizzesByStatus,
+  transferToQuizzes
+} = require('../queries/pendingQuizzes')
+const {
+  getAllPendingFlashcards,
+  getPendingFlashcardById,
+  createPendingFlashcard,
+  updatePendingFlashcardStatus,
+  deletePendingFlashcard,
+  getPendingFlashcardsByStatus,
+  transferToFlashcards,
+  getPendingFlashcardsBySubId
+} = require('../queries/pendingFlashcards')
 const { createSession, getSessions } = require('../queries/sessions')
 const { getAllForums, getForumById, createForum } = require('../queries/forums')
 const { getCommentsByForumId, addComment } = require('../queries/comments')
@@ -2248,6 +2267,331 @@ app.get('/api/pending-materials/status/:status', async (req, res) => {
   }
 });
 
+// ===== PENDING QUIZZES API ENDPOINTS =====
+
+// Get all pending quizzes
+app.get('/api/pending-quizzes', async (req, res) => {
+  try {
+    console.log('Fetching all pending quizzes');
+    const pool = await db.getPool();
+    const quizzes = await getAllPendingQuizzes(pool);
+    
+    res.json({
+      success: true,
+      quizzes: quizzes,
+      total: quizzes.length
+    });
+  } catch (err) {
+    console.error('Error fetching pending quizzes:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending quiz by ID
+app.get('/api/pending-quizzes/:id', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    const pool = await db.getPool();
+    const quiz = await getPendingQuizById(pool, quizId);
+    
+    if (!quiz) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending quiz not found' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      quiz: quiz
+    });
+  } catch (err) {
+    console.error('Error fetching pending quiz:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Approve pending quiz
+app.put('/api/pending-quizzes/:id/approve', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    const { approved_by } = req.body;
+    
+    console.log(`Approving pending quiz ID: ${quizId}`);
+    
+    const pool = await db.getPool();
+    
+    // Get the pending quiz details
+    const pendingQuiz = await getPendingQuizById(pool, quizId);
+    if (!pendingQuiz) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending quiz not found' 
+      });
+    }
+    
+    // Transfer to quizzes table
+    const newQuiz = await transferToQuizzes(pool, pendingQuiz);
+    
+    // Update pending quiz status
+    await updatePendingQuizStatus(pool, quizId, 'approved', approved_by);
+    
+    console.log(`✅ Quiz approved and transferred with ID: ${newQuiz.quizzes_id}`);
+    
+    res.json({
+      success: true,
+      message: 'Quiz approved successfully',
+      quiz: newQuiz
+    });
+  } catch (err) {
+    console.error('Error approving quiz:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Reject pending quiz
+app.put('/api/pending-quizzes/:id/reject', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    const { rejected_by, rejection_reason } = req.body;
+    
+    console.log(`Rejecting pending quiz ID: ${quizId}`);
+    
+    const pool = await db.getPool();
+    
+    // Update status to rejected
+    const updateSuccess = await updatePendingQuizStatus(pool, quizId, 'rejected', rejected_by);
+    
+    if (!updateSuccess) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending quiz not found' 
+      });
+    }
+    
+    console.log(`✅ Quiz rejected: ${quizId}`);
+    
+    res.json({
+      success: true,
+      message: 'Quiz rejected successfully'
+    });
+  } catch (err) {
+    console.error('Error rejecting quiz:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending quizzes by status
+app.get('/api/pending-quizzes/status/:status', async (req, res) => {
+  try {
+    const status = req.params.status;
+    console.log(`Fetching pending quizzes with status: ${status}`);
+
+    const pool = await db.getPool();
+    const quizzes = await getPendingQuizzesByStatus(pool, status);
+
+    console.log(`✅ Found ${quizzes.length} quizzes with status ${status}`);
+    
+    res.json({
+      success: true,
+      quizzes: quizzes,
+      total: quizzes.length,
+      status: status
+    });
+  } catch (err) {
+    console.error('Error fetching pending quizzes by status:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ===== PENDING FLASHCARDS API ENDPOINTS =====
+
+// Get all pending flashcards
+app.get('/api/pending-flashcards', async (req, res) => {
+  try {
+    console.log('Fetching all pending flashcards');
+    const pool = await db.getPool();
+    const flashcards = await getAllPendingFlashcards(pool);
+    
+    res.json({
+      success: true,
+      flashcards: flashcards,
+      total: flashcards.length
+    });
+  } catch (err) {
+    console.error('Error fetching pending flashcards:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending flashcard by ID
+app.get('/api/pending-flashcards/:id', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.id);
+    const pool = await db.getPool();
+    const flashcard = await getPendingFlashcardById(pool, flashcardId);
+    
+    if (!flashcard) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending flashcard not found' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      flashcard: flashcard
+    });
+  } catch (err) {
+    console.error('Error fetching pending flashcard:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Approve pending flashcard
+app.put('/api/pending-flashcards/:id/approve', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.id);
+    const { approved_by } = req.body;
+    
+    console.log(`Approving pending flashcard ID: ${flashcardId}`);
+    
+    const pool = await db.getPool();
+    
+    // Get the pending flashcard details
+    const pendingFlashcard = await getPendingFlashcardById(pool, flashcardId);
+    if (!pendingFlashcard) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending flashcard not found' 
+      });
+    }
+    
+    // Transfer to flashcards table
+    const newFlashcard = await transferToFlashcards(pool, pendingFlashcard);
+    
+    // Update pending flashcard status
+    await updatePendingFlashcardStatus(pool, flashcardId, 'approved', approved_by);
+    
+    console.log(`✅ Flashcard approved and transferred with ID: ${newFlashcard.flashcard_id}`);
+    
+    res.json({
+      success: true,
+      message: 'Flashcard approved successfully',
+      flashcard: newFlashcard
+    });
+  } catch (err) {
+    console.error('Error approving flashcard:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Reject pending flashcard
+app.put('/api/pending-flashcards/:id/reject', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.id);
+    const { rejected_by, rejection_reason } = req.body;
+    
+    console.log(`Rejecting pending flashcard ID: ${flashcardId}`);
+    
+    const pool = await db.getPool();
+    
+    // Update status to rejected
+    const updateSuccess = await updatePendingFlashcardStatus(pool, flashcardId, 'rejected', rejected_by);
+    
+    if (!updateSuccess) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending flashcard not found' 
+      });
+    }
+    
+    console.log(`✅ Flashcard rejected: ${flashcardId}`);
+    
+    res.json({
+      success: true,
+      message: 'Flashcard rejected successfully'
+    });
+  } catch (err) {
+    console.error('Error rejecting flashcard:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending flashcards by status
+app.get('/api/pending-flashcards/status/:status', async (req, res) => {
+  try {
+    const status = req.params.status;
+    console.log(`Fetching pending flashcards with status: ${status}`);
+
+    const pool = await db.getPool();
+    const flashcards = await getPendingFlashcardsByStatus(pool, status);
+
+    console.log(`✅ Found ${flashcards.length} flashcards with status ${status}`);
+    
+    res.json({
+      success: true,
+      flashcards: flashcards,
+      total: flashcards.length,
+      status: status
+    });
+  } catch (err) {
+    console.error('Error fetching pending flashcards by status:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending flashcards by sub_id (for grouped flashcards)
+app.get('/api/pending-flashcards/sub/:subId', async (req, res) => {
+  try {
+    const subId = parseInt(req.params.subId);
+    const pool = await db.getPool();
+    const flashcards = await getPendingFlashcardsBySubId(pool, subId);
+    
+    res.json({
+      success: true,
+      flashcards: flashcards,
+      total: flashcards.length
+    });
+  } catch (err) {
+    console.error('Error fetching pending flashcards by sub_id:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
 // ===== QUIZZES API ENDPOINTS =====
 
 // Get all quizzes
@@ -2349,7 +2693,7 @@ app.get('/api/quizzes/subject/:subjectId', async (req, res) => {
 // Create new quiz
 app.post('/api/quizzes', async (req, res) => {
   try {
-    const { title, subject_id, subject_name, description, created_by, quiz_type, duration, difficulty, item_counts } = req.body;
+    const { title, subject_id, subject_name, description, created_by, quiz_type, duration, difficulty, item_counts, quiz_view } = req.body;
     
     // Add debugging to see what data is received
     console.log('=== QUIZ CREATION DEBUG ===');
@@ -2378,7 +2722,8 @@ app.post('/api/quizzes', async (req, res) => {
       duration,
       difficulty,
       item_counts,
-      program: req.body.program || ""
+      program: req.body.program || "",
+      quiz_view: quiz_view || "Personal"
     });
     
     console.log(`✅ Quiz created successfully: ${title}`);
@@ -2401,7 +2746,7 @@ app.post('/api/quizzes', async (req, res) => {
 app.put('/api/quizzes/:id', async (req, res) => {
   try {
     const quizId = parseInt(req.params.id);
-  const { title, subject_id, description, quiz_type, duration, difficulty, item_counts, program } = req.body;
+  const { title, subject_id, description, quiz_type, duration, difficulty, item_counts, program, quiz_view } = req.body;
     
     if (!quizId) {
       return res.status(400).json({ 
@@ -2438,7 +2783,8 @@ app.put('/api/quizzes/:id', async (req, res) => {
       duration,
       difficulty,
       item_counts,
-      program: program || ""
+      program: program || "",
+      quiz_view: quiz_view || "Personal"
     });
     
     console.log(`✅ Quiz updated successfully: ${title}`);

@@ -335,6 +335,12 @@ export default function Sidebar() {
                       <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
                         Pending Materials
                       </PendingMaterialsNavItem>
+                      <NavItem href="/pending-quizzes" icon={Brain}>
+                        Pending Quizzes
+                      </NavItem>
+                      <NavItem href="/pending-flashcards" icon={Layers}>
+                        Pending Flashcards
+                      </NavItem>
                     </div>
                   </div>
                   <div>
