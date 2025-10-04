@@ -40,6 +40,7 @@ import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useQuizzes, useQuizQuestions, useQuizAttempts } from "@/hooks/use-quizzes"
 import { useSubjects } from "@/hooks/use-subjects"
+import { useSearchParams } from "next/navigation"
 
 // Question types
 type QuestionType = "multiple-choice" | "true-false" | "enumeration" | "essay"
@@ -1070,20 +1071,24 @@ export default function Quizzes() {
                   >
                     <Play className="w-3 h-3" />
                   </Button>
-                  <Button 
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => checkQuizPermissionAndManage(quiz)}
-                  >
-                    <Edit className="w-3 h-3" />
-                  </Button>
-                  <Button 
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => checkQuizPermissionAndDelete(quiz)}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
+                  {!simpleView && (
+                    <>
+                      <Button 
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => checkQuizPermissionAndManage(quiz)}
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                      <Button 
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => checkQuizPermissionAndDelete(quiz)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
               {(quiz.questionCount || 0) === 0 && (
@@ -1146,15 +1151,18 @@ export default function Quizzes() {
         )}
 
         <div className="flex space-x-2 pt-2">
+          {!simpleView && (
+            <Button 
+              className="flex-1" 
+              variant="outline"
+              onClick={() => checkQuizPermissionAndManage(quiz)}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Manage Quiz
+            </Button>
+          )}
           <Button 
-            className="flex-1" 
-            variant="outline"
-            onClick={() => checkQuizPermissionAndManage(quiz)}
-          >
-            <Edit className="w-4 h-4 mr-2" />
-            Manage Quiz
-          </Button>
-          <Button 
+            className={simpleView ? "flex-1" : ""}
             size="sm"
             onClick={() => startQuiz(quiz, false)}
             disabled={(quiz.questionCount || 0) === 0}
@@ -1162,13 +1170,15 @@ export default function Quizzes() {
             <Play className="w-4 h-4 mr-2" />
             {quiz.completedTimes > 0 ? "Retake" : "Start"}
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => checkQuizPermissionAndDelete(quiz)}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {!simpleView && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => checkQuizPermissionAndDelete(quiz)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
         
         {(quiz.questionCount || 0) === 0 && (
@@ -1180,6 +1190,9 @@ export default function Quizzes() {
     </Card>
   )
 
+  const searchParams = useSearchParams();
+  const simpleView = searchParams?.get("view") === "simple";
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -1187,13 +1200,14 @@ export default function Quizzes() {
           <h1 className="text-3xl font-bold">Quizzes</h1>
           <p className="text-muted-foreground">Test your knowledge with interactive quizzes</p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Quiz
-            </Button>
-          </DialogTrigger>
+        {!simpleView && (
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Quiz
+              </Button>
+            </DialogTrigger>
             <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{currentQuiz ? "Manage Quiz" : "Create New Quiz"}</DialogTitle>
@@ -1515,7 +1529,8 @@ export default function Quizzes() {
                 </Button>
               </div>
             </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
 
       <div className="flex items-center space-x-4">

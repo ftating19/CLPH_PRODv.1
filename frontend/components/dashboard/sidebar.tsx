@@ -289,7 +289,12 @@ export default function Sidebar() {
                   <NavItem href="/learning-resources" icon={FileText}>
                     Learning Resources
                   </NavItem>
-                  {/* Quizzes and Flashcards removed from Learning for faculty/admin; now only in Tools section */}
+                  <NavItem href="/quizzes?view=simple" icon={Brain}>
+                    Quizzes
+                  </NavItem>
+                  <NavItem href="/flashcards?view=simple" icon={Layers}>
+                    Flashcards
+                  </NavItem>
                 </div>
               </div>
 

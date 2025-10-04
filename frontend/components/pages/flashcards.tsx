@@ -45,6 +45,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useFlashcards, useCreateFlashcard, useUpdateFlashcard, useDeleteFlashcard } from "@/hooks/use-flashcards"
 import { useUpdateFlashcardProgress, useFlashcardProgress } from "@/hooks/use-flashcard-progress"
 import { useSubjects } from "@/hooks/use-subjects"
+import { useSearchParams } from "next/navigation"
 
 export default function Flashcards() {
   // Program options
@@ -78,6 +79,8 @@ export default function Flashcards() {
 
   const { currentUser } = useUser()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
+  const simpleView = searchParams?.get("view") === "simple"
 
   // Get user role from context, default to 'student' if not available
   const userRole = currentUser?.role?.toLowerCase() || 'student'
@@ -878,14 +881,16 @@ export default function Flashcards() {
               <Brain className="w-4 h-4 mr-2" />
               Study Now
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleEditFlashcardSet(set)}
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Set
-            </Button>
+            {!simpleView && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleEditFlashcardSet(set)}
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Set
+              </Button>
+            )}
           </div>
 
           {set.cardCount === 0 && (
@@ -1027,14 +1032,15 @@ export default function Flashcards() {
           <h1 className="text-3xl font-bold">Flashcards</h1>
           <p className="text-muted-foreground">Study with interactive flashcard sets</p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Flashcard
-              <ChevronDown className="w-4 h-4 ml-2" />
-            </Button>
-          </DropdownMenuTrigger>
+        {!simpleView && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Flashcard
+                <ChevronDown className="w-4 h-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => {
               setEditingFlashcard(null)
@@ -1057,7 +1063,8 @@ export default function Flashcards() {
               Flashcard Set
             </DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        )}
       </div>
 
       <div className="flex items-center space-x-4">
@@ -1181,12 +1188,14 @@ export default function Flashcards() {
                 <>
                   <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcards yet</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Create your first flashcard to start studying
+                    {simpleView ? "Check back later for flashcards" : "Create your first flashcard to start studying"}
                   </p>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Your First Flashcard
-                  </Button>
+                  {!simpleView && (
+                    <Button onClick={() => setShowCreateDialog(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Flashcard
+                    </Button>
+                  )}
                 </>
               ) : (
                 <>
@@ -1202,10 +1211,12 @@ export default function Flashcards() {
                     }}>
                       Clear All Filters
                     </Button>
-                    <Button onClick={() => setShowCreateDialog(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create New Flashcard
-                    </Button>
+                    {!simpleView && (
+                      <Button onClick={() => setShowCreateDialog(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create New Flashcard
+                      </Button>
+                    )}
                   </div>
                 </>
               )}
@@ -1250,22 +1261,24 @@ export default function Flashcards() {
                       <span>Created by: {getCreatorIndicator(flashcard)}</span>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2 ml-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => checkFlashcardPermissionAndEdit(flashcard)}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => checkFlashcardPermissionAndDelete(flashcard)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  {!simpleView && (
+                    <div className="flex items-center space-x-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => checkFlashcardPermissionAndEdit(flashcard)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => checkFlashcardPermissionAndDelete(flashcard)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </Card>
             ))}
@@ -1278,12 +1291,14 @@ export default function Flashcards() {
                 <>
                   <h3 className="text-lg font-medium text-muted-foreground mb-2">No flashcards yet</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Create your first flashcard to start studying
+                    {simpleView ? "Check back later for flashcards" : "Create your first flashcard to start studying"}
                   </p>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Your First Flashcard
-                  </Button>
+                  {!simpleView && (
+                    <Button onClick={() => setShowCreateDialog(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Flashcard
+                    </Button>
+                  )}
                 </>
               ) : (
                 <>
@@ -1299,10 +1314,12 @@ export default function Flashcards() {
                     }}>
                       Clear All Filters
                     </Button>
-                    <Button onClick={() => setShowCreateDialog(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create New Flashcard
-                    </Button>
+                    {!simpleView && (
+                      <Button onClick={() => setShowCreateDialog(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create New Flashcard
+                      </Button>
+                    )}
                   </div>
                 </>
               )}
