@@ -57,20 +57,22 @@ const createPendingFlashcard = async (pool, flashcardData) => {
       subject_id,
       created_by,
       sub_id,
-      program
+      program,
+      flashcard_view
     } = flashcardData;
 
     const [result] = await pool.query(`
       INSERT INTO pending_flashcards (
-        question, answer, subject_id, created_by, sub_id, program, status
-      ) VALUES (?, ?, ?, ?, ?, ?, 'pending')
+        question, answer, subject_id, created_by, sub_id, program, flashcard_view, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
     `, [
       question,
       answer,
       subject_id,
       created_by,
       sub_id,
-      program || ''
+      program || '',
+      flashcard_view || 'Personal'
     ]);
 
     return {
@@ -148,20 +150,22 @@ const transferToFlashcards = async (pool, pendingFlashcard) => {
       subject_id,
       created_by,
       sub_id,
-      program
+      program,
+      flashcard_view
     } = pendingFlashcard;
 
     const [result] = await pool.query(`
       INSERT INTO flashcards (
-        question, answer, subject_id, created_by, sub_id, program
-      ) VALUES (?, ?, ?, ?, ?, ?)
+        question, answer, subject_id, created_by, sub_id, program, flashcard_view
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [
       question,
       answer,
       subject_id,
       created_by,
       sub_id,
-      program || ''
+      program || '',
+      flashcard_view || 'Personal'
     ]);
 
     return {
@@ -171,7 +175,8 @@ const transferToFlashcards = async (pool, pendingFlashcard) => {
       subject_id,
       created_by,
       sub_id,
-      program
+      program,
+      flashcard_view
     };
   } catch (error) {
     console.error('Error transferring to flashcards:', error);

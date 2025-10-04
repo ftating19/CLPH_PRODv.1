@@ -2690,16 +2690,17 @@ app.get('/api/quizzes/subject/:subjectId', async (req, res) => {
   }
 });
 
-// Create new quiz
+// Create new quiz - goes to pending_quizzes first
 app.post('/api/quizzes', async (req, res) => {
   try {
-    const { title, subject_id, subject_name, description, created_by, quiz_type, duration, difficulty, item_counts, quiz_view } = req.body;
+    const { title, subject_id, subject_name, description, created_by, quiz_type, duration, difficulty, item_counts, quiz_view, duration_unit } = req.body;
     
     // Add debugging to see what data is received
     console.log('=== QUIZ CREATION DEBUG ===');
     console.log('Request body:', req.body);
     console.log('Subject ID:', subject_id);
     console.log('Subject Name:', subject_name);
+    console.log('Redirecting to pending_quizzes table');
     console.log('===========================');
     
     if (!title || !subject_id || !created_by) {
@@ -2709,10 +2710,10 @@ app.post('/api/quizzes', async (req, res) => {
       });
     }
     
-    console.log(`Creating new quiz: ${title}`);
+    console.log(`Creating new pending quiz: ${title}`);
     
     const pool = await db.getPool();
-    const newQuiz = await createQuiz(pool, {
+    const newQuiz = await createPendingQuiz(pool, {
       title,
       subject_id,
       subject_name,
@@ -2720,21 +2721,22 @@ app.post('/api/quizzes', async (req, res) => {
       created_by,
       quiz_type,
       duration,
+      duration_unit: duration_unit || 'minutes',
       difficulty,
       item_counts,
       program: req.body.program || "",
       quiz_view: quiz_view || "Personal"
     });
     
-    console.log(`✅ Quiz created successfully: ${title}`);
+    console.log(`✅ Pending quiz created successfully: ${title}`);
     
     res.status(201).json({
       success: true,
-      message: 'Quiz created successfully',
+      message: 'Quiz submitted for approval. It will appear after admin/faculty review.',
       quiz: newQuiz
     });
   } catch (err) {
-    console.error('Error creating quiz:', err);
+    console.error('Error creating pending quiz:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
@@ -3593,10 +3595,10 @@ app.get('/api/flashcards/creator/:userId', async (req, res) => {
   }
 });
 
-// Create new flashcard
+// Create new flashcard - goes to pending_flashcards first
 app.post('/api/flashcards', async (req, res) => {
   try {
-    const { question, answer, subject_id, created_by, sub_id, program } = req.body;
+    const { question, answer, subject_id, created_by, sub_id, program, flashcard_view } = req.body;
 
     if (!question || !answer || !subject_id || !created_by) {
       return res.status(400).json({ 
@@ -3605,27 +3607,28 @@ app.post('/api/flashcards', async (req, res) => {
       });
     }
 
-    console.log(`Creating new flashcard: ${question}, sub_id: ${sub_id}, program: ${program}`);
+    console.log(`Creating new pending flashcard: ${question}, sub_id: ${sub_id}, program: ${program}, view: ${flashcard_view}`);
 
     const pool = await db.getPool();
-    const flashcard = await createFlashcard(pool, {
+    const flashcard = await createPendingFlashcard(pool, {
       question,
       answer,
       subject_id,
       created_by,
       sub_id,
-      program
+      program,
+      flashcard_view: flashcard_view || 'Personal'
     });
 
-    console.log(`✅ Flashcard created successfully: ${question}`);
+    console.log(`✅ Pending flashcard created successfully: ${question}`);
 
     res.status(201).json({
       success: true,
       flashcard: flashcard,
-      message: 'Flashcard created successfully'
+      message: 'Flashcard submitted for approval. It will appear after admin/faculty review.'
     });
   } catch (err) {
-    console.error('Error creating flashcard:', err);
+    console.error('Error creating pending flashcard:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 

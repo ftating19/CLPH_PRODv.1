@@ -9,6 +9,7 @@ interface Flashcard {
   created_by: number
   creator_name: string
   program?: string
+  flashcard_view?: 'Personal' | 'Public'
   progress_id?: number
   progress_status?: 'not_started' | 'in_progress' | 'completed'
   completed_at?: string | null
@@ -135,6 +136,7 @@ export function useCreateFlashcard() {
     created_by: number
     sub_id?: number
     program?: string
+    flashcard_view?: 'Personal' | 'Public'
   }) => {
     try {
       setCreating(true)

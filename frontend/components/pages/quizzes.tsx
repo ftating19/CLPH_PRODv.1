@@ -73,6 +73,10 @@ interface Quiz {
 }
 
 export default function Quizzes() {
+  // Get search params for view mode
+  const searchParams = useSearchParams()
+  const simpleView = searchParams?.get("view") === "simple"
+  
   // Program options
   const programOptionsRaw = [
     "Bachelor of Science in Computer Science",
@@ -259,7 +263,13 @@ export default function Quizzes() {
       matchesProgram = quiz.program === selectedProgramFilter
     }
 
-    return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram
+    // Quiz View filter - show only Public quizzes in simple view (learning section)
+    // In tools section, show Personal quizzes (created by user) or all if admin
+    const matchesView = simpleView 
+      ? (quiz.quiz_view === 'Public')  // Learning section: only public
+      : (userRole === 'admin' || userRole === 'faculty' || Number(quiz.created_by) === Number(user_id))  // Tools: own quizzes or admin/faculty sees all
+
+    return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram && matchesView
   })
 
   // Removed quizGroupedSets logic
@@ -1193,9 +1203,6 @@ export default function Quizzes() {
       </CardContent>
     </Card>
   )
-
-  const searchParams = useSearchParams();
-  const simpleView = searchParams?.get("view") === "simple";
 
   return (
     <div className="space-y-6">

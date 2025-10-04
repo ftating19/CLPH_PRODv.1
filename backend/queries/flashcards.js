@@ -13,6 +13,7 @@ const getAllFlashcards = async (pool) => {
         f.created_by,
         f.created_at,
         COALESCE(f.program, '') as program,
+        COALESCE(f.flashcard_view, 'Personal') as flashcard_view,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as creator_name
       FROM flashcards f
@@ -41,6 +42,7 @@ const getAllFlashcardsWithProgress = async (pool, userId) => {
         f.created_by,
         f.created_at,
         COALESCE(f.program, '') as program,
+        COALESCE(f.flashcard_view, 'Personal') as flashcard_view,
         s.subject_name,
         CONCAT(u.first_name, ' ', u.last_name) as creator_name,
         fp.progress_id,
@@ -153,7 +155,7 @@ const getFlashcardsByCreator = async (pool, createdBy) => {
 // Create new flashcard
 const createFlashcard = async (pool, flashcardData) => {
   try {
-    const { question, answer, subject_id, created_by, sub_id, program } = flashcardData;
+    const { question, answer, subject_id, created_by, sub_id, program, flashcard_view } = flashcardData;
 
     console.log('=== BACKEND FLASHCARD CREATION DEBUG ===');
     console.log('Received flashcard data:', JSON.stringify(flashcardData, null, 2));
@@ -166,9 +168,9 @@ const createFlashcard = async (pool, flashcardData) => {
     console.log('========================================');
 
     const [result] = await pool.query(`
-      INSERT INTO flashcards (question, answer, subject_id, created_by, sub_id, program)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [question, answer, subject_id, created_by, sub_id, program || ""]);
+      INSERT INTO flashcards (question, answer, subject_id, created_by, sub_id, program, flashcard_view)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [question, answer, subject_id, created_by, sub_id, program || "", flashcard_view || 'Personal']);
 
     return {
       flashcard_id: result.insertId,
@@ -178,6 +180,7 @@ const createFlashcard = async (pool, flashcardData) => {
       created_by,
       sub_id,
       program,
+      flashcard_view,
     };
   } catch (error) {
     console.error('Error creating flashcard:', error);

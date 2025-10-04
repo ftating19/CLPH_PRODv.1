@@ -168,6 +168,7 @@ export default function Flashcards() {
   const [question, setQuestion] = useState("")
   const [answer, setAnswer] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("")
+  const [flashcardView, setFlashcardView] = useState<"Personal" | "Public">("Personal")
 
   // Multiple flashcards state (for bulk creation)
   const [flashcardSetTitle, setFlashcardSetTitle] = useState("")
@@ -215,7 +216,13 @@ export default function Flashcards() {
       matchesProgram = flashcard.program === selectedProgramFilter
     }
 
-    return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram
+    // Flashcard View filter - show only Public flashcards in simple view (learning section)
+    // In tools section, show Personal flashcards (created by user) or all if admin
+    const matchesView = simpleView 
+      ? (flashcard.flashcard_view === 'Public')  // Learning section: only public
+      : (userRole === 'admin' || userRole === 'faculty' || Number(flashcard.created_by) === Number(user_id))  // Tools: own flashcards or admin/faculty sees all
+
+    return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram && matchesView
   })
 
   // Group by flashcard_id if single, group by sub_id if multiple
@@ -371,7 +378,8 @@ export default function Flashcards() {
         subject_id: subject.subject_id,
         created_by: currentUser.user_id,
         sub_id: newSubId,
-        program: programToSend
+        program: programToSend,
+        flashcard_view: flashcardView
       };
       
       console.log('Complete flashcard data object:', JSON.stringify(flashcardData, null, 2));
@@ -389,6 +397,7 @@ export default function Flashcards() {
       setQuestion("")
       setAnswer("")
       setSelectedSubject("")
+      setFlashcardView("Personal")
       setShowCreateDialog(false)
       
       // Refresh flashcards and progress
@@ -580,7 +589,8 @@ export default function Flashcards() {
               subject_id: subject.subject_id,
               created_by: currentUser?.user_id || 1,
               sub_id: editingFlashcardSet.sub_id || newSubId,
-              program: flashcardProgram
+              program: flashcardProgram,
+              flashcard_view: flashcardView
             })
           } catch (flashcardError) {
             console.error(`Error creating flashcard ${index + 1}:`, flashcardError)
@@ -602,7 +612,8 @@ export default function Flashcards() {
               subject_id: subject.subject_id,
               created_by: currentUser?.user_id || 1,
               sub_id: newSubId,
-              program: flashcardProgram
+              program: flashcardProgram,
+              flashcard_view: flashcardView
             })
           } catch (flashcardError) {
             console.error(`Error creating flashcard ${index + 1}:`, flashcardError)
@@ -1387,6 +1398,21 @@ export default function Flashcards() {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="flashcard-view">Flashcard View</Label>
+                <Select value={flashcardView} onValueChange={(value: "Personal" | "Public") => setFlashcardView(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select view" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Personal">Personal</SelectItem>
+                    <SelectItem value="Public">Public</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Public flashcards appear in the learning section for all users. Personal flashcards are only visible in your tools.
+                </p>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="subject">Subject</Label>
                 <Select value={selectedSubject} onValueChange={setSelectedSubject}>
                   <SelectTrigger>
@@ -1481,6 +1507,21 @@ export default function Flashcards() {
                         )}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="setFlashcardView">Flashcard View</Label>
+                    <Select value={flashcardView} onValueChange={(value: "Personal" | "Public") => setFlashcardView(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select view" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Personal">Personal</SelectItem>
+                        <SelectItem value="Public">Public</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Public flashcards appear in the learning section for all users
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="setSubject">Subject</Label>
