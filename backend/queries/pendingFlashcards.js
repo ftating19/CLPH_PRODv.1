@@ -36,7 +36,7 @@ const getPendingFlashcardById = async (pool, flashcardId) => {
       FROM pending_flashcards pf
       LEFT JOIN users u ON pf.created_by = u.user_id
       LEFT JOIN users r ON pf.reviewed_by = r.user_id
-      WHERE pf.id = ?
+      WHERE pf.flashcard_id = ?
     `, [flashcardId]);
     
     if (rows.length === 0) return null;
@@ -92,7 +92,7 @@ const updatePendingFlashcardStatus = async (pool, flashcardId, status, reviewedB
     const [result] = await pool.query(`
       UPDATE pending_flashcards 
       SET status = ?, reviewed_by = ?, reviewed_at = NOW()
-      WHERE id = ?
+      WHERE flashcard_id = ?
     `, [status, reviewedBy, flashcardId]);
 
     return result.affectedRows > 0;

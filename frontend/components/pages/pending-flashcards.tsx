@@ -44,22 +44,12 @@ interface PendingFlashcard {
   reviewed_at?: string
 }
 
-interface GroupedFlashcards {
-  sub_id: string
-  subject_id: number
-  subject_name: string
-  created_by: number
-  created_by_name: string
-  flashcards: PendingFlashcard[]
-  status: string
-}
-
 export default function PendingFlashcards() {
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
-  const [currentGroup, setCurrentGroup] = useState<GroupedFlashcards | null>(null)
-  const [groupedFlashcards, setGroupedFlashcards] = useState<GroupedFlashcards[]>([])
+  const [currentFlashcard, setCurrentFlashcard] = useState<PendingFlashcard | null>(null)
+  const [flashcards, setFlashcards] = useState<PendingFlashcard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
@@ -159,25 +149,10 @@ export default function PendingFlashcards() {
           filteredFlashcards = data.flashcards
         }
         
-        // Group flashcards by sub_id
-        const grouped = filteredFlashcards.reduce((acc: { [key: string]: GroupedFlashcards }, flashcard: PendingFlashcard) => {
-          if (!acc[flashcard.sub_id]) {
-            acc[flashcard.sub_id] = {
-              sub_id: flashcard.sub_id,
-              subject_id: flashcard.subject_id,
-              subject_name: flashcard.subject_name,
-              created_by: flashcard.created_by,
-              created_by_name: flashcard.created_by_name,
-              flashcards: [],
-              status: flashcard.status
-            }
-          }
-          acc[flashcard.sub_id].flashcards.push(flashcard)
-          return acc
-        }, {})
-        setGroupedFlashcards(Object.values(grouped))
+        // Display individual flashcards (no grouping by sub_id)
+        setFlashcards(filteredFlashcards)
       } else {
-        setGroupedFlashcards([])
+        setFlashcards([])
       }
     } catch (error) {
       console.error('Error fetching pending flashcards:', error)
@@ -192,23 +167,23 @@ export default function PendingFlashcards() {
     }
   }
 
-  const handleApprove = (group: GroupedFlashcards) => {
-    setCurrentGroup(group)
+  const handleApprove = (flashcard: PendingFlashcard) => {
+    setCurrentFlashcard(flashcard)
     setShowApproveDialog(true)
   }
 
-  const handleReject = (group: GroupedFlashcards) => {
-    setCurrentGroup(group)
+  const handleReject = (flashcard: PendingFlashcard) => {
+    setCurrentFlashcard(flashcard)
     setRejectionReason("")
     setShowRejectDialog(true)
   }
 
   const confirmApproval = async () => {
-    if (!currentGroup || !currentUser) return
+    if (!currentFlashcard || !currentUser) return
     
     try {
-      // Approve all flashcards in the group
-      const response = await fetch(`http://localhost:4000/api/pending-flashcards/sub/${currentGroup.sub_id}/approve`, {
+      // Approve individual flashcard
+      const response = await fetch(`http://localhost:4000/api/pending-flashcards/${currentFlashcard.flashcard_id}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -219,12 +194,12 @@ export default function PendingFlashcards() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to approve flashcard set')
+        throw new Error('Failed to approve flashcard')
       }
 
       toast({
-        title: "Flashcard Set Approved",
-        description: `${currentGroup.flashcards.length} flashcards have been approved and are now available.`,
+        title: "Flashcard Approved",
+        description: `The flashcard has been approved and is now available.`,
         duration: 5000,
       })
 
@@ -233,21 +208,21 @@ export default function PendingFlashcards() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to approve flashcard set. Please try again.",
+        description: "Failed to approve flashcard. Please try again.",
         variant: "destructive"
       })
     } finally {
       setShowApproveDialog(false)
-      setCurrentGroup(null)
+      setCurrentFlashcard(null)
     }
   }
 
   const confirmRejection = async () => {
-    if (!currentGroup || !currentUser) return
+    if (!currentFlashcard || !currentUser) return
     
     try {
-      // Reject all flashcards in the group
-      const response = await fetch(`http://localhost:4000/api/pending-flashcards/sub/${currentGroup.sub_id}/reject`, {
+      // Reject individual flashcard
+      const response = await fetch(`http://localhost:4000/api/pending-flashcards/${currentFlashcard.flashcard_id}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -259,12 +234,12 @@ export default function PendingFlashcards() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to reject flashcard set')
+        throw new Error('Failed to reject flashcard')
       }
 
       toast({
-        title: "Flashcard Set Rejected",
-        description: `${currentGroup.flashcards.length} flashcards have been rejected.`,
+        title: "Flashcard Rejected",
+        description: `The flashcard has been rejected.`,
         duration: 5000,
       })
 
@@ -273,28 +248,26 @@ export default function PendingFlashcards() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to reject flashcard set. Please try again.",
+        description: "Failed to reject flashcard. Please try again.",
         variant: "destructive"
       })
     } finally {
       setShowRejectDialog(false)
-      setCurrentGroup(null)
+      setCurrentFlashcard(null)
       setRejectionReason("")
     }
   }
 
-  const viewDetails = (group: GroupedFlashcards) => {
-    setCurrentGroup(group)
+  const viewDetails = (flashcard: PendingFlashcard) => {
+    setCurrentFlashcard(flashcard)
     setShowDetailsModal(true)
   }
 
-  const filteredGroups = groupedFlashcards.filter(group =>
-    group.subject_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    group.created_by_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    group.flashcards.some(fc => 
-      fc.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      fc.answer.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+  const filteredFlashcardsList = flashcards.filter(flashcard =>
+    flashcard.subject_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    flashcard.created_by_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    flashcard.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    flashcard.answer.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   if (loading) {
@@ -314,7 +287,7 @@ export default function PendingFlashcards() {
         </div>
         <Badge variant="secondary" className="text-lg px-4 py-2">
           <Clock className="w-4 h-4 mr-2" />
-          {groupedFlashcards.length} Sets Pending
+          {flashcards.length} Flashcards Pending
         </Badge>
       </div>
 
@@ -338,77 +311,69 @@ export default function PendingFlashcards() {
         </Card>
       )}
 
-      {filteredGroups.length === 0 ? (
+      {filteredFlashcardsList.length === 0 ? (
         <Card>
           <CardContent className="pt-6 text-center">
             <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-muted-foreground mb-2">No pending flashcards</h3>
             <p className="text-sm text-muted-foreground">
-              There are no flashcard sets awaiting review at the moment.
+              There are no flashcards awaiting review at the moment.
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {filteredGroups.map((group) => (
-            <Card key={group.sub_id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1 flex-1">
-                    <CardTitle className="text-xl flex items-center">
-                      <Layers className="w-5 h-5 mr-2" />
-                      Flashcard Set - {group.subject_name}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredFlashcardsList.map((flashcard) => (
+            <Card key={flashcard.flashcard_id} className="hover:shadow-lg transition-shadow flex flex-col">
+              <CardHeader className="flex-1">
+                <div className="space-y-3">
+                  <div>
+                    <CardTitle className="text-lg flex items-center mb-2">
+                      <BookOpen className="w-5 h-5 mr-2 flex-shrink-0" />
+                      <span className="line-clamp-2">{flashcard.question}</span>
                     </CardTitle>
-                    <CardDescription>
-                      <div className="flex items-center space-x-4 mt-2">
-                        <span className="flex items-center">
-                          <User className="w-4 h-4 mr-1" />
-                          {group.created_by_name}
-                        </span>
-                        <Badge variant="outline">{group.subject_name}</Badge>
-                        <Badge variant="secondary">{group.flashcards.length} cards</Badge>
-                      </div>
-                    </CardDescription>
                   </div>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => viewDetails(group)}>
-                      <Eye className="w-4 h-4 mr-2" />
-                      View
-                    </Button>
+                  <CardDescription>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm truncate">{flashcard.created_by_name}</span>
+                      </div>
+                      <Badge variant="outline" className="w-fit">{flashcard.subject_name}</Badge>
+                    </div>
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => viewDetails(flashcard)}
+                    className="w-full"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Details
+                  </Button>
+                  <div className="grid grid-cols-2 gap-2">
                     <Button 
                       variant="default" 
                       size="sm"
-                      onClick={() => handleApprove(group)}
+                      onClick={() => handleApprove(flashcard)}
                       className="bg-green-600 hover:bg-green-700"
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
+                      <CheckCircle className="w-4 h-4 mr-1" />
                       Approve
                     </Button>
                     <Button 
                       variant="destructive" 
                       size="sm"
-                      onClick={() => handleReject(group)}
+                      onClick={() => handleReject(flashcard)}
                     >
-                      <XCircle className="w-4 h-4 mr-2" />
+                      <XCircle className="w-4 h-4 mr-1" />
                       Reject
                     </Button>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Preview of first flashcard:
-                  </p>
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm font-medium">Q: {group.flashcards[0].question}</p>
-                    <p className="text-sm text-muted-foreground mt-1">A: {group.flashcards[0].answer}</p>
-                  </div>
-                  {group.flashcards.length > 1 && (
-                    <p className="text-xs text-muted-foreground">
-                      +{group.flashcards.length - 1} more flashcard{group.flashcards.length > 2 ? 's' : ''}
-                    </p>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -420,43 +385,39 @@ export default function PendingFlashcards() {
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Flashcard Set Details</DialogTitle>
+            <DialogTitle>Flashcard Details</DialogTitle>
             <DialogDescription>
-              {currentGroup?.subject_name} - {currentGroup?.flashcards.length} flashcards
+              {currentFlashcard?.subject_name}
             </DialogDescription>
           </DialogHeader>
-          {currentGroup && (
+          {currentFlashcard && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Subject</Label>
-                  <p className="text-sm">{currentGroup.subject_name}</p>
+                  <p className="text-sm">{currentFlashcard.subject_name}</p>
                 </div>
                 <div>
                   <Label>Created By</Label>
-                  <p className="text-sm">{currentGroup.created_by_name}</p>
+                  <p className="text-sm">{currentFlashcard.created_by_name}</p>
                 </div>
               </div>
               <div>
-                <Label className="text-lg">All Flashcards ({currentGroup.flashcards.length})</Label>
-                <div className="space-y-3 mt-3">
-                  {currentGroup.flashcards.map((flashcard, index) => (
-                    <Card key={flashcard.flashcard_id}>
-                      <CardContent className="pt-4">
-                        <div className="space-y-2">
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Question {index + 1}</Label>
-                            <p className="text-sm font-medium">{flashcard.question}</p>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Answer</Label>
-                            <p className="text-sm">{flashcard.answer}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                <Label className="text-lg">Flashcard Content</Label>
+                <Card className="mt-2">
+                  <CardContent className="pt-4">
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Question</Label>
+                        <p className="text-sm font-medium">{currentFlashcard.question}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Answer</Label>
+                        <p className="text-sm">{currentFlashcard.answer}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           )}
@@ -467,10 +428,10 @@ export default function PendingFlashcards() {
       <AlertDialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Flashcard Set</AlertDialogTitle>
+            <AlertDialogTitle>Approve Flashcard</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to approve this set of {currentGroup?.flashcards.length} flashcards for {currentGroup?.subject_name}? 
-              These flashcards will be made available to students.
+              Are you sure you want to approve this flashcard for {currentFlashcard?.subject_name}? 
+              This flashcard will be made available to students.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -486,9 +447,9 @@ export default function PendingFlashcards() {
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject Flashcard Set</AlertDialogTitle>
+            <AlertDialogTitle>Reject Flashcard</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to reject this set of {currentGroup?.flashcards.length} flashcards for {currentGroup?.subject_name}?
+              Are you sure you want to reject this flashcard for {currentFlashcard?.subject_name}?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">

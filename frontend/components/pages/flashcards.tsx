@@ -222,91 +222,55 @@ export default function Flashcards() {
     }
 
     // Flashcard View filter - show only Public flashcards in simple view (learning section)
-    // In tools section, show Personal flashcards (created by user) or all if admin
+    // In tools section, show Personal flashcards (created by user) or Public if admin/faculty
     const matchesView = simpleView 
-      ? (flashcard.flashcard_view === 'Public')  // Learning section: only public
-      : (userRole === 'admin' || userRole === 'faculty' || Number(flashcard.created_by) === Number(user_id))  // Tools: own flashcards or admin/faculty sees all
+      ? (flashcard.flashcard_view === 'Public')  // Learning section: only Public flashcards
+      : (
+          // Tools section: show Personal flashcards created by user, or all for admin/faculty
+          flashcard.flashcard_view === 'Personal' && Number(flashcard.created_by) === Number(user_id) ||
+          userRole === 'admin' || 
+          userRole === 'faculty'
+        )
 
     // Debug logging for view filter
     if (simpleView) {
       console.log(`🔍 Filter Check - Flashcard: flashcard_view="${flashcard.flashcard_view}", matchesView=${matchesView}, simpleView=${simpleView}`)
+    } else {
+      console.log(`🔧 Tools Filter - Flashcard: flashcard_view="${flashcard.flashcard_view}", created_by=${flashcard.created_by}, user_id=${user_id}, matchesView=${matchesView}`)
     }
 
     return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram && matchesView
   })
 
-  // Group by flashcard_id if single, group by sub_id if multiple
-  const subIdGroups: { [key: string]: any[] } = {};
-  filteredFlashcards.forEach((flashcard: any) => {
-    if (!subIdGroups[flashcard.sub_id]) {
-      subIdGroups[flashcard.sub_id] = [];
-    }
-    subIdGroups[flashcard.sub_id].push(flashcard);
-  });
-
-  let flashcardGroupedSets = Object.values(subIdGroups).map((group) => {
-    if (group.length === 1) {
-      // Single flashcard, group by flashcard_id
-      const flashcard = group[0];
-      const cardStatus = flashcard.status || 'not_started';
-      const completedCards = cardStatus === 'completed' ? 1 : 0;
-      return {
-        id: flashcard.flashcard_id,
-        sub_id: flashcard.sub_id,
-        title: flashcard.question ? flashcard.question.substring(0, 32) + (flashcard.question.length > 32 ? '...' : '') : `Flashcard #${flashcard.flashcard_id}`,
-        subject: flashcard.subject_name,
-        creator_name: flashcard.creator_name,
-        creator_role: flashcard.creator_role,
-        created_by: flashcard.created_by,
-        cardCount: 1,
-        description: flashcard.answer ? flashcard.answer.substring(0, 64) + (flashcard.answer.length > 64 ? '...' : '') : '',
-        difficulty: flashcard.difficulty || "Mixed",
-        lastStudied: flashcard.completed_at || new Date().toISOString().split('T')[0],
-        progress: completedCards * 100,
-        completedCards: completedCards,
-        created_at: flashcard.created_at,
-        cards: [{
-          id: flashcard.flashcard_id,
-          front: flashcard.question,
-          back: flashcard.answer,
-          status: cardStatus,
-          completed_at: flashcard.completed_at
-        }]
-      };
-    } else {
-      // Multiple flashcards, group by sub_id
-      const first = group[0];
-      const cards = group.map((flashcard: any) => ({
+  // Display each flashcard individually by flashcard_id (no grouping by sub_id)
+  // Each flashcard is shown as a separate card, even if they share the same subject
+  let flashcardGroupedSets = filteredFlashcards.map((flashcard: any) => {
+    const cardStatus = flashcard.status || 'not_started';
+    const completedCards = cardStatus === 'completed' ? 1 : 0;
+    
+    return {
+      id: flashcard.flashcard_id, // Use flashcard_id as unique identifier
+      sub_id: flashcard.sub_id,
+      title: flashcard.question ? flashcard.question.substring(0, 50) + (flashcard.question.length > 50 ? '...' : '') : `Flashcard #${flashcard.flashcard_id}`,
+      subject: flashcard.subject_name,
+      creator_name: flashcard.creator_name,
+      creator_role: flashcard.creator_role,
+      created_by: flashcard.created_by,
+      cardCount: 1, // Always 1 since it's individual
+      description: flashcard.answer ? flashcard.answer.substring(0, 80) + (flashcard.answer.length > 80 ? '...' : '') : '',
+      difficulty: flashcard.difficulty || "Mixed",
+      lastStudied: flashcard.completed_at || new Date().toISOString().split('T')[0],
+      progress: completedCards * 100,
+      completedCards: completedCards,
+      created_at: flashcard.created_at,
+      cards: [{
         id: flashcard.flashcard_id,
         front: flashcard.question,
         back: flashcard.answer,
-        status: flashcard.status || 'not_started',
+        status: cardStatus,
         completed_at: flashcard.completed_at
-      }));
-      const completedCards = cards.filter((card: any) => card.status === 'completed').length;
-      // Use the latest created_at among the group
-      const latestCreatedAt = group.reduce((latest: string, fc: any) => {
-        if (!latest || (fc.created_at && fc.created_at > latest)) return fc.created_at;
-        return latest;
-      }, "");
-      return {
-        id: first.sub_id,
-        sub_id: first.sub_id,
-        title: `Set #${first.sub_id}`,
-        subject: first.subject_name,
-        creator_name: first.creator_name,
-        creator_role: first.creator_role,
-        created_by: first.created_by,
-        cardCount: cards.length,
-        description: `Flashcard set #${first.sub_id}`,
-        difficulty: "Mixed",
-        lastStudied: new Date().toISOString().split('T')[0],
-        progress: Math.round((completedCards / cards.length) * 100),
-        completedCards: completedCards,
-        created_at: latestCreatedAt,
-        cards: cards
-      };
-    }
+      }]
+    };
   });
 
   // Sort by latest created_at (descending)

@@ -23,12 +23,13 @@ import {
 import { Home } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { useUser } from "@/contexts/UserContext"
 
 export default function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { currentUser } = useUser()
 
   // Get user role from context, default to 'student' if not available
@@ -47,7 +48,16 @@ export default function Sidebar() {
     icon: any
     children: React.ReactNode
   }) {
-    const isActive = pathname === href
+    // Parse the href to check if it has query params
+    const [hrefPath, hrefQuery] = href.split('?')
+    const currentView = searchParams?.get('view')
+    const hrefView = hrefQuery?.includes('view=simple') ? 'simple' : null
+    
+    // Check if both path and view parameter match
+    const isActive = pathname === hrefPath && (
+      (hrefView === 'simple' && currentView === 'simple') ||
+      (hrefView === null && currentView !== 'simple')
+    )
     
     return (
       <Link
