@@ -417,13 +417,13 @@ export default function PendingQuizzes() {
                     variant="default" 
                     size="sm"
                     onClick={() => handleApprove(quiz)}
-                    className="bg-green-600 hover:bg-green-700 w-full text-xs"
+                    className="w-full text-xs"
                   >
                     <CheckCircle className="w-3 h-3 mr-1" />
                     Approve
                   </Button>
                   <Button 
-                    variant="destructive" 
+                    variant="default" 
                     size="sm"
                     onClick={() => handleReject(quiz)}
                     className="w-full text-xs"
