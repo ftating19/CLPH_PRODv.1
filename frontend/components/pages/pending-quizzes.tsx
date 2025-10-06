@@ -356,60 +356,81 @@ export default function PendingQuizzes() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredQuizzes.map((quiz) => (
-            <Card key={quiz.quizzes_id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1 flex-1">
-                    <CardTitle className="text-xl">{quiz.title}</CardTitle>
-                    <CardDescription>
-                      <div className="flex items-center space-x-4 mt-2">
-                        <span className="flex items-center">
-                          <User className="w-4 h-4 mr-1" />
-                          {quiz.created_by_name}
-                        </span>
-                        <Badge variant="outline">{quiz.subject_name}</Badge>
-                        <Badge variant="secondary">{quiz.difficulty}</Badge>
-                        <Badge>{quiz.quiz_view}</Badge>
-                      </div>
-                    </CardDescription>
+            <Card key={quiz.quizzes_id} className="hover:shadow-lg transition-shadow flex flex-col">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between mb-2">
+                  <Badge variant="outline" className="mb-2">{quiz.subject_name}</Badge>
+                  <Badge variant="secondary">{quiz.difficulty}</Badge>
+                </div>
+                <CardTitle className="text-lg line-clamp-2">{quiz.title}</CardTitle>
+                <CardDescription className="line-clamp-2 mt-2">
+                  {quiz.description}
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent className="flex-1 space-y-3 pb-3">
+                <div className="flex items-center space-x-2 text-sm">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground truncate">{quiz.created_by_name}</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center space-x-1">
+                    <Brain className="w-3 h-3" />
+                    <span>{quiz.item_counts} questions</span>
                   </div>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => viewDetails(quiz)}>
-                      <Eye className="w-4 h-4 mr-2" />
-                      Details
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => viewQuizQuestions(quiz)}>
-                      <FileQuestion className="w-4 h-4 mr-2" />
-                      View Quiz
-                    </Button>
-                    <Button 
-                      variant="default" 
-                      size="sm"
-                      onClick={() => handleApprove(quiz)}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Approve
-                    </Button>
-                    <Button 
-                      variant="destructive" 
-                      size="sm"
-                      onClick={() => handleReject(quiz)}
-                    >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Reject
-                    </Button>
+                  <div className="flex items-center space-x-1">
+                    <Clock className="w-3 h-3" />
+                    <span>{quiz.duration} {quiz.duration_unit}</span>
+                  </div>
+                  <div className="flex items-center space-x-1 col-span-2">
+                    <span>Program: {quiz.program || 'N/A'}</span>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-2">{quiz.description}</p>
-                <div className="flex items-center space-x-4 mt-4 text-sm text-muted-foreground">
-                  <span>{quiz.item_counts} questions</span>
-                  <span>{quiz.duration} {quiz.duration_unit}</span>
-                  <span>Program: {quiz.program || 'N/A'}</span>
+                
+                <Badge className="w-fit">{quiz.quiz_view}</Badge>
+              </CardContent>
+              
+              <CardContent className="pt-0 pb-4 border-t">
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => viewDetails(quiz)}
+                    className="w-full text-xs"
+                  >
+                    <Eye className="w-3 h-3 mr-1" />
+                    Details
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => viewQuizQuestions(quiz)}
+                    className="w-full text-xs"
+                  >
+                    <FileQuestion className="w-3 h-3 mr-1" />
+                    View Quiz
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={() => handleApprove(quiz)}
+                    className="bg-green-600 hover:bg-green-700 w-full text-xs"
+                  >
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Approve
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => handleReject(quiz)}
+                    className="w-full text-xs"
+                  >
+                    <XCircle className="w-3 h-3 mr-1" />
+                    Reject
+                  </Button>
                 </div>
               </CardContent>
             </Card>
