@@ -5,7 +5,6 @@ interface Quiz {
   title: string
   subject_id: number
   subject_name: string
-  description: string
   created_by: number
   quiz_type: string
   duration: number
@@ -15,6 +14,78 @@ interface Quiz {
   quiz_view?: 'Personal' | 'Public'
   program?: string
   duration_unit?: string
+  status?: 'pending' | 'approved' | 'rejected'
+  is_pending?: boolean
+}
+
+ // Hook to fetch quizzes including pending ones by user
+export function useQuizzesWithPending(userId: number | null) {
+  const [quizzes, setQuizzes] = useState<Quiz[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchQuizzesWithPending = async () => {
+    if (!userId) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      
+      // Fetch approved quizzes
+      const approvedResponse = await fetch('http://localhost:4000/api/quizzes')
+      const approvedData = await approvedResponse.json()
+      
+      // Fetch pending quizzes by user
+      const pendingResponse = await fetch(`http://localhost:4000/api/pending-quizzes/user/${userId}`)
+      const pendingData = await pendingResponse.json()
+      
+      console.log('DEBUG - Approved quizzes:', approvedData)
+      console.log('DEBUG - Pending quizzes:', pendingData)
+      
+      let allQuizzes: Quiz[] = []
+      
+      if (approvedData.success) {
+        // Mark approved quizzes
+        const approved = approvedData.quizzes.map((quiz: any) => ({
+          ...quiz,
+          status: 'approved' as const,
+          is_pending: false
+        }))
+        allQuizzes = [...approved]
+      }
+      
+      if (pendingData.success && pendingData.quizzes) {
+        // Add pending quizzes with pending flag - ensure status is set
+        const pending = pendingData.quizzes.map((quiz: any) => {
+          console.log('DEBUG - Processing pending quiz:', quiz.title, 'Status:', quiz.status)
+          return {
+            ...quiz,
+            status: quiz.status || 'pending', // Ensure status exists
+            is_pending: true // Mark as pending
+          }
+        })
+        allQuizzes = [...allQuizzes, ...pending]
+      }
+      
+      console.log('DEBUG - All quizzes combined:', allQuizzes)
+      
+      setQuizzes(allQuizzes)
+      setError(null)
+    } catch (err) {
+      setError('Error fetching quizzes')
+      console.error('Error fetching quizzes with pending:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchQuizzesWithPending()
+  }, [userId])
+
+  return { quizzes, loading, error, refetch: fetchQuizzesWithPending }
 }
 
 interface Question {

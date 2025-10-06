@@ -35,10 +35,10 @@ import {
 } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit, X, ChevronLeft, ChevronRight, Layers, List, User, Check, AlertCircle, Target } from "lucide-react"
+import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit, X, ChevronLeft, ChevronRight, Layers, List, User, Check, AlertCircle, Target, XCircle } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
-import { useQuizzes, useQuizQuestions, useQuizAttempts } from "@/hooks/use-quizzes"
+import { useQuizzes, useQuizQuestions, useQuizAttempts, useQuizzesWithPending } from "@/hooks/use-quizzes"
 import { useSubjects } from "@/hooks/use-subjects"
 import { useSearchParams } from "next/navigation"
 
@@ -70,6 +70,8 @@ interface Quiz {
   completedTimes: number
   bestScore: number | null
   lastAttempt: string | null
+  status?: 'pending' | 'approved' | 'rejected'
+  is_pending?: boolean
 }
 
 export default function Quizzes() {
@@ -164,7 +166,18 @@ export default function Quizzes() {
   const { toast } = useToast()
 
   // Database hooks
-  const { quizzes, loading: quizzesLoading, error: quizzesError, refetch: refetchQuizzes } = useQuizzes()
+  // Use different hooks based on view mode
+  // In tools (non-simple view), fetch including pending quizzes for the current user
+  // In learning (simple view), use regular quizzes
+  const { quizzes: regularQuizzes, loading: regularLoading, error: regularError, refetch: regularRefetch } = useQuizzes()
+  const { quizzes: quizzesWithPending, loading: pendingLoading, error: pendingError, refetch: pendingRefetch } = useQuizzesWithPending(!simpleView && currentUser?.user_id ? currentUser.user_id : null)
+  
+  // Select appropriate data based on view mode
+  const quizzes = !simpleView && currentUser?.user_id ? quizzesWithPending : regularQuizzes
+  const quizzesLoading = !simpleView && currentUser?.user_id ? pendingLoading : regularLoading
+  const quizzesError = !simpleView && currentUser?.user_id ? pendingError : regularError
+  const refetchQuizzes = !simpleView && currentUser?.user_id ? pendingRefetch : regularRefetch
+  
   const { subjects, loading: subjectsLoading } = useSubjects()
   const { questions, loading: questionsLoading } = useQuizQuestions(currentQuiz?.id || currentQuiz?.quiz_id || null)
   const { createAttempt } = useQuizAttempts()
@@ -235,10 +248,12 @@ export default function Quizzes() {
       creator_name: `${dbQuiz.first_name || ''} ${dbQuiz.last_name || ''}`.trim(),
       program: dbQuiz.program || '', // Add program from database
       quiz_view: dbQuiz.quiz_view || 'Personal', // Add quiz_view from database
+      status: dbQuiz.status, // Add status field (pending, approved, rejected)
+      is_pending: dbQuiz.is_pending, // Add is_pending flag
     }
     
     // Debug log
-    console.log(`📋 Quiz "${mappedQuiz.title}": quiz_view="${mappedQuiz.quiz_view}", program="${mappedQuiz.program}"`)
+    console.log(`📋 Quiz "${mappedQuiz.title}": quiz_view="${mappedQuiz.quiz_view}", program="${mappedQuiz.program}", status="${mappedQuiz.status}", is_pending=${mappedQuiz.is_pending}`)
     
     return mappedQuiz
   })
@@ -1136,9 +1151,41 @@ export default function Quizzes() {
     </Card>
   )
 
-  const QuizCard = ({ quiz }: { quiz: Quiz }) => (
+  const QuizCard = ({ quiz }: { quiz: Quiz }) => {
+    // Debug logging to check quiz data
+    if (quiz.is_pending) {
+      console.log('DEBUG - Rendering pending quiz:', {
+        title: quiz.title,
+        is_pending: quiz.is_pending,
+        status: quiz.status
+      })
+    }
+    
+    return (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader>
+        {/* Status Banner for Pending/Approved - Above Title */}
+        {quiz.is_pending && (
+          <div className={`-mx-6 -mt-6 mb-4 px-4 py-2 text-sm font-medium rounded-t-lg ${
+            quiz.status === 'pending' 
+              ? 'bg-amber-100 text-amber-800 border-b border-amber-200 dark:bg-amber-900/30 dark:text-amber-300' 
+              : quiz.status === 'approved'
+              ? 'bg-green-100 text-green-800 border-b border-green-200 dark:bg-green-900/30 dark:text-green-300'
+              : 'bg-red-100 text-red-800 border-b border-red-200 dark:bg-red-900/30 dark:text-red-300'
+          }`}>
+            <div className="flex items-center space-x-2">
+              {quiz.status === 'pending' && <Clock className="w-4 h-4" />}
+              {quiz.status === 'approved' && <CheckCircle className="w-4 h-4" />}
+              {quiz.status === 'rejected' && <XCircle className="w-4 h-4" />}
+              <span>
+                {quiz.status === 'pending' && '⏳ Pending Approval'}
+                {quiz.status === 'approved' && '✅ Approved - Will be available soon'}
+                {quiz.status === 'rejected' && '❌ Rejected'}
+              </span>
+            </div>
+          </div>
+        )}
+        
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <CardTitle className="text-xl">{quiz.title}</CardTitle>
@@ -1189,6 +1236,7 @@ export default function Quizzes() {
               className="flex-1" 
               variant="outline"
               onClick={() => checkQuizPermissionAndManage(quiz)}
+              disabled={quiz.is_pending}
             >
               <Edit className="w-4 h-4 mr-2" />
               Manage Quiz
@@ -1198,16 +1246,17 @@ export default function Quizzes() {
             className={simpleView ? "flex-1" : ""}
             size="sm"
             onClick={() => startQuiz(quiz, false)}
-            disabled={(quiz.questionCount || 0) === 0}
+            disabled={(quiz.questionCount || 0) === 0 || quiz.is_pending}
           >
             <Play className="w-4 h-4 mr-2" />
-            {quiz.completedTimes > 0 ? "Retake" : "Start"}
+            {quiz.is_pending ? "Pending" : quiz.completedTimes > 0 ? "Retake" : "Start"}
           </Button>
           {!simpleView && (
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => checkQuizPermissionAndDelete(quiz)}
+              disabled={quiz.is_pending && quiz.status === 'pending'}
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -1221,7 +1270,8 @@ export default function Quizzes() {
         )}
       </CardContent>
     </Card>
-  )
+    )
+  }
 
   return (
     <div className="space-y-6">

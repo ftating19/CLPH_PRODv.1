@@ -153,6 +153,31 @@ const getPendingQuizzesByStatus = async (pool, status) => {
   }
 };
 
+// Get pending quizzes by user
+const getPendingQuizzesByUser = async (pool, userId) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        pq.*,
+        CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
+        u.email as creator_email,
+        CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
+        s.subject_code,
+        s.subject_name
+      FROM pending_quizzes pq
+      LEFT JOIN users u ON pq.created_by = u.user_id
+      LEFT JOIN users r ON pq.reviewed_by = r.user_id
+      LEFT JOIN subjects s ON pq.subject_id = s.subject_id
+      WHERE pq.created_by = ?
+      ORDER BY pq.quizzes_id DESC
+    `, [userId]);
+    return rows;
+  } catch (error) {
+    console.error('Error fetching pending quizzes by user:', error);
+    throw error;
+  }
+};
+
 // Transfer approved quiz to quizzes table
 const transferToQuizzes = async (pool, pendingQuiz) => {
   try {
@@ -220,5 +245,6 @@ module.exports = {
   updatePendingQuizStatus,
   deletePendingQuiz,
   getPendingQuizzesByStatus,
+  getPendingQuizzesByUser,
   transferToQuizzes
 };

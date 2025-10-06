@@ -110,6 +110,7 @@ const {
   updatePendingQuizStatus,
   deletePendingQuiz,
   getPendingQuizzesByStatus,
+  getPendingQuizzesByUser,
   transferToQuizzes
 } = require('../queries/pendingQuizzes')
 const {
@@ -2412,6 +2413,31 @@ app.get('/api/pending-quizzes/status/:status', async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching pending quizzes by status:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending quizzes by user
+app.get('/api/pending-quizzes/user/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    console.log(`Fetching pending quizzes for user: ${userId}`);
+
+    const pool = await db.getPool();
+    const quizzes = await getPendingQuizzesByUser(pool, userId);
+
+    console.log(`✅ Found ${quizzes.length} pending quizzes for user ${userId}`);
+    
+    res.json({
+      success: true,
+      quizzes: quizzes,
+      total: quizzes.length
+    });
+  } catch (err) {
+    console.error('Error fetching pending quizzes by user:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 

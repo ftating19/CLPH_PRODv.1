@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { CheckCircle, XCircle, Clock, Brain, Calendar, User, Search, Eye, Loader2 } from "lucide-react"
+import { CheckCircle, XCircle, Clock, Brain, Calendar, User, Search, Eye, Loader2, FileQuestion } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/contexts/UserContext"
 
@@ -54,8 +54,11 @@ export default function PendingQuizzes() {
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
+  const [showQuestionsModal, setShowQuestionsModal] = useState(false)
   const [currentQuiz, setCurrentQuiz] = useState<PendingQuiz | null>(null)
   const [quizzes, setQuizzes] = useState<PendingQuiz[]>([])
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([])
+  const [loadingQuestions, setLoadingQuestions] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
@@ -265,6 +268,36 @@ export default function PendingQuizzes() {
     setShowDetailsModal(true)
   }
 
+  const viewQuizQuestions = async (quiz: PendingQuiz) => {
+    setCurrentQuiz(quiz)
+    setLoadingQuestions(true)
+    setShowQuestionsModal(true)
+    
+    try {
+      const response = await fetch(`http://localhost:4000/api/questions/quiz/${quiz.quizzes_id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch quiz questions')
+      }
+      const data = await response.json()
+      
+      if (data.success) {
+        setQuizQuestions(data.questions || [])
+      } else {
+        throw new Error(data.error || 'Failed to fetch questions')
+      }
+    } catch (error) {
+      console.error('Error fetching quiz questions:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load quiz questions. Please try again.",
+        variant: "destructive"
+      })
+      setQuizQuestions([])
+    } finally {
+      setLoadingQuestions(false)
+    }
+  }
+
   const filteredQuizzes = quizzes.filter(quiz =>
     quiz.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     quiz.subject_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -345,7 +378,11 @@ export default function PendingQuizzes() {
                   <div className="flex space-x-2">
                     <Button variant="outline" size="sm" onClick={() => viewDetails(quiz)}>
                       <Eye className="w-4 h-4 mr-2" />
-                      View
+                      Details
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => viewQuizQuestions(quiz)}>
+                      <FileQuestion className="w-4 h-4 mr-2" />
+                      View Quiz
                     </Button>
                     <Button 
                       variant="default" 
@@ -473,6 +510,107 @@ export default function PendingQuizzes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View Quiz Questions Modal */}
+      <Dialog open={showQuestionsModal} onOpenChange={setShowQuestionsModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{currentQuiz?.title} - Quiz Questions</DialogTitle>
+            <DialogDescription>
+              Review all questions before approving or rejecting this quiz
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingQuestions ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <span className="ml-2">Loading questions...</span>
+            </div>
+          ) : quizQuestions.length === 0 ? (
+            <div className="text-center py-12">
+              <Brain className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No questions found for this quiz.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="text-sm text-muted-foreground mb-4">
+                Total Questions: {quizQuestions.length}
+              </div>
+              
+              {quizQuestions.map((question, index) => (
+                <Card key={question.question_id} className="border-l-4 border-l-primary">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-base font-medium">
+                        Question {index + 1}
+                      </CardTitle>
+                      <Badge variant="outline">{question.question_type || 'Multiple Choice'}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-semibold">Question:</Label>
+                      <p className="text-sm mt-1">{question.question}</p>
+                    </div>
+                    
+                    {question.choices && (
+                      <div>
+                        <Label className="text-sm font-semibold">Options:</Label>
+                        <div className="mt-2 space-y-2">
+                          {(() => {
+                            try {
+                              const choices = typeof question.choices === 'string' 
+                                ? JSON.parse(question.choices) 
+                                : question.choices
+                              
+                              return choices.map((choice: string, idx: number) => {
+                                const isCorrect = choice === question.answer
+                                return (
+                                  <div 
+                                    key={idx}
+                                    className={`p-3 rounded-md border ${
+                                      isCorrect 
+                                        ? 'bg-green-50 border-green-500 dark:bg-green-950/30' 
+                                        : 'bg-muted/50'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm">
+                                        {String.fromCharCode(65 + idx)}. {choice}
+                                      </span>
+                                      {isCorrect && (
+                                        <Badge className="bg-green-600">
+                                          <CheckCircle className="w-3 h-3 mr-1" />
+                                          Correct Answer
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              })
+                            } catch (e) {
+                              return <p className="text-sm text-muted-foreground">Error parsing choices</p>
+                            }
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {!question.choices && (
+                      <div>
+                        <Label className="text-sm font-semibold">Correct Answer:</Label>
+                        <p className="text-sm mt-1 p-3 rounded-md bg-green-50 border border-green-500 dark:bg-green-950/30">
+                          {question.answer}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
