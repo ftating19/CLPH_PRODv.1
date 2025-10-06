@@ -359,6 +359,14 @@ export default function PendingQuizzes() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredQuizzes.map((quiz) => (
             <Card key={quiz.quizzes_id} className="hover:shadow-lg transition-shadow flex flex-col">
+              {/* Pending Approval Banner */}
+              <div className="bg-amber-100 text-amber-800 border-b border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 px-4 py-2 text-sm font-medium rounded-t-lg">
+                <div className="flex items-center space-x-2">
+                  <Clock className="w-4 h-4" />
+                  <span>⏳ Pending Approval</span>
+                </div>
+              </div>
+              
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between mb-2">
                   <Badge variant="outline" className="mb-2">{quiz.subject_name}</Badge>
