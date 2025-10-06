@@ -6,8 +6,9 @@ const getAllPendingFlashcards = async (pool) => {
     const [rows] = await pool.query(`
       SELECT 
         pf.*,
-        CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
+        CONCAT(u.first_name, ' ', u.last_name) as creator_name,
         u.email as creator_email,
+        u.role as creator_role,
         CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
         s.subject_code,
         s.subject_name
@@ -122,8 +123,9 @@ const getPendingFlashcardsByStatus = async (pool, status) => {
     const [rows] = await pool.query(`
       SELECT 
         pf.*,
-        CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
+        CONCAT(u.first_name, ' ', u.last_name) as creator_name,
         u.email as creator_email,
+        u.role as creator_role,
         CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
         s.subject_code,
         s.subject_name
@@ -190,15 +192,44 @@ const getPendingFlashcardsBySubId = async (pool, subId) => {
     const [rows] = await pool.query(`
       SELECT 
         pf.*,
-        CONCAT(u.first_name, ' ', u.last_name) as created_by_name
+        CONCAT(u.first_name, ' ', u.last_name) as creator_name,
+        u.role as creator_role,
+        s.subject_name
       FROM pending_flashcards pf
       LEFT JOIN users u ON pf.created_by = u.user_id
+      LEFT JOIN subjects s ON pf.subject_id = s.subject_id
       WHERE pf.sub_id = ? AND pf.status = 'pending'
       ORDER BY pf.flashcard_id ASC
     `, [subId]);
     return rows;
   } catch (error) {
     console.error('Error fetching pending flashcards by sub_id:', error);
+    throw error;
+  }
+};
+
+// Get pending flashcards by user
+const getPendingFlashcardsByUser = async (pool, userId) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        pf.*,
+        CONCAT(u.first_name, ' ', u.last_name) as creator_name,
+        u.email as creator_email,
+        u.role as creator_role,
+        CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
+        s.subject_code,
+        s.subject_name
+      FROM pending_flashcards pf
+      LEFT JOIN users u ON pf.created_by = u.user_id
+      LEFT JOIN users r ON pf.reviewed_by = r.user_id
+      LEFT JOIN subjects s ON pf.subject_id = s.subject_id
+      WHERE pf.created_by = ?
+      ORDER BY pf.flashcard_id DESC
+    `, [userId]);
+    return rows;
+  } catch (error) {
+    console.error('Error fetching pending flashcards by user:', error);
     throw error;
   }
 };
@@ -211,5 +242,6 @@ module.exports = {
   deletePendingFlashcard,
   getPendingFlashcardsByStatus,
   transferToFlashcards,
-  getPendingFlashcardsBySubId
+  getPendingFlashcardsBySubId,
+  getPendingFlashcardsByUser
 };

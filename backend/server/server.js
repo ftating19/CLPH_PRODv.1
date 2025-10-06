@@ -121,7 +121,8 @@ const {
   deletePendingFlashcard,
   getPendingFlashcardsByStatus,
   transferToFlashcards,
-  getPendingFlashcardsBySubId
+  getPendingFlashcardsBySubId,
+  getPendingFlashcardsByUser
 } = require('../queries/pendingFlashcards')
 const { createSession, getSessions } = require('../queries/sessions')
 const { getAllForums, getForumById, createForum } = require('../queries/forums')
@@ -2611,6 +2612,31 @@ app.get('/api/pending-flashcards/sub/:subId', async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching pending flashcards by sub_id:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending flashcards by user
+app.get('/api/pending-flashcards/user/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    console.log(`Fetching pending flashcards for user: ${userId}`);
+
+    const pool = await db.getPool();
+    const flashcards = await getPendingFlashcardsByUser(pool, userId);
+
+    console.log(`✅ Found ${flashcards.length} pending flashcards for user ${userId}`);
+    
+    res.json({
+      success: true,
+      flashcards: flashcards,
+      total: flashcards.length
+    });
+  } catch (err) {
+    console.error('Error fetching pending flashcards by user:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 

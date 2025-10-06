@@ -39,10 +39,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Layers, Plus, RotateCcw, ChevronLeft, ChevronRight, BookOpen, Brain, Search, Filter, Star, Clock, Trash2, Edit, List, User, ChevronDown } from "lucide-react"
+import { Layers, Plus, RotateCcw, ChevronLeft, ChevronRight, BookOpen, Brain, Search, Filter, Star, Clock, Trash2, Edit, List, User, ChevronDown, CheckCircle, XCircle } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
-import { useFlashcards, useCreateFlashcard, useUpdateFlashcard, useDeleteFlashcard } from "@/hooks/use-flashcards"
+import { useFlashcards, useFlashcardsWithPending, useCreateFlashcard, useUpdateFlashcard, useDeleteFlashcard } from "@/hooks/use-flashcards"
 import { useUpdateFlashcardProgress, useFlashcardProgress } from "@/hooks/use-flashcard-progress"
 import { useSubjects } from "@/hooks/use-subjects"
 import { useSearchParams } from "next/navigation"
@@ -177,7 +177,18 @@ export default function Flashcards() {
   const [currentFlashcard, setCurrentFlashcard] = useState<any | null>(null)
 
   // Database hooks
-  const { flashcards, loading: flashcardsLoading, error: flashcardsError, refetch: refetchFlashcards } = useFlashcards(user_id)
+  // Use different hooks based on view mode
+  // In tools (non-simple view), fetch including pending flashcards for the current user
+  // In learning (simple view), use regular flashcards
+  const { flashcards: regularFlashcards, loading: regularLoading, error: regularError, refetch: regularRefetch } = useFlashcards(user_id)
+  const { flashcards: flashcardsWithPending, loading: pendingLoading, error: pendingError, refetch: pendingRefetch } = useFlashcardsWithPending(!simpleView && currentUser?.user_id ? currentUser.user_id : null)
+  
+  // Select appropriate data based on view mode
+  const flashcards = !simpleView && currentUser?.user_id ? flashcardsWithPending : regularFlashcards
+  const flashcardsLoading = !simpleView && currentUser?.user_id ? pendingLoading : regularLoading
+  const flashcardsError = !simpleView && currentUser?.user_id ? pendingError : regularError
+  const refetchFlashcards = !simpleView && currentUser?.user_id ? pendingRefetch : regularRefetch
+  
   const { subjects, loading: subjectsLoading } = useSubjects()
   const { createFlashcard, creating } = useCreateFlashcard()
   const { updateFlashcard, updating } = useUpdateFlashcard()
@@ -222,54 +233,74 @@ export default function Flashcards() {
     }
 
     // Flashcard View filter - show only Public flashcards in simple view (learning section)
-    // In tools section, show Personal flashcards (created by user) or Public if admin/faculty
+    // In tools section, show flashcards created by user or all if admin/faculty
     const matchesView = simpleView 
       ? (flashcard.flashcard_view === 'Public')  // Learning section: only Public flashcards
       : (
-          // Tools section: show Personal flashcards created by user, or all for admin/faculty
-          flashcard.flashcard_view === 'Personal' && Number(flashcard.created_by) === Number(user_id) ||
+          // Tools section: show own flashcards or all for admin/faculty (matching quiz logic)
           userRole === 'admin' || 
-          userRole === 'faculty'
+          userRole === 'faculty' || 
+          Number(flashcard.created_by) === Number(user_id)
         )
 
     // Debug logging for view filter
     if (simpleView) {
       console.log(`🔍 Filter Check - Flashcard: flashcard_view="${flashcard.flashcard_view}", matchesView=${matchesView}, simpleView=${simpleView}`)
     } else {
-      console.log(`🔧 Tools Filter - Flashcard: flashcard_view="${flashcard.flashcard_view}", created_by=${flashcard.created_by}, user_id=${user_id}, matchesView=${matchesView}`)
+      console.log(`🔧 Tools Filter - Flashcard: flashcard_view="${flashcard.flashcard_view}", created_by=${flashcard.created_by}, user_id=${user_id}, is_pending=${flashcard.is_pending}, matchesView=${matchesView}`)
     }
 
     return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram && matchesView
   })
 
-  // Display each flashcard individually by flashcard_id (no grouping by sub_id)
-  // Each flashcard is shown as a separate card, even if they share the same subject
-  let flashcardGroupedSets = filteredFlashcards.map((flashcard: any) => {
-    const cardStatus = flashcard.status || 'not_started';
-    const completedCards = cardStatus === 'completed' ? 1 : 0;
+  // Group flashcards by sub_id (flashcard sets)
+  const flashcardsBySubId = filteredFlashcards.reduce((acc: any, flashcard: any) => {
+    const subId = flashcard.sub_id || flashcard.flashcard_id;
+    if (!acc[subId]) {
+      acc[subId] = [];
+    }
+    acc[subId].push(flashcard);
+    return acc;
+  }, {});
+
+  // Convert grouped flashcards to sets
+  let flashcardGroupedSets = Object.keys(flashcardsBySubId).map((subId) => {
+    const cards = flashcardsBySubId[subId];
+    const firstCard = cards[0];
+    
+    // Calculate progress
+    const completedCards = cards.filter((c: any) => c.status === 'completed' || c.progress_status === 'completed').length;
+    const progress = cards.length > 0 ? Math.round((completedCards / cards.length) * 100) : 0;
+    
+    // Use first card's question as title, or generate a title
+    const title = firstCard.question 
+      ? `${firstCard.question.substring(0, 50)}${firstCard.question.length > 50 ? '...' : ''}`
+      : `Flashcard Set #${subId}`;
     
     return {
-      id: flashcard.flashcard_id, // Use flashcard_id as unique identifier
-      sub_id: flashcard.sub_id,
-      title: flashcard.question ? flashcard.question.substring(0, 50) + (flashcard.question.length > 50 ? '...' : '') : `Flashcard #${flashcard.flashcard_id}`,
-      subject: flashcard.subject_name,
-      creator_name: flashcard.creator_name,
-      creator_role: flashcard.creator_role,
-      created_by: flashcard.created_by,
-      cardCount: 1, // Always 1 since it's individual
-      description: flashcard.answer ? flashcard.answer.substring(0, 80) + (flashcard.answer.length > 80 ? '...' : '') : '',
-      difficulty: flashcard.difficulty || "Mixed",
-      lastStudied: flashcard.completed_at || new Date().toISOString().split('T')[0],
-      progress: completedCards * 100,
+      id: parseInt(subId),
+      sub_id: parseInt(subId),
+      title: title,
+      subject: firstCard.subject_name,
+      creator_name: firstCard.creator_name,
+      creator_role: firstCard.creator_role,
+      created_by: firstCard.created_by,
+      cardCount: cards.length,
+      description: cards.length > 1 ? `${cards.length} flashcards in this set` : firstCard.answer?.substring(0, 80) + (firstCard.answer?.length > 80 ? '...' : ''),
+      difficulty: firstCard.difficulty || "Mixed",
+      lastStudied: firstCard.completed_at || firstCard.created_at || new Date().toISOString().split('T')[0],
+      progress: progress,
       completedCards: completedCards,
-      created_at: flashcard.created_at,
-      cards: [{
-        id: flashcard.flashcard_id,
-        front: flashcard.question,
-        back: flashcard.answer,
-        status: cardStatus,
-        completed_at: flashcard.completed_at
-      }]
+      created_at: firstCard.created_at,
+      status: firstCard.status,
+      is_pending: firstCard.is_pending,
+      cards: cards.map((c: any) => ({
+        id: c.flashcard_id,
+        front: c.question,
+        back: c.answer,
+        status: c.status || c.progress_status || 'not_started',
+        completed_at: c.completed_at
+      }))
     };
   });
 
@@ -802,7 +833,27 @@ export default function Flashcards() {
 
   const FlashcardSetCard = ({ set }: { set: any }) => {
     return (
-      <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
+      <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 overflow-hidden">
+        {set.is_pending && (
+          <div className={`${
+            set.status === 'pending' 
+              ? 'bg-amber-100 text-amber-800 border-b border-amber-200 dark:bg-amber-900/30 dark:text-amber-300'
+              : set.status === 'approved'
+              ? 'bg-green-100 text-green-800 border-b border-green-200 dark:bg-green-900/30 dark:text-green-300'
+              : 'bg-red-100 text-red-800 border-b border-red-200 dark:bg-red-900/30 dark:text-red-300'
+          } px-3 py-1.5 text-xs font-medium`}>
+            <div className="flex items-center space-x-1.5">
+              {set.status === 'pending' && <Clock className="w-3 h-3 flex-shrink-0" />}
+              {set.status === 'approved' && <CheckCircle className="w-3 h-3 flex-shrink-0" />}
+              {set.status === 'rejected' && <XCircle className="w-3 h-3 flex-shrink-0" />}
+              <span className="truncate">
+                {set.status === 'pending' && '⏳ Pending Approval'}
+                {set.status === 'approved' && '✅ Approved'}
+                {set.status === 'rejected' && '❌ Rejected'}
+              </span>
+            </div>
+          </div>
+        )}
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -861,16 +912,17 @@ export default function Flashcards() {
             <Button 
               className="flex-1" 
               onClick={() => startStudying(set)}
-              disabled={set.cardCount === 0}
+              disabled={set.cardCount === 0 || set.is_pending}
             >
               <Brain className="w-4 h-4 mr-2" />
-              Study Now
+              {set.is_pending ? 'Pending Approval' : 'Study Now'}
             </Button>
             {!simpleView && (
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => handleEditFlashcardSet(set)}
+                disabled={set.is_pending}
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Set

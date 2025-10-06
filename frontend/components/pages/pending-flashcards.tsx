@@ -149,7 +149,6 @@ export default function PendingFlashcards() {
           filteredFlashcards = data.flashcards
         }
         
-        // Display individual flashcards (no grouping by sub_id)
         setFlashcards(filteredFlashcards)
       } else {
         setFlashcards([])
@@ -263,12 +262,46 @@ export default function PendingFlashcards() {
     setShowDetailsModal(true)
   }
 
-  const filteredFlashcardsList = flashcards.filter(flashcard =>
+  // Filter flashcards by search term
+  const filteredFlashcards = flashcards.filter(flashcard =>
     flashcard.subject_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     flashcard.created_by_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     flashcard.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
     flashcard.answer.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  // Group flashcards by sub_id (flashcard sets)
+  const flashcardsBySubId = filteredFlashcards.reduce((acc: any, flashcard: any) => {
+    const subId = flashcard.sub_id || flashcard.flashcard_id;
+    if (!acc[subId]) {
+      acc[subId] = [];
+    }
+    acc[subId].push(flashcard);
+    return acc;
+  }, {});
+
+  // Convert grouped flashcards to sets for display
+  const flashcardSets = Object.keys(flashcardsBySubId).map((subId) => {
+    const cards = flashcardsBySubId[subId];
+    const firstCard = cards[0];
+    
+    return {
+      sub_id: subId,
+      flashcard_id: firstCard.flashcard_id, // Keep first card's ID for operations
+      subject_id: firstCard.subject_id,
+      subject_name: firstCard.subject_name,
+      created_by: firstCard.created_by,
+      created_by_name: firstCard.created_by_name,
+      status: firstCard.status,
+      cardCount: cards.length,
+      title: cards.length > 1 
+        ? `Flashcard Set #${subId} (${cards.length} cards)`
+        : firstCard.question,
+      question: firstCard.question,
+      answer: firstCard.answer,
+      cards: cards
+    };
+  });
 
   if (loading) {
     return (
@@ -311,7 +344,7 @@ export default function PendingFlashcards() {
         </Card>
       )}
 
-      {filteredFlashcardsList.length === 0 ? (
+      {flashcardSets.length === 0 ? (
         <Card>
           <CardContent className="pt-6 text-center">
             <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
@@ -323,23 +356,42 @@ export default function PendingFlashcards() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredFlashcardsList.map((flashcard) => (
-            <Card key={flashcard.flashcard_id} className="hover:shadow-lg transition-shadow flex flex-col">
+          {flashcardSets.map((set: any) => (
+            <Card key={set.sub_id} className="hover:shadow-lg transition-shadow flex flex-col">
+              {/* Pending Approval Banner */}
+              <div className="bg-amber-100 text-amber-800 border-b border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 px-4 py-2 text-sm font-medium rounded-t-lg">
+                <div className="flex items-center space-x-2">
+                  <Clock className="w-4 h-4" />
+                  <span>⏳ Pending Approval</span>
+                  {set.cardCount > 1 && (
+                    <Badge variant="secondary" className="ml-auto">
+                      <Layers className="w-3 h-3 mr-1" />
+                      {set.cardCount} cards
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
               <CardHeader className="flex-1">
                 <div className="space-y-3">
                   <div>
                     <CardTitle className="text-lg flex items-center mb-2">
                       <BookOpen className="w-5 h-5 mr-2 flex-shrink-0" />
-                      <span className="line-clamp-2">{flashcard.question}</span>
+                      <span className="line-clamp-2">{set.title}</span>
                     </CardTitle>
                   </div>
                   <CardDescription>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
                         <User className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm truncate">{flashcard.created_by_name}</span>
+                        <span className="text-sm truncate">{set.created_by_name}</span>
                       </div>
-                      <Badge variant="outline" className="w-fit">{flashcard.subject_name}</Badge>
+                      <Badge variant="outline" className="w-fit">{set.subject_name}</Badge>
+                      {set.cardCount > 1 && (
+                        <p className="text-xs text-muted-foreground">
+                          First card: {set.question.substring(0, 60)}{set.question.length > 60 ? '...' : ''}
+                        </p>
+                      )}
                     </div>
                   </CardDescription>
                 </div>
@@ -349,26 +401,25 @@ export default function PendingFlashcards() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => viewDetails(flashcard)}
+                    onClick={() => viewDetails(set.cards[0])}
                     className="w-full"
                   >
                     <Eye className="w-4 h-4 mr-2" />
-                    View Details
+                    View {set.cardCount > 1 ? 'Set' : 'Details'}
                   </Button>
                   <div className="grid grid-cols-2 gap-2">
                     <Button 
                       variant="default" 
                       size="sm"
-                      onClick={() => handleApprove(flashcard)}
-                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => handleApprove(set.cards[0])}
                     >
                       <CheckCircle className="w-4 h-4 mr-1" />
                       Approve
                     </Button>
                     <Button 
-                      variant="destructive" 
+                      variant="default" 
                       size="sm"
-                      onClick={() => handleReject(flashcard)}
+                      onClick={() => handleReject(set.cards[0])}
                     >
                       <XCircle className="w-4 h-4 mr-1" />
                       Reject
@@ -385,7 +436,7 @@ export default function PendingFlashcards() {
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Flashcard Details</DialogTitle>
+            <DialogTitle>Flashcard Set Details</DialogTitle>
             <DialogDescription>
               {currentFlashcard?.subject_name}
             </DialogDescription>
@@ -404,20 +455,56 @@ export default function PendingFlashcards() {
               </div>
               <div>
                 <Label className="text-lg">Flashcard Content</Label>
-                <Card className="mt-2">
-                  <CardContent className="pt-4">
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Question</Label>
-                        <p className="text-sm font-medium">{currentFlashcard.question}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Answer</Label>
-                        <p className="text-sm">{currentFlashcard.answer}</p>
-                      </div>
+                {/* Find all cards with same sub_id */}
+                {(() => {
+                  const cardsInSet = flashcards.filter(
+                    (fc) => fc.sub_id === currentFlashcard.sub_id
+                  );
+                  
+                  return cardsInSet.length > 1 ? (
+                    <div className="space-y-3 mt-2">
+                      <p className="text-sm text-muted-foreground">
+                        This set contains {cardsInSet.length} flashcards
+                      </p>
+                      {cardsInSet.map((card, index) => (
+                        <Card key={card.flashcard_id} className="mt-2">
+                          <CardContent className="pt-4">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-xs text-muted-foreground">
+                                  Card {index + 1} of {cardsInSet.length}
+                                </Label>
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Question</Label>
+                                <p className="text-sm font-medium">{card.question}</p>
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Answer</Label>
+                                <p className="text-sm">{card.answer}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
-                  </CardContent>
-                </Card>
+                  ) : (
+                    <Card className="mt-2">
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Question</Label>
+                            <p className="text-sm font-medium">{currentFlashcard.question}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Answer</Label>
+                            <p className="text-sm">{currentFlashcard.answer}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
               </div>
             </div>
           )}

@@ -13,7 +13,8 @@ interface Flashcard {
   progress_id?: number
   progress_status?: 'not_started' | 'in_progress' | 'completed'
   completed_at?: string | null
-  status?: 'not_started' | 'in_progress' | 'completed'
+  status?: 'not_started' | 'in_progress' | 'completed' | 'pending' | 'approved' | 'rejected'
+  is_pending?: boolean
 }
 
 export function useFlashcards(userId?: number | null) {
@@ -51,6 +52,76 @@ export function useFlashcards(userId?: number | null) {
   }, [userId])
 
   return { flashcards, loading, error, refetch: fetchFlashcards }
+}
+
+// Hook to fetch flashcards including pending ones by user
+export function useFlashcardsWithPending(userId: number | null) {
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchFlashcardsWithPending = async () => {
+    if (!userId) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      
+      // Fetch approved flashcards
+      const approvedResponse = await fetch('http://localhost:4000/api/flashcards')
+      const approvedData = await approvedResponse.json()
+      
+      // Fetch pending flashcards by user
+      const pendingResponse = await fetch(`http://localhost:4000/api/pending-flashcards/user/${userId}`)
+      const pendingData = await pendingResponse.json()
+      
+      console.log('DEBUG - Approved flashcards:', approvedData)
+      console.log('DEBUG - Pending flashcards:', pendingData)
+      
+      let allFlashcards: Flashcard[] = []
+      
+      if (approvedData.success) {
+        // Mark approved flashcards
+        const approved = approvedData.flashcards.map((flashcard: any) => ({
+          ...flashcard,
+          status: 'approved' as const,
+          is_pending: false
+        }))
+        allFlashcards = [...approved]
+      }
+      
+      if (pendingData.success && pendingData.flashcards) {
+        // Add pending flashcards with pending flag - ensure status is set
+        const pending = pendingData.flashcards.map((flashcard: any) => {
+          console.log('DEBUG - Processing pending flashcard:', flashcard.question, 'Status:', flashcard.status)
+          return {
+            ...flashcard,
+            status: flashcard.status || 'pending', // Ensure status exists
+            is_pending: true // Mark as pending
+          }
+        })
+        allFlashcards = [...allFlashcards, ...pending]
+      }
+      
+      console.log('DEBUG - All flashcards combined:', allFlashcards)
+      
+      setFlashcards(allFlashcards)
+      setError(null)
+    } catch (err) {
+      setError('Error fetching flashcards')
+      console.error('Error fetching flashcards with pending:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchFlashcardsWithPending()
+  }, [userId])
+
+  return { flashcards, loading, error, refetch: fetchFlashcardsWithPending }
 }
 
 export function useFlashcardsBySubject(subjectId: number | null) {
