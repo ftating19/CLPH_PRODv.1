@@ -1224,7 +1224,7 @@ export default function Quizzes() {
           </div>
           <div className="flex items-center space-x-2">
             <Trophy className="w-4 h-4 text-muted-foreground" />
-            <span>Best: {quiz.bestScore ? `${quiz.bestScore}%` : "Not attempted"}</span>
+            <span>Your Highest Score: {quiz.bestScore ? `${quiz.bestScore}%` : "Not attempted"}</span>
           </div>
           <div className="flex items-center space-x-2">
             <CheckCircle className="w-4 h-4 text-muted-foreground" />
@@ -2087,7 +2087,7 @@ export default function Quizzes() {
                   {quizToStart?.bestScore && (
                     <>
                       <br />
-                      <strong>Best score:</strong> {quizToStart.bestScore}%
+                      <strong>Your highest score:</strong> {quizToStart.bestScore}%
                     </>
                   )}
                 </>
