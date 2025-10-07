@@ -2340,8 +2340,21 @@ app.put('/api/pending-quizzes/:id/approve', async (req, res) => {
       });
     }
     
-    // Transfer to quizzes table
+    // Transfer to quizzes table (this creates a NEW quiz with a NEW quizzes_id)
     const newQuiz = await transferToQuizzes(pool, pendingQuiz);
+    const newQuizId = newQuiz.quizzes_id;
+    const oldQuizId = quizId;
+    
+    console.log(`Quiz transferred: old ID ${oldQuizId} -> new ID ${newQuizId}`);
+    
+    // Update all questions that were linked to the pending quiz to point to the new quiz
+    const [updateResult] = await pool.query(`
+      UPDATE questions 
+      SET quizzes_id = ? 
+      WHERE quizzes_id = ?
+    `, [newQuizId, oldQuizId]);
+    
+    console.log(`✅ Updated ${updateResult.affectedRows} questions to new quiz ID ${newQuizId}`);
     
     // Also approve and transfer all related pending flashcards (by sub_id)
     const groupSubId = pendingQuiz.sub_id;
@@ -2356,7 +2369,7 @@ app.put('/api/pending-quizzes/:id/approve', async (req, res) => {
       await deletePendingFlashcardsBySubId(pool, groupSubId);
     }
 
-    // Delete the pending quiz from pending table (not just update status)
+    // Delete the pending quiz from pending table
     await deletePendingQuiz(pool, quizId);
 
     console.log(`✅ Quiz approved and transferred with ID: ${newQuiz.quizzes_id}, removed from pending table`);
@@ -2368,7 +2381,8 @@ app.put('/api/pending-quizzes/:id/approve', async (req, res) => {
       success: true,
       message: 'Quiz and related flashcards approved successfully',
       quiz: newQuiz,
-      flashcards: approvedFlashcards
+      flashcards: approvedFlashcards,
+      questionsUpdated: updateResult.affectedRows
     });
   } catch (err) {
     console.error('Error approving quiz:', err);
