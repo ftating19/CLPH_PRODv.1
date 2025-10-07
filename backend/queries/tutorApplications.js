@@ -115,14 +115,14 @@ const createTutorApplication = async (pool, applicationData) => {
 };
 
 // Update tutor application status (approve/reject)
-const updateTutorApplicationStatus = async (pool, applicationId, status, validatedBy) => {
+const updateTutorApplicationStatus = async (pool, applicationId, status, validatedBy, comment = null) => {
   const query = `
     UPDATE tutorapplications 
-    SET status = ?, validated_by = ?
+    SET status = ?, validated_by = ?, comment = ?
     WHERE application_id = ?
   `;
 
-  const [result] = await pool.query(query, [status, validatedBy, applicationId]);
+  const [result] = await pool.query(query, [status, validatedBy, comment, applicationId]);
   return result;
 };
 

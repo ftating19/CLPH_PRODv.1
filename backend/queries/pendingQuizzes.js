@@ -99,13 +99,13 @@ const createPendingQuiz = async (pool, quizData) => {
 };
 
 // Update pending quiz status
-const updatePendingQuizStatus = async (pool, quizId, status, reviewedBy = null) => {
+const updatePendingQuizStatus = async (pool, quizId, status, reviewedBy = null, comment = null) => {
   try {
     const [result] = await pool.query(`
       UPDATE pending_quizzes 
-      SET status = ?, reviewed_by = ?, reviewed_at = NOW()
+      SET status = ?, reviewed_by = ?, reviewed_at = NOW(), comment = ?
       WHERE quizzes_id = ?
-    `, [status, reviewedBy, quizId]);
+    `, [status, reviewedBy, comment, quizId]);
 
     return result.affectedRows > 0;
   } catch (error) {

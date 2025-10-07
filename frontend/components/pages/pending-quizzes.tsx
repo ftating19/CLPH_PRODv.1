@@ -226,6 +226,16 @@ export default function PendingQuizzes() {
   const confirmRejection = async () => {
     if (!currentQuiz || !currentUser) return
     
+    // Validate that rejection reason is provided
+    if (!rejectionReason.trim()) {
+      toast({
+        title: "Comment Required",
+        description: "Please provide a reason for rejecting this quiz.",
+        variant: "destructive"
+      })
+      return
+    }
+    
     try {
       const response = await fetch(`http://localhost:4000/api/pending-quizzes/${currentQuiz.quizzes_id}/reject`, {
         method: 'PUT',
@@ -234,12 +244,13 @@ export default function PendingQuizzes() {
         },
         body: JSON.stringify({
           rejected_by: currentUser.user_id,
-          rejection_reason: rejectionReason
+          comment: rejectionReason
         })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to reject quiz')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to reject quiz')
       }
 
       toast({
@@ -250,10 +261,10 @@ export default function PendingQuizzes() {
 
       await fetchPendingQuizzes()
       
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to reject quiz. Please try again.",
+        description: error.message || "Failed to reject quiz. Please try again.",
         variant: "destructive"
       })
     } finally {
@@ -518,22 +529,30 @@ export default function PendingQuizzes() {
           <AlertDialogHeader>
             <AlertDialogTitle>Reject Quiz</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to reject "{currentQuiz?.title}"?
+              Are you sure you want to reject "{currentQuiz?.title}"? You must provide a reason.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
-            <Label htmlFor="rejection-reason">Rejection Reason (Optional)</Label>
+            <Label htmlFor="rejection-reason" className="text-red-600">Rejection Reason (Required)*</Label>
             <Textarea
               id="rejection-reason"
-              placeholder="Provide a reason for rejection..."
+              placeholder="Please explain why this quiz is being rejected..."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               className="mt-2"
+              required
             />
+            <p className="text-xs text-muted-foreground mt-2">
+              The creator will see this feedback.
+            </p>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRejection} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction 
+              onClick={confirmRejection} 
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={!rejectionReason.trim()}
+            >
               Reject
             </AlertDialogAction>
           </AlertDialogFooter>

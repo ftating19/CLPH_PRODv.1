@@ -100,13 +100,13 @@ const createPendingFlashcard = async (pool, flashcardData) => {
 };
 
 // Update pending flashcard status
-const updatePendingFlashcardStatus = async (pool, flashcardId, status, reviewedBy = null) => {
+const updatePendingFlashcardStatus = async (pool, flashcardId, status, reviewedBy = null, comment = null) => {
   try {
     const [result] = await pool.query(`
       UPDATE pending_flashcards 
-      SET status = ?, reviewed_by = ?, reviewed_at = NOW()
+      SET status = ?, reviewed_by = ?, reviewed_at = NOW(), comment = ?
       WHERE flashcard_id = ?
-    `, [status, reviewedBy, flashcardId]);
+    `, [status, reviewedBy, comment, flashcardId]);
 
     return result.affectedRows > 0;
   } catch (error) {

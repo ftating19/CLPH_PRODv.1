@@ -158,6 +158,16 @@ export default function PendingMaterials() {
   const confirmRejection = async () => {
     if (!currentMaterial || !currentUser) return
     
+    // Validate that rejection reason is provided
+    if (!rejectionReason.trim()) {
+      toast({
+        title: "Comment Required",
+        description: "Please provide a reason for rejection.",
+        variant: "destructive"
+      })
+      return
+    }
+    
     try {
       const response = await fetch(`http://localhost:4000/api/pending-materials/${currentMaterial.material_id}/reject`, {
         method: 'PUT',
@@ -166,12 +176,13 @@ export default function PendingMaterials() {
         },
         body: JSON.stringify({
           rejected_by: currentUser.user_id,
-          rejection_reason: rejectionReason
+          comment: rejectionReason
         })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to reject material')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to reject material')
       }
 
       toast({
@@ -186,7 +197,7 @@ export default function PendingMaterials() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to reject material. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to reject material. Please try again.",
         variant: "destructive"
       })
     } finally {
@@ -502,20 +513,28 @@ export default function PendingMaterials() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
-            <Label htmlFor="rejection-reason" className="text-sm font-medium">
-              Rejection Reason (Optional)
+            <Label htmlFor="rejection-reason" className="text-sm font-medium text-red-600">
+              Rejection Reason (Required)*
             </Label>
             <Textarea
               id="rejection-reason"
-              placeholder="Provide a reason for rejection to help the uploader understand..."
+              placeholder="Please explain why this material is being rejected..."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               className="mt-2"
+              required
             />
+            <p className="text-xs text-muted-foreground mt-2">
+              The uploader will see this feedback.
+            </p>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRejection} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction 
+              onClick={confirmRejection} 
+              className="bg-red-600 hover:bg-red-700"
+              disabled={!rejectionReason.trim()}
+            >
               Reject Material
             </AlertDialogAction>
           </AlertDialogFooter>

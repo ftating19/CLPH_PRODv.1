@@ -73,6 +73,7 @@ interface Quiz {
   status?: 'pending' | 'approved' | 'rejected'
   is_pending?: boolean
   created_at?: string // Add created_at timestamp
+  comment?: string // Rejection comment from faculty/admin
 }
 
 export default function Quizzes() {
@@ -163,6 +164,11 @@ export default function Quizzes() {
       explanation?: string
     }[]
   } | null>(null)
+  
+  // Rejection comment dialog states
+  const [showRejectionDialog, setShowRejectionDialog] = useState(false)
+  const [selectedRejectionComment, setSelectedRejectionComment] = useState<{ title: string, comment: string } | null>(null)
+  
   // Removed duplicate declaration of currentUser
   const { toast } = useToast()
 
@@ -238,8 +244,8 @@ export default function Quizzes() {
       subject: dbQuiz.subject_name,
       questions: [], // Will be loaded separately when needed
       questionCount: dbQuiz.item_counts || 0, // Add question count from database
-      duration: `${dbQuiz.duration || 15}`, // Remove hardcoded "min" - will be formatted by formatDuration
-      duration_unit: dbQuiz.duration_unit || 'minutes', // Add duration unit from database
+      duration: `${dbQuiz.duration || 15}`, // Duration is always stored in minutes in the database
+      duration_unit: 'minutes', // Always use minutes since database stores in minutes
       difficulty: dbQuiz.difficulty || 'Medium',
       description: dbQuiz.description || 'Test your knowledge in this subject area',
       completedTimes: quizAttempts.length,
@@ -252,6 +258,7 @@ export default function Quizzes() {
       status: dbQuiz.status, // Add status field (pending, approved, rejected)
       is_pending: dbQuiz.is_pending, // Add is_pending flag
       created_at: dbQuiz.created_at, // Add created_at timestamp
+      comment: dbQuiz.comment, // Add rejection comment
     }
     
     // Debug log
@@ -409,10 +416,23 @@ export default function Quizzes() {
   }
 
   // Helper function to format time
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+  const formatTime = (seconds: number, originalDurationSeconds?: number) => {
+    // If original duration was 1 hour or more (3600+ seconds), always use hh:mm:ss format
+    // This ensures consistency: a 60-minute quiz will show 01:00:00, then 00:59:59, etc.
+    const useHourFormat = originalDurationSeconds ? originalDurationSeconds >= 3600 : seconds >= 3600
+    
+    if (useHourFormat) {
+      // Show hh:mm:ss format
+      const hours = Math.floor(seconds / 3600)
+      const minutes = Math.floor((seconds % 3600) / 60)
+      const remainingSeconds = seconds % 60
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+    } else {
+      // Show mm:ss format
+      const minutes = Math.floor(seconds / 60)
+      const remainingSeconds = seconds % 60
+      return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+    }
   }
 
   // Helper function to format duration for display
@@ -1009,7 +1029,7 @@ export default function Quizzes() {
         toast({
           title: "Error",
           description: "Failed to delete quiz",
-          variant: "destructive",
+            variant: "destructive",
         })
       }
     }
@@ -1171,7 +1191,7 @@ export default function Quizzes() {
     return (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader>
-        {/* Status Banner for Pending/Approved - Above Title */}
+        {/* Status Banner for Pending/Approved/Rejected - Above Title */}
         {quiz.is_pending && (
           <div className={`-mx-6 -mt-6 mb-4 px-4 py-2 text-sm font-medium rounded-t-lg ${
             quiz.status === 'pending' 
@@ -1189,6 +1209,20 @@ export default function Quizzes() {
                 {quiz.status === 'approved' && '✅ Approved - Will be available soon'}
                 {quiz.status === 'rejected' && '❌ Rejected'}
               </span>
+              {/* Show clickable link for rejection comment */}
+              {quiz.status === 'rejected' && quiz.comment && (
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="text-red-900 dark:text-red-200 underline h-auto p-0 ml-2 font-semibold hover:text-red-700"
+                  onClick={() => {
+                    setSelectedRejectionComment({ title: quiz.title, comment: quiz.comment || '' })
+                    setShowRejectionDialog(true)
+                  }}
+                >
+                  - View Reason
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -1815,13 +1849,23 @@ export default function Quizzes() {
               </div>
               <div className="flex items-center space-x-4">
                 {!isPreviewMode && takingQuiz && (
-                  <div className="bg-red-100 dark:bg-red-900 px-3 py-1 rounded-lg">
+                  <div className={`bg-red-100 dark:bg-red-900 px-3 py-1 rounded-lg ${getRemainingTime() === 0 ? 'animate-pulse border-2 border-red-500' : ''}`}> 
                     <div className="text-xs text-red-600 dark:text-red-300 font-medium">
                       Time Remaining
                     </div>
                     <div className="text-lg font-bold text-red-800 dark:text-red-200">
-                      {formatTime(getRemainingTime())}
+                      {(() => {
+                        const remainingTime = Math.max(0, getRemainingTime())
+                        const originalDuration = takingQuiz && takingQuiz.duration && takingQuiz.duration_unit 
+                          ? getDurationInSeconds(parseInt(takingQuiz.duration), takingQuiz.duration_unit) 
+                          : 0
+                        console.log('Timer Debug:', { remainingTime, originalDuration, duration: takingQuiz?.duration, unit: takingQuiz?.duration_unit })
+                        return formatTime(remainingTime, originalDuration)
+                      })()}
                     </div>
+                    {getRemainingTime() === 0 && (
+                      <div className="text-xs text-red-700 dark:text-red-300 font-semibold mt-1">Time is up!</div>
+                    )}
                   </div>
                 )}
                 {takingQuiz && (
@@ -1859,168 +1903,69 @@ export default function Quizzes() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                  {/* Multiple Choice Questions */}
-                  {takingQuiz.questions[currentQuestionIndex].type === "multiple-choice" && (
-                    <div className="space-y-3">
-                      <div className="text-sm font-medium text-muted-foreground mb-3">
-                        {isPreviewMode ? "Answer Options:" : "Select your answer:"}
-                      </div>
-                      
-                      {takingQuiz.questions[currentQuestionIndex].options?.map((option, optionIndex) => (
-                        <div key={optionIndex} className={`flex items-center space-x-3 p-3 border rounded-lg ${
-                          isPreviewMode 
-                            ? "bg-muted/30" 
-                            : selectedAnswers[currentQuestionIndex] === option 
-                              ? "bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700"
-                              : "hover:bg-muted cursor-pointer"
-                        }`}>
-                          {isPreviewMode ? (
-                            // Preview mode - show letter indicators like manage quiz
-                            <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium bg-white dark:bg-gray-800">
-                              {String.fromCharCode(65 + optionIndex)}
-                            </div>
-                          ) : (
-                            // Quiz mode - show radio buttons
-                            <input
-                              type="radio"
-                              id={`option-${optionIndex}`}
-                              name={`question-${currentQuestionIndex}`}
-                              value={option}
-                              checked={selectedAnswers[currentQuestionIndex] === option}
-                              onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
-                              className="w-4 h-4"
-                            />
-                          )}
-                          <Label 
-                            htmlFor={isPreviewMode ? undefined : `option-${optionIndex}`}
-                            className={`flex-1 ${isPreviewMode ? "" : "cursor-pointer"}`}
-                            onClick={isPreviewMode ? undefined : () => handleAnswerSelect(currentQuestionIndex, option)}
-                          >
-                            {option}
-                          </Label>
+                    {takingQuiz.questions[currentQuestionIndex].type === "multiple-choice" ? (
+                      <div className="space-y-3">
+                        <div className="text-sm font-medium text-muted-foreground mb-3">
+                          {isPreviewMode ? "Answer Options:" : "Select your answer:"}
                         </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* True/False Questions */}
-                  {takingQuiz.questions[currentQuestionIndex].type === "true-false" && (
-                    <div className="space-y-3">
-                      <div className="text-sm font-medium text-muted-foreground mb-3">
-                        {isPreviewMode ? "Answer Options:" : "Select your answer:"}
-                      </div>
-                      
-                      {["True", "False"].map((option, optionIndex) => (
-                        <div key={option} className={`flex items-center space-x-3 p-3 border rounded-lg ${
-                          isPreviewMode 
-                            ? "bg-muted/30" 
-                            : selectedAnswers[currentQuestionIndex] === option 
-                              ? "bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700"
-                              : "hover:bg-muted cursor-pointer"
-                        }`}>
-                          {isPreviewMode ? (
-                            // Preview mode - show T/F indicators
-                            <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium bg-white dark:bg-gray-800">
-                              {option.charAt(0)}
-                            </div>
-                          ) : (
-                            // Quiz mode - show radio buttons
-                            <input
-                              type="radio"
-                              id={`tf-${option}`}
-                              name={`question-${currentQuestionIndex}`}
-                              value={option}
-                              checked={selectedAnswers[currentQuestionIndex] === option}
-                              onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
-                              className="w-4 h-4"
-                            />
-                          )}
-                          <Label 
-                            htmlFor={isPreviewMode ? undefined : `tf-${option}`}
-                            className={`flex-1 ${isPreviewMode ? "" : "cursor-pointer"}`}
-                            onClick={isPreviewMode ? undefined : () => handleAnswerSelect(currentQuestionIndex, option)}
-                          >
-                            {option}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Enumeration Questions */}
-                  {takingQuiz.questions[currentQuestionIndex].type === "enumeration" && (
-                    <div className="space-y-3">
-                      <div className="text-sm font-medium text-muted-foreground mb-3">
-                        {isPreviewMode ? "Correct Answers:" : "Enter all correct answers (separated by commas):"}
-                      </div>
-                      
-                      {isPreviewMode ? (
-                        // Preview mode - show the correct answers
-                        <div className="p-3 border rounded-lg bg-muted/30">
-                          <div className="font-medium text-green-800 dark:text-green-200">
-                            {takingQuiz.questions[currentQuestionIndex].correctAnswer}
+                        
+                        {takingQuiz.questions[currentQuestionIndex].options?.map((option, optionIndex) => (
+                          <div key={optionIndex} className={`flex items-center space-x-3 p-3 border rounded-lg ${
+                            isPreviewMode 
+                              ? "bg-muted/30" 
+                              : selectedAnswers[currentQuestionIndex] === option 
+                                ? "bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700"
+                                : "hover:bg-muted cursor-pointer"
+                          }`}>
+                            {isPreviewMode ? (
+                              <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium bg-white dark:bg-gray-800">
+                                {String.fromCharCode(65 + optionIndex)}
+                              </div>
+                            ) : (
+                              <input
+                                type="radio"
+                                id={`option-${optionIndex}`}
+                                name={`question-${currentQuestionIndex}`}
+                                value={option}
+                                checked={selectedAnswers[currentQuestionIndex] === option}
+                                onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
+                                className="w-4 h-4"
+                              />
+                            )}
+                            <Label 
+                              htmlFor={isPreviewMode ? undefined : `option-${optionIndex}`}
+                              className={`flex-1 ${isPreviewMode ? "" : "cursor-pointer"}`}
+                              onClick={isPreviewMode ? undefined : () => handleAnswerSelect(currentQuestionIndex, option)}
+                            >
+                              {option}
+                            </Label>
                           </div>
-                        </div>
-                      ) : (
-                        // Quiz mode - show input field for student answers
-                        <Input
-                          type="text"
-                          placeholder="Enter your answers here"
-                          value={selectedAnswers[currentQuestionIndex] || ""}
-                          onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
-                          className="w-full"
-                        />
-                      )}
-                    </div>
-                  )}
+                        ))}
 
-                  {/* Essay Questions */}
-                  {takingQuiz.questions[currentQuestionIndex].type === "essay" && (
-                    <div className="space-y-3">
-                      <div className="text-sm font-medium text-muted-foreground mb-3">
-                        {isPreviewMode ? "Sample Answer:" : "Enter your essay answer:"}
-                      </div>
-                      
-                      {isPreviewMode ? (
-                        // Preview mode - show the sample answer
-                        <div className="p-3 border rounded-lg bg-muted/30">
-                          <div className="text-muted-foreground">
-                            {takingQuiz.questions[currentQuestionIndex].correctAnswer}
+                        {/* Show explanation in preview mode */}
+                        {isPreviewMode && takingQuiz.questions[currentQuestionIndex].explanation && (
+                          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                            <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
+                              Explanation:
+                            </h4>
+                            <p className="text-blue-800 dark:text-blue-200">
+                              {takingQuiz.questions[currentQuestionIndex].explanation}
+                            </p>
                           </div>
-                        </div>
-                      ) : (
-                        // Quiz mode - show textarea for student essay
-                        <Textarea
-                          placeholder="Enter your detailed answer here..."
-                          value={selectedAnswers[currentQuestionIndex] || ""}
-                          onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
-                          rows={6}
-                          className="w-full"
-                        />
-                      )}
-                    </div>
-                  )}
+                        )}
 
-                  {/* Show explanation in preview mode */}
-                  {isPreviewMode && takingQuiz.questions[currentQuestionIndex].explanation && (
-                    <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                      <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
-                        Explanation:
-                      </h4>
-                      <p className="text-blue-800 dark:text-blue-200">
-                        {takingQuiz.questions[currentQuestionIndex].explanation}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Show correct answer in preview mode */}
-                  {isPreviewMode && (
-                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
-                      <div className="text-sm font-medium text-green-900 dark:text-green-100">
-                        Correct Answer: {takingQuiz.questions[currentQuestionIndex].correctAnswer}
+                        {/* Show correct answer in preview mode */}
+                        {isPreviewMode && (
+                          <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                            <div className="text-sm font-medium text-green-900 dark:text-green-100">
+                              Correct Answer: {takingQuiz.questions[currentQuestionIndex].correctAnswer}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="text-sm text-muted-foreground">Unsupported question type.</div>
+                    )}
                   </CardContent>
                 </Card>
               ) : (
@@ -2403,6 +2348,33 @@ export default function Quizzes() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Rejection Comment Dialog */}
+      <Dialog open={showRejectionDialog} onOpenChange={setShowRejectionDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2 text-red-600">
+              <XCircle className="w-5 h-5" />
+              <span>Rejection Reason</span>
+            </DialogTitle>
+            <DialogDescription>
+              Your quiz "{selectedRejectionComment?.title}" was rejected for the following reason:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <p className="text-sm text-red-900 dark:text-red-100 whitespace-pre-wrap">
+                {selectedRejectionComment?.comment}
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={() => setShowRejectionDialog(false)}>
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

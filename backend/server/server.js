@@ -1033,9 +1033,17 @@ app.put('/api/tutor-applications/:id/approve', async (req, res) => {
 app.put('/api/tutor-applications/:id/reject', async (req, res) => {
   try {
     const applicationId = parseInt(req.params.id);
-    const { validatedby } = req.body;
+    const { validatedby, comment } = req.body;
     
-    console.log(`Rejecting tutor application ${applicationId} by user ${validatedby}`);
+    // Validate that comment is provided
+    if (!comment || comment.trim() === '') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Rejection comment is required' 
+      });
+    }
+    
+    console.log(`Rejecting tutor application ${applicationId} by user ${validatedby} with comment`);
 
     // Get a database connection
     const pool = await db.getPool();
@@ -1048,8 +1056,8 @@ app.put('/api/tutor-applications/:id/reject', async (req, res) => {
 
     console.log(`Found application for user ${application.user_id}`);
 
-    // Update application status to rejected
-    const result = await updateTutorApplicationStatus(pool, applicationId, 'rejected', validatedby || '1');
+    // Update application status to rejected with comment
+    const result = await updateTutorApplicationStatus(pool, applicationId, 'rejected', validatedby || '1', comment);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Failed to update application status' });
@@ -1094,15 +1102,12 @@ app.put('/api/tutor-applications/:id/reject', async (req, res) => {
       const subject = await getSubjectById(pool, application.subject_id);
       
       if (user && subject) {
-        // You can add a rejection reason from request body if needed
-        const rejectionReason = req.body.rejectionReason || null;
-        
         const emailResult = await sendTutorRejectionEmail(
           user.email,
           `${user.first_name} ${user.last_name}`,
           subject.subject_name,
           subject.subject_code,
-          rejectionReason
+          comment
         );
         
         if (emailResult.success) {
@@ -2092,9 +2097,17 @@ app.put('/api/pending-materials/:id/approve', async (req, res) => {
 app.put('/api/pending-materials/:id/reject', async (req, res) => {
   try {
     const materialId = req.params.id;
-    const { rejected_by, rejection_reason } = req.body;
+    const { rejected_by, comment } = req.body;
     
-    console.log(`Rejecting pending material ${materialId} by ${rejected_by || 'system'}`);
+    // Validate that comment is provided
+    if (!comment || comment.trim() === '') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Rejection comment is required' 
+      });
+    }
+    
+    console.log(`Rejecting pending material ${materialId} by ${rejected_by || 'system'} with comment`);
 
     // Get a database connection
     const pool = await db.getPool();
@@ -2132,8 +2145,8 @@ app.put('/api/pending-materials/:id/reject', async (req, res) => {
       });
     }
 
-    // Update pending material status to rejected
-    const updateSuccess = await updatePendingMaterialStatus(pool, materialId, 'rejected', rejected_by || '1');
+    // Update pending material status to rejected with comment
+    const updateSuccess = await updatePendingMaterialStatus(pool, materialId, 'rejected', rejected_by || '1', comment);
 
     if (!updateSuccess) {
       return res.status(500).json({ 
@@ -2163,7 +2176,7 @@ app.put('/api/pending-materials/:id/reject', async (req, res) => {
         pendingMaterial.email,
         pendingMaterial.uploaded_by_name,
         pendingMaterial.title,
-        rejection_reason,
+        comment,
         reviewerName
       );
       
@@ -2397,14 +2410,22 @@ app.put('/api/pending-quizzes/:id/approve', async (req, res) => {
 app.put('/api/pending-quizzes/:id/reject', async (req, res) => {
   try {
     const quizId = parseInt(req.params.id);
-    const { rejected_by, rejection_reason } = req.body;
+    const { rejected_by, comment } = req.body;
     
-    console.log(`Rejecting pending quiz ID: ${quizId}`);
+    // Validate that comment is provided
+    if (!comment || comment.trim() === '') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Rejection comment is required' 
+      });
+    }
+    
+    console.log(`Rejecting pending quiz ID: ${quizId} with comment`);
     
     const pool = await db.getPool();
     
-    // Update status to rejected
-    const updateSuccess = await updatePendingQuizStatus(pool, quizId, 'rejected', rejected_by);
+    // Update status to rejected with comment
+    const updateSuccess = await updatePendingQuizStatus(pool, quizId, 'rejected', rejected_by, comment);
     
     if (!updateSuccess) {
       return res.status(404).json({ 
@@ -2587,14 +2608,22 @@ app.put('/api/pending-flashcards/:id/approve', async (req, res) => {
 app.put('/api/pending-flashcards/:id/reject', async (req, res) => {
   try {
     const flashcardId = parseInt(req.params.id);
-    const { rejected_by, rejection_reason } = req.body;
+    const { rejected_by, comment } = req.body;
     
-    console.log(`Rejecting pending flashcard ID: ${flashcardId}`);
+    // Validate that comment is provided
+    if (!comment || comment.trim() === '') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Rejection comment is required' 
+      });
+    }
+    
+    console.log(`Rejecting pending flashcard ID: ${flashcardId} with comment`);
     
     const pool = await db.getPool();
     
-    // Update status to rejected
-    const updateSuccess = await updatePendingFlashcardStatus(pool, flashcardId, 'rejected', rejected_by);
+    // Update status to rejected with comment
+    const updateSuccess = await updatePendingFlashcardStatus(pool, flashcardId, 'rejected', rejected_by, comment);
     
     if (!updateSuccess) {
       return res.status(404).json({ 

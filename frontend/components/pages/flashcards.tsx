@@ -69,6 +69,10 @@ export default function Flashcards() {
   const [showFlashcardDialog, setShowFlashcardDialog] = useState(false)
   const [editingFlashcardIndex, setEditingFlashcardIndex] = useState<number | null>(null)
   const [editingFlashcardSet, setEditingFlashcardSet] = useState<any | null>(null)
+  
+  // Rejection comment dialog states
+  const [showRejectionDialog, setShowRejectionDialog] = useState(false)
+  const [selectedRejectionComment, setSelectedRejectionComment] = useState<{ subject: string, comment: string } | null>(null)
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("")
@@ -856,6 +860,20 @@ export default function Flashcards() {
                 {set.status === 'approved' && '✅ Approved'}
                 {set.status === 'rejected' && '❌ Rejected'}
               </span>
+              {/* Show clickable link for rejection comment */}
+              {set.status === 'rejected' && set.comment && (
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="text-red-900 dark:text-red-200 underline h-auto p-0 ml-2 font-semibold hover:text-red-700 text-xs"
+                  onClick={() => {
+                    setSelectedRejectionComment({ subject: set.subject, comment: set.comment || '' })
+                    setShowRejectionDialog(true)
+                  }}
+                >
+                  - View Reason
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -1682,6 +1700,33 @@ export default function Flashcards() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Rejection Comment Dialog */}
+      <Dialog open={showRejectionDialog} onOpenChange={setShowRejectionDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2 text-red-600">
+              <XCircle className="w-5 h-5" />
+              <span>Rejection Reason</span>
+            </DialogTitle>
+            <DialogDescription>
+              Your flashcard set for "{selectedRejectionComment?.subject}" was rejected for the following reason:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <p className="text-sm text-red-900 dark:text-red-100 whitespace-pre-wrap">
+                {selectedRejectionComment?.comment}
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={() => setShowRejectionDialog(false)}>
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

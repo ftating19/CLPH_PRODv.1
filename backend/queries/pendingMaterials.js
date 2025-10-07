@@ -157,13 +157,13 @@ const createPendingMaterial = async (pool, materialData) => {
 };
 
 // Update pending material status
-const updatePendingMaterialStatus = async (pool, materialId, status, reviewedBy = null) => {
+const updatePendingMaterialStatus = async (pool, materialId, status, reviewedBy = null, comment = null) => {
   try {
     const [result] = await pool.query(`
       UPDATE pendingmaterials 
-      SET status = ?, reviewed_by = ?, reviewed_at = NOW()
+      SET status = ?, reviewed_by = ?, reviewed_at = NOW(), comment = ?
       WHERE material_id = ?
-    `, [status, reviewedBy, materialId]);
+    `, [status, reviewedBy, comment, materialId]);
 
     return result.affectedRows > 0;
   } catch (error) {

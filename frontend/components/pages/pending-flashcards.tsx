@@ -219,6 +219,16 @@ export default function PendingFlashcards() {
   const confirmRejection = async () => {
     if (!currentFlashcard || !currentUser) return
     
+    // Validate that rejection reason is provided
+    if (!rejectionReason.trim()) {
+      toast({
+        title: "Comment Required",
+        description: "Please provide a reason for rejection.",
+        variant: "destructive"
+      })
+      return
+    }
+    
     try {
       // Reject individual flashcard
       const response = await fetch(`http://localhost:4000/api/pending-flashcards/${currentFlashcard.flashcard_id}/reject`, {
@@ -228,12 +238,13 @@ export default function PendingFlashcards() {
         },
         body: JSON.stringify({
           rejected_by: currentUser.user_id,
-          rejection_reason: rejectionReason
+          comment: rejectionReason
         })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to reject flashcard')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to reject flashcard')
       }
 
       toast({
@@ -247,7 +258,7 @@ export default function PendingFlashcards() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to reject flashcard. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to reject flashcard. Please try again.",
         variant: "destructive"
       })
     } finally {
@@ -536,22 +547,30 @@ export default function PendingFlashcards() {
           <AlertDialogHeader>
             <AlertDialogTitle>Reject Flashcard</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to reject this flashcard for {currentFlashcard?.subject_name}?
+              Are you sure you want to reject this flashcard for {currentFlashcard?.subject_name}? You must provide a reason.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
-            <Label htmlFor="rejection-reason">Rejection Reason (Optional)</Label>
+            <Label htmlFor="rejection-reason" className="text-red-600">Rejection Reason (Required)*</Label>
             <Textarea
               id="rejection-reason"
-              placeholder="Provide a reason for rejection..."
+              placeholder="Please explain why this flashcard is being rejected..."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               className="mt-2"
+              required
             />
+            <p className="text-xs text-muted-foreground mt-2">
+              The creator will see this feedback.
+            </p>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRejection} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction 
+              onClick={confirmRejection} 
+              className="bg-destructive hover:bg-destructive/90"
+              disabled={!rejectionReason.trim()}
+            >
               Reject
             </AlertDialogAction>
           </AlertDialogFooter>

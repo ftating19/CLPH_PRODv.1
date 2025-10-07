@@ -57,6 +57,7 @@ export default function PendingApplicants() {
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [currentApplicant, setCurrentApplicant] = useState<TutorApplication | null>(null)
+  const [rejectionReason, setRejectionReason] = useState("")
   const [applicants, setApplicants] = useState<TutorApplication[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -110,6 +111,7 @@ export default function PendingApplicants() {
 
   const handleReject = (applicant: TutorApplication) => {
     setCurrentApplicant(applicant)
+    setRejectionReason("")
     setShowRejectDialog(true)
   }
 
@@ -155,6 +157,16 @@ export default function PendingApplicants() {
   const confirmRejection = async () => {
     if (!currentApplicant) return
     
+    // Validate that rejection reason is provided
+    if (!rejectionReason.trim()) {
+      toast({
+        title: "Comment Required",
+        description: "Please provide a reason for rejection.",
+        variant: "destructive"
+      })
+      return
+    }
+    
     try {
       const response = await fetch(`http://localhost:4000/api/tutor-applications/${currentApplicant.application_id}/reject`, {
         method: 'PUT',
@@ -162,12 +174,14 @@ export default function PendingApplicants() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          validatedby: 1 // This should be the current admin's user ID
+          validatedby: 1, // This should be the current admin's user ID
+          comment: rejectionReason
         })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to reject application')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to reject application')
       }
 
       toast({
@@ -182,12 +196,13 @@ export default function PendingApplicants() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to reject application. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to reject application. Please try again.",
         variant: "destructive"
       })
     } finally {
       setShowRejectDialog(false)
       setCurrentApplicant(null)
+      setRejectionReason("")
     }
   }
 
@@ -411,12 +426,32 @@ export default function PendingApplicants() {
             <AlertDialogTitle>Reject Tutor Application</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to reject {currentApplicant?.name}'s application? This action cannot be undone.
-              They will be notified via email.
+              They will be notified via email with the rejection reason.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="rejection-reason" className="text-sm font-medium text-red-600">
+              Rejection Reason (Required)*
+            </Label>
+            <Textarea
+              id="rejection-reason"
+              placeholder="Please explain why this application is being rejected..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="mt-2"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              The applicant will see this feedback.
+            </p>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRejection} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction 
+              onClick={confirmRejection} 
+              className="bg-red-600 hover:bg-red-700"
+              disabled={!rejectionReason.trim()}
+            >
               Reject Application
             </AlertDialogAction>
           </AlertDialogFooter>
