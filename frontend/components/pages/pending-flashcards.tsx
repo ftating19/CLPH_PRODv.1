@@ -230,7 +230,7 @@ export default function PendingFlashcards() {
     }
     
     try {
-      // Reject individual flashcard
+      // Reject entire flashcard group by sub_id
       const response = await fetch(`http://localhost:4000/api/pending-flashcards/${currentFlashcard.flashcard_id}/reject`, {
         method: 'PUT',
         headers: {
@@ -244,12 +244,15 @@ export default function PendingFlashcards() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to reject flashcard')
+        throw new Error(errorData.error || 'Failed to reject flashcard set')
       }
 
+      const result = await response.json()
+      const rejectedCount = result.rejectedCount || 1
+
       toast({
-        title: "Flashcard Rejected",
-        description: `The flashcard has been rejected.`,
+        title: "Flashcard Set Rejected",
+        description: `${rejectedCount} flashcard(s) in this set have been rejected.`,
         duration: 5000,
       })
 
@@ -258,7 +261,7 @@ export default function PendingFlashcards() {
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to reject flashcard. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to reject flashcard set. Please try again.",
         variant: "destructive"
       })
     } finally {
@@ -545,23 +548,23 @@ export default function PendingFlashcards() {
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject Flashcard</AlertDialogTitle>
+            <AlertDialogTitle>Reject Flashcard Set</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to reject this flashcard for {currentFlashcard?.subject_name}? You must provide a reason.
+              Are you sure you want to reject this entire flashcard set for {currentFlashcard?.subject_name}? All flashcards in this set will be rejected. You must provide a reason.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
             <Label htmlFor="rejection-reason" className="text-red-600">Rejection Reason (Required)*</Label>
             <Textarea
               id="rejection-reason"
-              placeholder="Please explain why this flashcard is being rejected..."
+              placeholder="Please explain why this flashcard set is being rejected..."
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               className="mt-2"
               required
             />
             <p className="text-xs text-muted-foreground mt-2">
-              The creator will see this feedback.
+              The creator will see this feedback for all flashcards in the set.
             </p>
           </div>
           <AlertDialogFooter>

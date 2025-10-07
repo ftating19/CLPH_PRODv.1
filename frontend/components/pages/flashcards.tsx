@@ -298,6 +298,7 @@ export default function Flashcards() {
       created_at: firstCard.created_at,
       status: firstCard.status,
       is_pending: firstCard.is_pending,
+      comment: firstCard.comment,
       cards: cards.map((c: any) => ({
         id: c.flashcard_id,
         front: c.question,

@@ -2604,7 +2604,7 @@ app.put('/api/pending-flashcards/:id/approve', async (req, res) => {
   }
 });
 
-// Reject pending flashcard
+// Reject pending flashcard (and entire group)
 app.put('/api/pending-flashcards/:id/reject', async (req, res) => {
   try {
     const flashcardId = parseInt(req.params.id);
@@ -2622,21 +2622,40 @@ app.put('/api/pending-flashcards/:id/reject', async (req, res) => {
     
     const pool = await db.getPool();
     
-    // Update status to rejected with comment
-    const updateSuccess = await updatePendingFlashcardStatus(pool, flashcardId, 'rejected', rejected_by, comment);
-    
-    if (!updateSuccess) {
+    // Get the pending flashcard details to find the group
+    const pendingFlashcard = await getPendingFlashcardById(pool, flashcardId);
+    if (!pendingFlashcard) {
       return res.status(404).json({ 
         success: false,
         error: 'Pending flashcard not found' 
       });
     }
+
+    // Get all pending flashcards in the same group (by sub_id)
+    const groupSubId = pendingFlashcard.sub_id || pendingFlashcard.flashcard_id;
+    const groupFlashcards = await getPendingFlashcardsBySubId(pool, groupSubId);
+    if (!groupFlashcards || groupFlashcards.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No pending flashcards found in this group'
+      });
+    }
+
+    // Reject all flashcards in the group with the same comment
+    let rejectedCount = 0;
+    for (const card of groupFlashcards) {
+      const updateSuccess = await updatePendingFlashcardStatus(pool, card.flashcard_id, 'rejected', rejected_by, comment);
+      if (updateSuccess) {
+        rejectedCount++;
+      }
+    }
     
-    console.log(`✅ Flashcard rejected: ${flashcardId}`);
+    console.log(`✅ Rejected ${rejectedCount} flashcard(s) in group with sub_id: ${groupSubId}`);
     
     res.json({
       success: true,
-      message: 'Flashcard rejected successfully'
+      message: `Rejected ${rejectedCount} flashcard(s) in the group`,
+      rejectedCount: rejectedCount
     });
   } catch (err) {
     console.error('Error rejecting flashcard:', err);
