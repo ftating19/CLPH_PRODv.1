@@ -25,6 +25,7 @@ const getAllQuizzes = async (pool) => {
           s.subject_code,
           u.first_name,
           u.last_name,
+          q.created_at,
           COUNT(DISTINCT qu.question_id) as question_count
         FROM quizzes q
         LEFT JOIN subjects s ON q.subject_id = s.subject_id
@@ -74,6 +75,7 @@ const getAllQuizzes = async (pool) => {
           s.subject_code,
           u.first_name,
           u.last_name,
+          q.created_at,
           COUNT(DISTINCT qu.question_id) as question_count
         FROM quizzes q
         LEFT JOIN subjects s ON q.subject_id = s.subject_id

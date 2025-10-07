@@ -832,6 +832,11 @@ export default function Flashcards() {
   }
 
   const FlashcardSetCard = ({ set }: { set: any }) => {
+    // Check if flashcard set was created within the last 24 hours
+    const isNew = set.created_at ? 
+      (new Date().getTime() - new Date(set.created_at).getTime()) < (24 * 60 * 60 * 1000) : 
+      false;
+    
     return (
       <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 overflow-hidden">
         {set.is_pending && (
@@ -859,7 +864,14 @@ export default function Flashcards() {
             <div className="flex-1">
               {/* Set name/title hidden */}
               {/* <CardTitle className="text-xl">{set.title}</CardTitle> */}
-              <CardDescription className="text-base mt-1">{set.subject}</CardDescription>
+              <div className="flex items-center gap-2">
+                <CardDescription className="text-base mt-1">{set.subject}</CardDescription>
+                {isNew && !set.is_pending && (
+                  <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-xs">
+                    ✨ New
+                  </Badge>
+                )}
+              </div>
               <Badge variant={set.difficulty === "Beginner" ? "secondary" : set.difficulty === "Intermediate" ? "default" : "destructive"}>
                 {set.difficulty}
               </Badge>

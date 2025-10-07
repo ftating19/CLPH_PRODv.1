@@ -1,3 +1,15 @@
+// Delete all pending flashcards by sub_id
+const deletePendingFlashcardsBySubId = async (pool, subId) => {
+  try {
+    const [result] = await pool.query(`
+      DELETE FROM pending_flashcards WHERE sub_id = ?
+    `, [subId]);
+    return result.affectedRows > 0;
+  } catch (error) {
+    console.error('Error deleting pending flashcards by sub_id:', error);
+    throw error;
+  }
+};
 // Pending Flashcards database queries
 
 // Get all pending flashcards
@@ -244,4 +256,5 @@ module.exports = {
   transferToFlashcards,
   getPendingFlashcardsBySubId,
   getPendingFlashcardsByUser
+  ,deletePendingFlashcardsBySubId
 };

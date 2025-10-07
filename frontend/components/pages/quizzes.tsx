@@ -72,6 +72,7 @@ interface Quiz {
   lastAttempt: string | null
   status?: 'pending' | 'approved' | 'rejected'
   is_pending?: boolean
+  created_at?: string // Add created_at timestamp
 }
 
 export default function Quizzes() {
@@ -250,6 +251,7 @@ export default function Quizzes() {
       quiz_view: dbQuiz.quiz_view || 'Personal', // Add quiz_view from database
       status: dbQuiz.status, // Add status field (pending, approved, rejected)
       is_pending: dbQuiz.is_pending, // Add is_pending flag
+      created_at: dbQuiz.created_at, // Add created_at timestamp
     }
     
     // Debug log
@@ -1161,6 +1163,11 @@ export default function Quizzes() {
       })
     }
     
+    // Check if quiz was created within the last 24 hours
+    const isNew = quiz.created_at ? 
+      (new Date().getTime() - new Date(quiz.created_at).getTime()) < (24 * 60 * 60 * 1000) : 
+      false;
+    
     return (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader>
@@ -1188,7 +1195,14 @@ export default function Quizzes() {
         
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-xl">{quiz.title}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-xl">{quiz.title}</CardTitle>
+              {isNew && !quiz.is_pending && (
+                <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                  ✨ New
+                </Badge>
+              )}
+            </div>
             <CardDescription className="text-base mt-1">{quiz.subject}</CardDescription>
           </div>
           <Badge variant={quiz.difficulty === "Beginner" ? "secondary" : quiz.difficulty === "Intermediate" ? "default" : "destructive"}>

@@ -122,7 +122,8 @@ const {
   getPendingFlashcardsByStatus,
   transferToFlashcards,
   getPendingFlashcardsBySubId,
-  getPendingFlashcardsByUser
+  getPendingFlashcardsByUser,
+  deletePendingFlashcardsBySubId
 } = require('../queries/pendingFlashcards')
 const { createSession, getSessions } = require('../queries/sessions')
 const { getAllForums, getForumById, createForum } = require('../queries/forums')
@@ -2320,6 +2321,7 @@ app.get('/api/pending-quizzes/:id', async (req, res) => {
 });
 
 // Approve pending quiz
+
 app.put('/api/pending-quizzes/:id/approve', async (req, res) => {
   try {
     const quizId = parseInt(req.params.id);
@@ -2341,15 +2343,32 @@ app.put('/api/pending-quizzes/:id/approve', async (req, res) => {
     // Transfer to quizzes table
     const newQuiz = await transferToQuizzes(pool, pendingQuiz);
     
-    // Update pending quiz status
-    await updatePendingQuizStatus(pool, quizId, 'approved', approved_by);
-    
-    console.log(`✅ Quiz approved and transferred with ID: ${newQuiz.quizzes_id}`);
-    
+    // Also approve and transfer all related pending flashcards (by sub_id)
+    const groupSubId = pendingQuiz.sub_id;
+    let approvedFlashcards = [];
+    if (groupSubId) {
+      const groupFlashcards = await getPendingFlashcardsBySubId(pool, groupSubId);
+      for (const card of groupFlashcards) {
+        const newFlashcard = await transferToFlashcards(pool, card);
+        approvedFlashcards.push(newFlashcard);
+      }
+      // Remove all flashcards from pending table
+      await deletePendingFlashcardsBySubId(pool, groupSubId);
+    }
+
+    // Delete the pending quiz from pending table (not just update status)
+    await deletePendingQuiz(pool, quizId);
+
+    console.log(`✅ Quiz approved and transferred with ID: ${newQuiz.quizzes_id}, removed from pending table`);
+    if (approvedFlashcards.length > 0) {
+      console.log(`✅ Also approved and transferred ${approvedFlashcards.length} related flashcards for sub_id: ${groupSubId}`);
+    }
+
     res.json({
       success: true,
-      message: 'Quiz approved successfully',
-      quiz: newQuiz
+      message: 'Quiz and related flashcards approved successfully',
+      quiz: newQuiz,
+      flashcards: approvedFlashcards
     });
   } catch (err) {
     console.error('Error approving quiz:', err);
@@ -2497,15 +2516,14 @@ app.get('/api/pending-flashcards/:id', async (req, res) => {
 });
 
 // Approve pending flashcard
+
+// Approve all pending flashcards in a group (by sub_id)
 app.put('/api/pending-flashcards/:id/approve', async (req, res) => {
   try {
     const flashcardId = parseInt(req.params.id);
     const { approved_by } = req.body;
-    
-    console.log(`Approving pending flashcard ID: ${flashcardId}`);
-    
     const pool = await db.getPool();
-    
+
     // Get the pending flashcard details
     const pendingFlashcard = await getPendingFlashcardById(pool, flashcardId);
     if (!pendingFlashcard) {
@@ -2514,22 +2532,36 @@ app.put('/api/pending-flashcards/:id/approve', async (req, res) => {
         error: 'Pending flashcard not found' 
       });
     }
-    
-    // Transfer to flashcards table
-    const newFlashcard = await transferToFlashcards(pool, pendingFlashcard);
-    
-    // Update pending flashcard status
-    await updatePendingFlashcardStatus(pool, flashcardId, 'approved', approved_by);
-    
-    console.log(`✅ Flashcard approved and transferred with ID: ${newFlashcard.flashcard_id}`);
-    
+
+    // Get all pending flashcards in the same group (by sub_id)
+    const groupSubId = pendingFlashcard.sub_id || pendingFlashcard.flashcard_id;
+    const groupFlashcards = await getPendingFlashcardsBySubId(pool, groupSubId);
+    if (!groupFlashcards || groupFlashcards.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No pending flashcards found in this group'
+      });
+    }
+
+    // Transfer all to flashcards table
+    const approvedFlashcards = [];
+    for (const card of groupFlashcards) {
+      const newFlashcard = await transferToFlashcards(pool, card);
+      approvedFlashcards.push(newFlashcard);
+    }
+
+    // Delete all from pending table
+    await deletePendingFlashcardsBySubId(pool, groupSubId);
+
+    console.log(`✅ Approved and transferred ${approvedFlashcards.length} flashcards for group sub_id: ${groupSubId}, removed from pending table`);
+
     res.json({
       success: true,
-      message: 'Flashcard approved successfully',
-      flashcard: newFlashcard
+      message: `Approved ${approvedFlashcards.length} flashcards in the group`,
+      flashcards: approvedFlashcards
     });
   } catch (err) {
-    console.error('Error approving flashcard:', err);
+    console.error('Error approving flashcard group:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
