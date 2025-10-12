@@ -232,6 +232,7 @@ export default function ManageSubjects() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [programFilter, setProgramFilter] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Faculty state
@@ -474,11 +475,18 @@ export default function ManageSubjects() {
     }
   }
 
-  const filteredSubjects = subjects.filter(subject =>
-    subject.subject_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    subject.subject_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    subject.description.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredSubjects = subjects.filter(subject => {
+    // Text search filter
+    const matchesSearch = subject.subject_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      subject.subject_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      subject.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Program filter
+    const matchesProgram = !programFilter || programFilter === "all" || 
+      (subject.program && subject.program.includes(programFilter));
+    
+    return matchesSearch && matchesProgram;
+  });
 
   const SubjectCard = ({ subject }: { subject: Subject }) => {
     // Use assigned_faculty from backend if present
@@ -506,6 +514,26 @@ export default function ManageSubjects() {
             <Label className="text-sm font-medium">Description</Label>
             <p className="text-sm text-muted-foreground mt-1">{subject.description}</p>
           </div>
+          <div>
+            <Label className="text-sm font-medium">Programs</Label>
+            {subject.program && subject.program.length > 0 ? (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {subject.program.map((prog: string, idx: number) => (
+                  <Badge key={idx} variant="outline" className="text-xs">
+                    {prog}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">No programs assigned</span>
+            )}
+          </div>
+          {subject.year_level && (
+            <div>
+              <Label className="text-sm font-medium">Year Level</Label>
+              <p className="text-sm text-muted-foreground mt-1">{subject.year_level}</p>
+            </div>
+          )}
           {/* Subject ID hidden as requested */}
           <div>
             <Label className="text-sm font-medium">Assigned Faculty</Label>
@@ -690,9 +718,35 @@ export default function ManageSubjects() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        <div className="w-64">
+          <Select value={programFilter} onValueChange={setProgramFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by program" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Programs</SelectItem>
+              {CICT_PROGRAMS.map((program) => (
+                <SelectItem key={program} value={program}>
+                  {program}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <Button variant="outline" onClick={fetchSubjects}>
           Refresh
         </Button>
+        {(searchQuery || (programFilter && programFilter !== "all")) && (
+          <Button 
+            variant="ghost" 
+            onClick={() => {
+              setSearchQuery("");
+              setProgramFilter("");
+            }}
+          >
+            Clear Filters
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -705,15 +759,15 @@ export default function ManageSubjects() {
         <div className="text-center py-12">
           <Library className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium text-muted-foreground mb-2">
-            {searchQuery ? "No subjects found" : "No subjects created yet"}
+            {(searchQuery || (programFilter && programFilter !== "all")) ? "No subjects found" : "No subjects created yet"}
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
-            {searchQuery 
-              ? "Try adjusting your search terms to find subjects."
+            {(searchQuery || (programFilter && programFilter !== "all")) 
+              ? "Try adjusting your search terms or filters to find subjects."
               : "Create your first subject to start building the course catalog."
             }
           </p>
-          {!searchQuery && (
+          {(!searchQuery && (!programFilter || programFilter === "all")) && (
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Create Your First Subject
