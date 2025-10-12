@@ -102,16 +102,15 @@ const ProgramMultiSelect = ({
                 selectedPrograms.map(program => (
                   <Badge key={program} variant="secondary" className="text-xs">
                     {program}
-                    <button
-                      type="button"
+                    <div
                       onClick={(e) => {
                         e.stopPropagation();
                         removeProgram(program);
                       }}
-                      className="ml-1 hover:text-red-500"
+                      className="ml-1 hover:text-red-500 cursor-pointer"
                     >
                       <X className="h-3 w-3" />
-                    </button>
+                    </div>
                   </Badge>
                 ))
               )}
@@ -185,16 +184,15 @@ const FacultyMultiSelect = ({
                 selectedFaculty.map(facultyId => (
                   <Badge key={facultyId} variant="secondary" className="text-xs">
                     {getFacultyName(facultyId)}
-                    <button
-                      type="button"
+                    <div
                       onClick={(e) => {
                         e.stopPropagation();
                         removeFaculty(facultyId);
                       }}
-                      className="ml-1 hover:text-red-500"
+                      className="ml-1 hover:text-red-500 cursor-pointer"
                     >
                       <X className="h-3 w-3" />
-                    </button>
+                    </div>
                   </Badge>
                 ))
               )}
