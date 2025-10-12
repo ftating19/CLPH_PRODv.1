@@ -282,9 +282,17 @@ export default function PreAssessments() {
       // and if year level matches
       return subjectPrograms.includes(selectedPreAssessment.program) && 
              subject.year_level === selectedPreAssessment.year_level
+    }).sort((a, b) => {
+      // Sort alphabetically by subject code first, then by subject name
+      const codeComparison = a.subject_code.localeCompare(b.subject_code)
+      if (codeComparison !== 0) {
+        return codeComparison
+      }
+      // If codes are the same, sort by subject name
+      return a.subject_name.localeCompare(b.subject_name)
     })
 
-    console.log('Question subjects filtered:', {
+    console.log('Question subjects filtered and sorted:', {
       preAssessment: selectedPreAssessment,
       totalSubjects: subjects.length,
       filteredCount: filtered.length,
@@ -675,7 +683,8 @@ export default function PreAssessments() {
   const filteredPreAssessments = preAssessments.filter(assessment => {
     const matchesSearch = assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       assessment.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (assessment.subject_name && assessment.subject_name.toLowerCase().includes(searchQuery.toLowerCase()))
+      assessment.program.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      assessment.year_level.toLowerCase().includes(searchQuery.toLowerCase())
     
     const matchesProgram = programFilter === "all" || assessment.program === programFilter
 
@@ -779,7 +788,7 @@ export default function PreAssessments() {
                     </Badge>
                   </div>
                   <CardDescription className="text-base mt-1">
-                    {assessment.subject_name || "Unknown Subject"}
+                    {assessment.program} - {assessment.year_level}
                   </CardDescription>
                 </div>
               </div>
@@ -1112,9 +1121,32 @@ export default function PreAssessments() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">
-                {questions.length} question{questions.length !== 1 ? 's' : ''} total
-              </p>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  {questions.length} question{questions.length !== 1 ? 's' : ''} total
+                </p>
+                {questions.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Subjects included:</span>
+                    {Array.from(new Set(questions
+                      .filter(q => q.subject_name && q.subject_code)
+                      .map(q => q.subject_code)
+                    )).sort().map((subjectCode) => {
+                      const subject = questions.find(q => q.subject_code === subjectCode);
+                      return subject ? (
+                        <Badge key={subjectCode} variant="outline" className="text-xs">
+                          {subject.subject_code} - {subject.subject_name}
+                        </Badge>
+                      ) : null;
+                    })}
+                    {questions.some(q => !q.subject_name) && (
+                      <Badge variant="destructive" className="text-xs">
+                        Some questions missing subject
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
               <Button onClick={handleAddQuestion}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Question

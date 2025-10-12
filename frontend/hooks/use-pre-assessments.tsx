@@ -3,8 +3,6 @@ import { useState, useEffect } from 'react'
 interface PreAssessment {
   id: number
   title: string
-  subject_id: number
-  subject_name?: string
   description: string
   created_by: number
   program: string
