@@ -7,18 +7,22 @@ const getQuestionsByPreAssessmentId = async (pool, preAssessmentId) => {
     
     const [rows] = await pool.query(`
       SELECT 
-        id,
-        pre_assessment_id,
-        question_type,
-        question,
-        options,
-        correct_answer,
-        explanation,
-        points,
-        created_at
-      FROM pre_assessment_questions 
-      WHERE pre_assessment_id = ?
-      ORDER BY created_at ASC
+        paq.id,
+        paq.pre_assessment_id,
+        paq.subject_id,
+        paq.question_type,
+        paq.question,
+        paq.options,
+        paq.correct_answer,
+        paq.explanation,
+        paq.points,
+        paq.created_at,
+        s.subject_name,
+        s.subject_code
+      FROM pre_assessment_questions paq
+      LEFT JOIN subjects s ON paq.subject_id = s.subject_id
+      WHERE paq.pre_assessment_id = ?
+      ORDER BY paq.created_at ASC
     `, [preAssessmentId]);
     
     // Parse JSON options if they exist
@@ -82,10 +86,11 @@ const createPreAssessmentQuestion = async (pool, questionData) => {
       options, 
       correct_answer, 
       explanation, 
-      points 
+      points,
+      subject_id 
     } = questionData;
     
-    console.log(`📝 Creating question for pre-assessment ID: ${pre_assessment_id}`);
+    console.log(`📝 Creating question for pre-assessment ID: ${pre_assessment_id}, subject ID: ${subject_id}`);
     
     // Convert options array to JSON string if it exists
     const optionsJson = options ? JSON.stringify(options) : null;
@@ -98,9 +103,10 @@ const createPreAssessmentQuestion = async (pool, questionData) => {
         options, 
         correct_answer, 
         explanation, 
-        points
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [pre_assessment_id, question_type, question, optionsJson, correct_answer, explanation, points]);
+        points,
+        subject_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [pre_assessment_id, question_type, question, optionsJson, correct_answer, explanation, points, subject_id]);
     
     console.log(`✅ Pre-assessment question created with ID: ${result.insertId}`);
     
@@ -112,7 +118,8 @@ const createPreAssessmentQuestion = async (pool, questionData) => {
       options,
       correct_answer,
       explanation,
-      points
+      points,
+      subject_id
     };
   } catch (error) {
     console.error('Error creating pre-assessment question:', error);
@@ -129,10 +136,11 @@ const updatePreAssessmentQuestion = async (pool, questionId, questionData) => {
       options, 
       correct_answer, 
       explanation, 
-      points 
+      points,
+      subject_id 
     } = questionData;
     
-    console.log(`📝 Updating pre-assessment question ID: ${questionId}`);
+    console.log(`📝 Updating pre-assessment question ID: ${questionId}, subject ID: ${subject_id}`);
     
     // Convert options array to JSON string if it exists
     const optionsJson = options ? JSON.stringify(options) : null;
@@ -144,9 +152,10 @@ const updatePreAssessmentQuestion = async (pool, questionId, questionData) => {
         options = ?, 
         correct_answer = ?, 
         explanation = ?, 
-        points = ?
+        points = ?,
+        subject_id = ?
       WHERE id = ?
-    `, [question_type, question, optionsJson, correct_answer, explanation, points, questionId]);
+    `, [question_type, question, optionsJson, correct_answer, explanation, points, subject_id, questionId]);
     
     console.log(`✅ Pre-assessment question updated: ${questionId}`);
     
@@ -157,7 +166,8 @@ const updatePreAssessmentQuestion = async (pool, questionId, questionData) => {
       options,
       correct_answer,
       explanation,
-      points
+      points,
+      subject_id
     };
   } catch (error) {
     console.error('Error updating pre-assessment question:', error);

@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -121,17 +122,17 @@ interface Question {
   correctAnswer: string | string[]
   explanation?: string
   points: number
+  subject_id?: number
+  subject_name?: string
+  subject_code?: string
 }
 
 interface PreAssessment {
   id: number
   title: string
-  subject_ids?: number[] // Optional for backward compatibility
-  subject_id?: number // Keep for backward compatibility
-  subject_names?: string // Will be comma-separated names
-  subject_name?: string // Keep for backward compatibility
   description: string
   created_by: number
+  created_by_name?: string
   program: string
   year_level: string
   duration: number
@@ -168,7 +169,6 @@ export default function PreAssessments() {
     title: "",
     program: "",
     year_level: "",
-    subject_ids: [] as number[],
     description: "",
     duration: 30,
     duration_unit: "minutes",
@@ -179,7 +179,6 @@ export default function PreAssessments() {
     title: "",
     program: "",
     year_level: "",
-    subject_ids: [] as number[],
     description: "",
     duration: 30,
     duration_unit: "minutes",
@@ -192,7 +191,8 @@ export default function PreAssessments() {
     options: ["", "", "", ""],
     correctAnswer: "",
     explanation: "",
-    points: 1
+    points: 1,
+    subjectId: ""
   })
 
   // Check if user is admin
@@ -255,6 +255,45 @@ export default function PreAssessments() {
     setFilteredSubjects(filtered)
   }
 
+  // Filter subjects for question dialog based on selected pre-assessment
+  const getQuestionSubjects = () => {
+    if (!selectedPreAssessment || !selectedPreAssessment.program || !selectedPreAssessment.year_level) {
+      console.log('No pre-assessment selected or missing program/year level:', selectedPreAssessment)
+      return []
+    }
+
+    const filtered = subjects.filter(subject => {
+      // Check if subject.program is an array or string
+      let subjectPrograms = []
+      
+      if (typeof subject.program === 'string') {
+        try {
+          // Try to parse as JSON array
+          subjectPrograms = JSON.parse(subject.program)
+        } catch {
+          // If not JSON, treat as single program
+          subjectPrograms = [subject.program]
+        }
+      } else if (Array.isArray(subject.program)) {
+        subjectPrograms = subject.program
+      }
+      
+      // Check if the pre-assessment's program is in the subject's programs
+      // and if year level matches
+      return subjectPrograms.includes(selectedPreAssessment.program) && 
+             subject.year_level === selectedPreAssessment.year_level
+    })
+
+    console.log('Question subjects filtered:', {
+      preAssessment: selectedPreAssessment,
+      totalSubjects: subjects.length,
+      filteredCount: filtered.length,
+      filtered: filtered.map(s => ({ id: s.subject_id, name: s.subject_name, code: s.subject_code, program: s.program, year: s.year_level }))
+    })
+
+    return filtered
+  }
+
   const fetchSubjects = async () => {
     try {
       const response = await fetch('http://localhost:4000/api/subjects')
@@ -269,10 +308,10 @@ export default function PreAssessments() {
   // Create pre-assessment
   const handleCreatePreAssessment = async () => {
     if (!createForm.title.trim() || !createForm.program || !createForm.year_level || 
-        createForm.subject_ids.length === 0 || !createForm.description.trim()) {
+        !createForm.description.trim()) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields and select at least one subject.",
+        description: "Please fill in all required fields.",
         variant: "destructive"
       })
       return
@@ -280,18 +319,27 @@ export default function PreAssessments() {
 
     try {
       setIsSubmitting(true)
+      
+      const requestBody = {
+        ...createForm,
+        created_by: currentUser?.user_id
+      }
+      
+      console.log('Creating pre-assessment with data:', requestBody)
+      
       const response = await fetch('http://localhost:4000/api/pre-assessments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          ...createForm,
-          created_by: currentUser?.user_id
-        })
+        body: JSON.stringify(requestBody)
       })
 
-      if (!response.ok) throw new Error('Failed to create pre-assessment')
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Server error response:', errorData)
+        throw new Error(errorData.error || 'Failed to create pre-assessment')
+      }
 
       const data = await response.json()
       toast({
@@ -305,7 +353,6 @@ export default function PreAssessments() {
         title: "",
         program: "",
         year_level: "",
-        subject_ids: [],
         description: "",
         duration: 30,
         duration_unit: "minutes",
@@ -331,7 +378,6 @@ export default function PreAssessments() {
       title: preAssessment.title,
       program: preAssessment.program,
       year_level: preAssessment.year_level,
-      subject_ids: preAssessment.subject_ids || [],
       description: preAssessment.description,
       duration: preAssessment.duration,
       duration_unit: preAssessment.duration_unit,
@@ -344,10 +390,10 @@ export default function PreAssessments() {
     if (!selectedPreAssessment) return
 
     if (!editForm.title.trim() || !editForm.program || !editForm.year_level || 
-        editForm.subject_ids.length === 0 || !editForm.description.trim()) {
+        !editForm.description.trim()) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields and select at least one subject.",
+        description: "Please fill in all required fields.",
         variant: "destructive"
       })
       return
@@ -355,6 +401,9 @@ export default function PreAssessments() {
 
     try {
       setIsSubmitting(true)
+      
+      console.log('Updating pre-assessment with data:', editForm)
+      
       const response = await fetch(`http://localhost:4000/api/pre-assessments/${selectedPreAssessment.id}`, {
         method: 'PUT',
         headers: {
@@ -363,7 +412,11 @@ export default function PreAssessments() {
         body: JSON.stringify(editForm)
       })
 
-      if (!response.ok) throw new Error('Failed to update pre-assessment')
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Server error response:', errorData)
+        throw new Error(errorData.error || 'Failed to update pre-assessment')
+      }
 
       toast({
         title: "Success",
@@ -436,7 +489,23 @@ export default function PreAssessments() {
       const response = await fetch(`http://localhost:4000/api/pre-assessment-questions/pre-assessment/${preAssessmentId}`)
       if (!response.ok) throw new Error('Failed to fetch questions')
       const data = await response.json()
-      setQuestions(data.questions || [])
+      
+      // Map database fields to frontend interface
+      const mappedQuestions = (data.questions || []).map((q: any) => ({
+        id: q.id,
+        type: q.question_type,
+        question: q.question,
+        options: q.options,
+        correctAnswer: q.correct_answer,
+        explanation: q.explanation,
+        points: q.points,
+        subject_id: q.subject_id,
+        subject_name: q.subject_name,
+        subject_code: q.subject_code
+      }))
+      
+      console.log('Fetched and mapped questions:', mappedQuestions)
+      setQuestions(mappedQuestions)
     } catch (error) {
       console.error('Error fetching questions:', error)
       toast({
@@ -455,29 +524,53 @@ export default function PreAssessments() {
       options: ["", "", "", ""],
       correctAnswer: "",
       explanation: "",
-      points: 1
+      points: 1,
+      subjectId: ""
     })
+    console.log('Opening add question dialog. Available subjects:', getQuestionSubjects())
     setShowQuestionDialog(true)
   }
 
   const handleEditQuestion = (question: Question) => {
+    console.log('Editing question:', question)
     setEditingQuestion(question)
+    
+    // Handle options properly for multiple-choice questions
+    let optionsToUse = ["", "", "", ""]
+    if (question.type === "multiple-choice" && question.options && question.options.length > 0) {
+      optionsToUse = [...question.options]
+      // Ensure we have at least 4 options for the form
+      while (optionsToUse.length < 4) {
+        optionsToUse.push("")
+      }
+    }
+    
     setQuestionForm({
       type: question.type,
       question: question.question,
-      options: question.options || ["", "", "", ""],
+      options: optionsToUse,
       correctAnswer: Array.isArray(question.correctAnswer) ? question.correctAnswer.join(", ") : question.correctAnswer,
       explanation: question.explanation || "",
-      points: question.points
+      points: question.points,
+      subjectId: question.subject_id?.toString() || ""
+    })
+    console.log('Question form set to:', {
+      type: question.type,
+      question: question.question,
+      options: optionsToUse,
+      correctAnswer: Array.isArray(question.correctAnswer) ? question.correctAnswer.join(", ") : question.correctAnswer,
+      explanation: question.explanation || "",
+      points: question.points,
+      subjectId: question.subject_id?.toString() || ""
     })
     setShowQuestionDialog(true)
   }
 
   const handleSaveQuestion = async () => {
-    if (!questionForm.question.trim() || !questionForm.correctAnswer.trim()) {
+    if (!questionForm.question.trim() || !questionForm.correctAnswer.trim() || !questionForm.subjectId) {
       toast({
         title: "Validation Error",
-        description: "Question and correct answer are required.",
+        description: "Question, correct answer, and subject are required.",
         variant: "destructive"
       })
       return
@@ -485,6 +578,18 @@ export default function PreAssessments() {
 
     try {
       setIsSubmitting(true)
+      
+      const parsedSubjectId = parseInt(questionForm.subjectId)
+      if (isNaN(parsedSubjectId)) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a valid subject.",
+          variant: "destructive"
+        })
+        setIsSubmitting(false)
+        return
+      }
+      
       const questionData = {
         pre_assessment_id: selectedPreAssessment?.id,
         question_type: questionForm.type,
@@ -492,8 +597,11 @@ export default function PreAssessments() {
         options: questionForm.type === "multiple-choice" ? questionForm.options.filter(option => option.trim()) : null,
         correct_answer: questionForm.correctAnswer,
         explanation: questionForm.explanation,
-        points: questionForm.points
+        points: questionForm.points,
+        subject_id: parsedSubjectId
       }
+
+      console.log('Question data being sent:', questionData)
 
       const url = editingQuestion 
         ? `http://localhost:4000/api/pre-assessment-questions/${editingQuestion.id}`
@@ -771,7 +879,7 @@ export default function PreAssessments() {
             <div className="space-y-2">
               <Label htmlFor="program">Program *</Label>
               <Select value={createForm.program} onValueChange={(value) => {
-                setCreateForm({ ...createForm, program: value, year_level: "", subject_ids: [] })
+                setCreateForm({ ...createForm, program: value, year_level: "" })
               }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select program" />
@@ -789,7 +897,7 @@ export default function PreAssessments() {
               <Label htmlFor="year_level">Year Level *</Label>
               <Select 
                 value={createForm.year_level} 
-                onValueChange={(value) => setCreateForm({ ...createForm, year_level: value, subject_ids: [] })}
+                onValueChange={(value) => setCreateForm({ ...createForm, year_level: value })}
                 disabled={!createForm.program}
               >
                 <SelectTrigger>
@@ -802,26 +910,6 @@ export default function PreAssessments() {
                   <SelectItem value="4th Year">4th Year</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Subjects *</Label>
-              <SubjectMultiSelect
-                selectedSubjects={createForm.subject_ids}
-                onChange={(subjects) => setCreateForm({ ...createForm, subject_ids: subjects })}
-                subjects={filteredSubjects}
-                disabled={!createForm.program || !createForm.year_level}
-              />
-              {createForm.subject_ids.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {filteredSubjects
-                    .filter(subject => createForm.subject_ids.includes(subject.subject_id))
-                    .map((subject) => (
-                      <Badge key={subject.subject_id} variant="secondary" className="text-xs">
-                        {subject.subject_name}
-                      </Badge>
-                    ))}
-                </div>
-              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -904,7 +992,7 @@ export default function PreAssessments() {
               <div className="space-y-2">
                 <Label htmlFor="edit-program">Program *</Label>
                 <Select value={editForm.program} onValueChange={(value) => {
-                  setEditForm({ ...editForm, program: value, year_level: "", subject_ids: [] })
+                  setEditForm({ ...editForm, program: value, year_level: "" })
                 }}>
                   <SelectTrigger>
                     <SelectValue />
@@ -922,7 +1010,7 @@ export default function PreAssessments() {
                 <Label htmlFor="edit-year_level">Year Level *</Label>
                 <Select 
                   value={editForm.year_level} 
-                  onValueChange={(value) => setEditForm({ ...editForm, year_level: value, subject_ids: [] })}
+                  onValueChange={(value) => setEditForm({ ...editForm, year_level: value })}
                   disabled={!editForm.program}
                 >
                   <SelectTrigger>
@@ -935,26 +1023,6 @@ export default function PreAssessments() {
                     <SelectItem value="4th Year">4th Year</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Subjects *</Label>
-                <SubjectMultiSelect
-                  selectedSubjects={editForm.subject_ids}
-                  onChange={(subjects) => setEditForm({ ...editForm, subject_ids: subjects })}
-                  subjects={filteredSubjects}
-                  disabled={!editForm.program || !editForm.year_level}
-                />
-                {editForm.subject_ids.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {filteredSubjects
-                      .filter(subject => editForm.subject_ids.includes(subject.subject_id))
-                      .map((subject) => (
-                        <Badge key={subject.subject_id} variant="secondary" className="text-xs">
-                          {subject.subject_name}
-                        </Badge>
-                      ))}
-                  </div>
-                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -1072,6 +1140,11 @@ export default function PreAssessments() {
                           <div className="flex items-center gap-2 mb-2">
                             <Badge variant="outline">{question.type}</Badge>
                             <Badge variant="secondary">{question.points} pt{question.points !== 1 ? 's' : ''}</Badge>
+                            {question.subject_name && (
+                              <Badge variant="default" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+                                {question.subject_code} - {question.subject_name}
+                              </Badge>
+                            )}
                           </div>
                           <p className="font-medium mb-2">Q{index + 1}: {question.question}</p>
                           {question.type === "multiple-choice" && question.options && (
@@ -1134,6 +1207,28 @@ export default function PreAssessments() {
                   <SelectItem value="true-false">True/False</SelectItem>
                   <SelectItem value="enumeration">Enumeration</SelectItem>
                   <SelectItem value="essay">Essay</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="question-subject">Subject *</Label>
+              <Select 
+                value={questionForm.subjectId} 
+                onValueChange={(value) => {
+                  console.log('Subject selected:', value)
+                  setQuestionForm({ ...questionForm, subjectId: value })
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subject for this question" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getQuestionSubjects().map((subject) => (
+                    <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                      {subject.subject_code} - {subject.subject_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1229,16 +1324,15 @@ export default function PreAssessments() {
                 onChange={(e) => setQuestionForm({ ...questionForm, points: parseInt(e.target.value) || 1 })}
               />
             </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setShowQuestionDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveQuestion} disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : (editingQuestion ? "Update Question" : "Add Question")}
-              </Button>
-            </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowQuestionDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveQuestion} disabled={isSubmitting} className="ml-2">
+              {isSubmitting ? "Saving..." : (editingQuestion ? "Update Question" : "Add Question")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

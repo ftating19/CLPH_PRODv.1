@@ -2076,7 +2076,6 @@ app.post('/api/pre-assessments', async (req, res) => {
   try {
     const { 
       title, 
-      subject_id, 
       description, 
       created_by, 
       program, 
@@ -2086,20 +2085,23 @@ app.post('/api/pre-assessments', async (req, res) => {
       difficulty 
     } = req.body;
     
+    console.log('📝 Creating pre-assessment request body:', JSON.stringify(req.body, null, 2));
+    
     // Validation
-    if (!title || !subject_id || !description || !created_by) {
+    if (!title || !description || !created_by) {
+      const error = 'Title, description, and creator are required';
+      console.error('❌ Validation error:', error);
       return res.status(400).json({ 
         success: false,
-        error: 'Title, subject, description, and creator are required' 
+        error 
       });
     }
     
-    console.log(`Creating new pre-assessment: ${title}`);
+    console.log(`📝 Creating new pre-assessment: ${title}`);
     
     const pool = await db.getPool();
     const newPreAssessment = await createPreAssessment(pool, {
       title,
-      subject_id,
       description,
       created_by,
       program: program || '',
@@ -2117,10 +2119,30 @@ app.post('/api/pre-assessments', async (req, res) => {
       preAssessment: newPreAssessment
     });
   } catch (err) {
-    console.error('Error creating pre-assessment:', err);
+    console.error('❌ Error creating pre-assessment:', err);
+    console.error('❌ Error stack:', err.stack);
+    
+    // Check for specific database errors
+    if (err.code === 'ER_NO_SUCH_TABLE') {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Pre-assessment tables do not exist. Please run the database setup script first.',
+        details: err.message
+      });
+    }
+    
+    if (err.code === 'ER_BAD_FIELD_ERROR') {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database column mismatch. Please update your database schema.',
+        details: err.message
+      });
+    }
+    
     res.status(500).json({ 
       success: false,
-      error: 'Internal server error' 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? err.message : 'Please contact support'
     });
   }
 });
@@ -2131,7 +2153,6 @@ app.put('/api/pre-assessments/:id', async (req, res) => {
     const preAssessmentId = parseInt(req.params.id);
     const { 
       title, 
-      subject_id, 
       description, 
       program, 
       year_level, 
@@ -2139,6 +2160,8 @@ app.put('/api/pre-assessments/:id', async (req, res) => {
       duration_unit, 
       difficulty 
     } = req.body;
+    
+    console.log('📝 Updating pre-assessment request body:', req.body);
     
     if (!preAssessmentId) {
       return res.status(400).json({ 
@@ -2148,10 +2171,10 @@ app.put('/api/pre-assessments/:id', async (req, res) => {
     }
     
     // Validation
-    if (!title || !subject_id || !description) {
+    if (!title || !description) {
       return res.status(400).json({ 
         success: false,
-        error: 'Title, subject, and description are required' 
+        error: 'Title and description are required' 
       });
     }
     
@@ -2170,7 +2193,6 @@ app.put('/api/pre-assessments/:id', async (req, res) => {
     
     const updatedPreAssessment = await updatePreAssessment(pool, preAssessmentId, {
       title,
-      subject_id,
       description,
       program: program || '',
       year_level: year_level || '',
@@ -2187,10 +2209,30 @@ app.put('/api/pre-assessments/:id', async (req, res) => {
       preAssessment: updatedPreAssessment
     });
   } catch (err) {
-    console.error('Error updating pre-assessment:', err);
+    console.error('❌ Error updating pre-assessment:', err);
+    console.error('❌ Error stack:', err.stack);
+    
+    // Check for specific database errors
+    if (err.code === 'ER_NO_SUCH_TABLE') {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Pre-assessment tables do not exist. Please run the database setup script first.',
+        details: err.message
+      });
+    }
+    
+    if (err.code === 'ER_BAD_FIELD_ERROR') {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database column mismatch. Please update your database schema.',
+        details: err.message
+      });
+    }
+    
     res.status(500).json({ 
       success: false,
-      error: 'Internal server error' 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? err.message : 'Please contact support'
     });
   }
 });
@@ -2371,8 +2413,11 @@ app.post('/api/pre-assessment-questions', async (req, res) => {
       options, 
       correct_answer, 
       explanation, 
-      points 
+      points,
+      subject_id 
     } = req.body;
+    
+    console.log('📝 Creating pre-assessment question request body:', JSON.stringify(req.body, null, 2));
     
     // Validation
     if (!pre_assessment_id || !question_type || !question || !correct_answer) {
@@ -2382,7 +2427,7 @@ app.post('/api/pre-assessment-questions', async (req, res) => {
       });
     }
     
-    console.log(`Creating question for pre-assessment ID: ${pre_assessment_id}`);
+    console.log(`Creating question for pre-assessment ID: ${pre_assessment_id}, subject ID: ${subject_id}`);
     
     const pool = await db.getPool();
     const newQuestion = await createPreAssessmentQuestion(pool, {
@@ -2392,7 +2437,8 @@ app.post('/api/pre-assessment-questions', async (req, res) => {
       options: options || null,
       correct_answer,
       explanation: explanation || '',
-      points: points || 1
+      points: points || 1,
+      subject_id
     });
     
     console.log(`✅ Question created successfully with ID: ${newQuestion.id}`);
@@ -2421,7 +2467,8 @@ app.put('/api/pre-assessment-questions/:id', async (req, res) => {
       options, 
       correct_answer, 
       explanation, 
-      points 
+      points,
+      subject_id 
     } = req.body;
     
     if (!questionId) {
@@ -2458,7 +2505,8 @@ app.put('/api/pre-assessment-questions/:id', async (req, res) => {
       options: options || null,
       correct_answer,
       explanation: explanation || '',
-      points: points || 1
+      points: points || 1,
+      subject_id
     });
     
     console.log(`✅ Question updated successfully: ${questionId}`);
