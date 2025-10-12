@@ -206,6 +206,38 @@ const deleteFlashcardProgress = async (pool, flashcardId) => {
   }
 };
 
+// Get statistics for a flashcard set (by sub_id)
+const getFlashcardSetStatistics = async (pool, subId) => {
+  try {
+    // Get the total number of cards in the set
+    const [totalCards] = await pool.query(`
+      SELECT COUNT(*) as total_cards
+      FROM flashcards
+      WHERE sub_id = ?
+    `, [subId]);
+
+    const totalCardCount = totalCards[0].total_cards;
+
+    // Get users who completed all cards in the set
+    const [rows] = await pool.query(`
+      SELECT COUNT(DISTINCT user_id) as unique_users_completed
+      FROM (
+        SELECT fp.user_id, COUNT(fp.flashcard_id) as completed_count
+        FROM flashcardprogress fp
+        INNER JOIN flashcards f ON fp.flashcard_id = f.flashcard_id
+        WHERE f.sub_id = ? AND fp.status = 'completed'
+        GROUP BY fp.user_id
+        HAVING completed_count = ?
+      ) as users_completed_all
+    `, [subId, totalCardCount]);
+    
+    return rows[0] || { unique_users_completed: 0 };
+  } catch (error) {
+    console.error('Error fetching flashcard set statistics:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   getFlashcardProgressByUser,
   getFlashcardProgress,
@@ -215,5 +247,6 @@ module.exports = {
   resetFlashcardProgress,
   getFlashcardProgressStats,
   getFlashcardProgressStatsBySubject,
-  deleteFlashcardProgress
+  deleteFlashcardProgress,
+  getFlashcardSetStatistics
 };

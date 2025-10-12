@@ -35,7 +35,8 @@ const {
   resetFlashcardProgress,
   getFlashcardProgressStats,
   getFlashcardProgressStatsBySubject,
-  deleteFlashcardProgress
+  deleteFlashcardProgress,
+  getFlashcardSetStatistics
 } = require('../queries/flashcardProgress')
 const { 
   getAllQuizzes, 
@@ -4884,6 +4885,38 @@ app.get('/api/flashcards/progress/stats/:userId', async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching flashcard progress stats:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get flashcard set statistics (unique users who completed)
+app.get('/api/flashcards/set/statistics/:subId', async (req, res) => {
+  try {
+    const subId = parseInt(req.params.subId);
+    
+    if (!subId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid sub_id is required' 
+      });
+    }
+    
+    console.log(`Fetching flashcard set statistics for sub_id: ${subId}`);
+    
+    const pool = await db.getPool();
+    const statistics = await getFlashcardSetStatistics(pool, subId);
+    
+    console.log(`✅ Retrieved flashcard set statistics for sub_id ${subId}:`, statistics);
+    
+    res.json({
+      success: true,
+      statistics: statistics
+    });
+  } catch (err) {
+    console.error('Error fetching flashcard set statistics:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 

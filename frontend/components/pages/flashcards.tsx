@@ -202,6 +202,10 @@ export default function Flashcards() {
   const { markCompleted, updating: updatingProgress } = useUpdateFlashcardProgress()
   const { progress: userProgress, stats: progressStats, refetch: refetchProgress } = useFlashcardProgress(user_id || null)
 
+  // Flashcard set statistics state (unique users who completed)
+  const [flashcardSetStatistics, setFlashcardSetStatistics] = useState<{[subId: number]: {unique_users_completed: number}}>({})
+  const [statisticsLoading, setStatisticsLoading] = useState(true)
+
   // Filter flashcards based on search and filter criteria
   const filteredFlashcards = flashcards.filter((flashcard: any) => {
     // Debug log for flashcard_view
@@ -315,6 +319,57 @@ export default function Flashcards() {
     const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
     return dateB - dateA;
   });
+
+  // Fetch flashcard set statistics for all sets
+  useEffect(() => {
+    const fetchFlashcardSetStatistics = async () => {
+      if (flashcardGroupedSets.length === 0) {
+        setStatisticsLoading(false)
+        return
+      }
+
+      try {
+        const statisticsPromises = flashcardGroupedSets.map(async (set: any) => {
+          try {
+            const response = await fetch(`http://localhost:4000/api/flashcards/set/statistics/${set.sub_id}`)
+            const data = await response.json()
+            
+            if (data.success && data.statistics) {
+              return {
+                subId: set.sub_id,
+                unique_users_completed: data.statistics.unique_users_completed || 0
+              }
+            }
+            return {
+              subId: set.sub_id,
+              unique_users_completed: 0
+            }
+          } catch (error) {
+            console.error(`Error fetching statistics for flashcard set ${set.sub_id}:`, error)
+            return {
+              subId: set.sub_id,
+              unique_users_completed: 0
+            }
+          }
+        })
+
+        const statisticsArray = await Promise.all(statisticsPromises)
+        const statisticsMap: {[subId: number]: {unique_users_completed: number}} = {}
+        
+        statisticsArray.forEach(stat => {
+          statisticsMap[stat.subId] = { unique_users_completed: stat.unique_users_completed }
+        })
+        
+        setFlashcardSetStatistics(statisticsMap)
+      } catch (error) {
+        console.error('Error fetching flashcard set statistics:', error)
+      } finally {
+        setStatisticsLoading(false)
+      }
+    }
+
+    fetchFlashcardSetStatistics()
+  }, [flashcardGroupedSets.length])
 
   const handleCreateFlashcard = async () => {
     if (!question.trim()) {
@@ -916,11 +971,10 @@ export default function Flashcards() {
                 <span>Last studied: {new Date(set.lastStudied).toLocaleDateString()}</span>
               </div>
             </div>
-            {set.completedCards > 0 && (
-              <div className="flex items-center">
-                <span className="text-green-600 font-medium">Completed ({set.completedCards} attempts)</span>
-              </div>
-            )}
+            <div className="flex items-center">
+              <User className="w-4 h-4 mr-1 text-muted-foreground" />
+              <span>{flashcardSetStatistics[set.sub_id]?.unique_users_completed || 0} {(flashcardSetStatistics[set.sub_id]?.unique_users_completed || 0) === 1 ? 'user' : 'users'} finished</span>
+            </div>
           </div>
 
           <div className="space-y-2">
