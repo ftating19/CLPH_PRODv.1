@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, MessageSquare, Users, Clock, Plus, Filter } from "lucide-react"
+import { Search, MessageSquare, Users, Clock, Plus, Filter, Edit, Trash2, MoreVertical } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -13,17 +13,50 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useSubjects } from "@/hooks/use-subjects"
 import { useUser } from "@/contexts/UserContext"
+import { useToast } from "@/hooks/use-toast"
 
 export default function DiscussionForums() {
   const { currentUser } = useUser();
+  const { toast } = useToast();
   const [showNewTopicModal, setShowNewTopicModal] = useState(false);
   const [newTopicTitle, setNewTopicTitle] = useState("");
   const [newTopicDesc, setNewTopicDesc] = useState("");
   const [newTopicSubject, setNewTopicSubject] = useState("");
   const [newTopicLoading, setNewTopicLoading] = useState(false);
   const [newTopicError, setNewTopicError] = useState("");
+  
+  // Edit states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingForum, setEditingForum] = useState<any | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editSubject, setEditSubject] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+  
+  // Delete states
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingForum, setDeletingForum] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects();
   const [selectedForumId, setSelectedForumId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -78,6 +111,124 @@ export default function DiscussionForums() {
   // Toggle forum comment section
   const handleCommentButtonClick = (forumId: string) => {
     setSelectedForumId(prev => prev === forumId ? null : forumId);
+  };
+
+  // Check if user can edit/delete a forum post
+  const canManageForum = (forum: any) => {
+    if (!currentUser) return false;
+    const userRole = currentUser.role?.toLowerCase();
+    return forum.created_by === currentUser.user_id || userRole === 'admin';
+  };
+
+  // Handle edit forum
+  const handleEditForum = (forum: any) => {
+    setEditingForum(forum);
+    setEditTitle(forum.title);
+    setEditDesc(forum.topic);
+    setEditSubject(String(forum.subject_id));
+    setEditError("");
+    setShowEditModal(true);
+  };
+
+  // Submit edit
+  const handleSubmitEdit = async () => {
+    if (!editingForum || !currentUser) return;
+    
+    setEditLoading(true);
+    setEditError("");
+    
+    try {
+      const res = await fetch(`http://localhost:4000/api/forums/${editingForum.forum_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editTitle,
+          topic: editDesc,
+          subject_id: editSubject,
+          user_id: currentUser.user_id
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        toast({
+          title: "Success",
+          description: "Forum post updated successfully",
+        });
+        setShowEditModal(false);
+        // Refresh forums
+        const forumsRes = await fetch(`http://localhost:4000/api/forums?user_id=${currentUser.user_id}`);
+        const forumsData = await forumsRes.json();
+        setForums(forumsData.forums || []);
+      } else {
+        setEditError(data.error || "Failed to update forum post");
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to update forum post",
+        });
+      }
+    } catch (error) {
+      console.error('Error updating forum:', error);
+      setEditError("Failed to update forum post. Please try again.");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update forum post. Please try again.",
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  // Handle delete forum
+  const handleDeleteForum = (forum: any) => {
+    setDeletingForum(forum);
+    setShowDeleteDialog(true);
+  };
+
+  // Confirm delete
+  const handleConfirmDelete = async () => {
+    if (!deletingForum || !currentUser) return;
+    
+    setDeleteLoading(true);
+    
+    try {
+      const res = await fetch(`http://localhost:4000/api/forums/${deletingForum.forum_id}?user_id=${currentUser.user_id}`, {
+        method: 'DELETE'
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        toast({
+          title: "Success",
+          description: "Forum post deleted successfully",
+        });
+        setShowDeleteDialog(false);
+        setDeletingForum(null);
+        // Refresh forums
+        const forumsRes = await fetch(`http://localhost:4000/api/forums?user_id=${currentUser.user_id}`);
+        const forumsData = await forumsRes.json();
+        setForums(forumsData.forums || []);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Failed to delete forum post",
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting forum:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete forum post. Please try again.",
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   return (
@@ -217,18 +368,43 @@ export default function DiscussionForums() {
           className={`transition-colors mb-4 ${selectedForumId === forum.forum_id ? "border-blue-500 bg-blue-50" : "hover:bg-gray-50"}`}
         >
           <CardHeader className="pb-2">
-            <div className="flex items-center gap-3 mb-2">
-              <Avatar className="w-10 h-10">
-                <AvatarImage src={forum.avatar_url || "/placeholder-user.jpg"} alt={forum.created_by_name} />
-                <AvatarFallback>{forum.created_by_name ? forum.created_by_name.split(' ').map((n: string) => n[0]).join('') : '?'}</AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">{forum.created_by_name}</span>
-                  <span className="text-xs text-muted-foreground">• {new Date(forum.created_at).toLocaleString()}</span>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-3 flex-1">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={forum.avatar_url || "/placeholder-user.jpg"} alt={forum.created_by_name} />
+                  <AvatarFallback>{forum.created_by_name ? forum.created_by_name.split(' ').map((n: string) => n[0]).join('') : '?'}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm">{forum.created_by_name}</span>
+                    <span className="text-xs text-muted-foreground">• {new Date(forum.created_at).toLocaleString()}</span>
+                  </div>
+                  <Badge variant="secondary" className="text-xs mt-1">{forum.subject_name}</Badge>
                 </div>
-                <Badge variant="secondary" className="text-xs mt-1">{forum.subject_name}</Badge>
               </div>
+              {/* Edit/Delete dropdown menu */}
+              {canManageForum(forum) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleEditForum(forum)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Post
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleDeleteForum(forum)}
+                      className="text-red-600 focus:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Post
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
             <CardTitle className="text-lg mb-1">{forum.title}</CardTitle>
             <CardDescription className="text-base text-muted-foreground">{forum.topic}</CardDescription>
@@ -351,6 +527,83 @@ export default function DiscussionForums() {
     )}
   </div>
   {/* Removed chat area below feed. Now comments appear inside the selected forum card. */}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4">Edit Forum Post</h2>
+            <div className="space-y-3">
+              <Input
+                placeholder="Title"
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+              />
+              <Input
+                placeholder="Description"
+                value={editDesc}
+                onChange={e => setEditDesc(e.target.value)}
+              />
+              <Select
+                value={editSubject}
+                onValueChange={setEditSubject}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects && subjects.map((subject) => (
+                    <SelectItem key={subject.subject_id} value={String(subject.subject_id)}>{subject.subject_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {editError && <div className="text-red-500 text-sm mt-2">{editError}</div>}
+            <div className="flex justify-end space-x-2 mt-6">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingForum(null);
+                  setEditError("");
+                }} 
+                disabled={editLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={editLoading || !editTitle.trim() || !editDesc.trim() || !editSubject}
+                onClick={handleSubmitEdit}
+              >
+                {editLoading ? "Updating..." : "Update"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this forum post and all its comments. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteLoading ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

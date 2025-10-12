@@ -127,7 +127,7 @@ const {
   deletePendingFlashcardsBySubId
 } = require('../queries/pendingFlashcards')
 const { createSession, getSessions } = require('../queries/sessions')
-const { getAllForums, getForumById, createForum } = require('../queries/forums')
+const { getAllForums, getForumById, createForum, updateForum, deleteForum } = require('../queries/forums')
 const { getCommentsByForumId, addComment } = require('../queries/comments')
 const {
   getAllPreAssessments,
@@ -5579,6 +5579,78 @@ app.post('/api/forums', async (req, res) => {
     res.json({ success: true, forum_id, created_by_name });
   } catch (err) {
     console.error('Error creating forum:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Update a forum
+app.put('/api/forums/:id', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const forum_id = req.params.id;
+    const { title, topic, subject_id, user_id } = req.body;
+    
+    // Check if user has permission to edit
+    const forum = await getForumById(pool, forum_id);
+    if (!forum) {
+      return res.status(404).json({ success: false, error: 'Forum not found' });
+    }
+    
+    // Get user role
+    const [userRows] = await pool.query('SELECT role FROM users WHERE user_id = ?', [user_id]);
+    const userRole = userRows[0]?.role?.toLowerCase();
+    
+    // Only allow creator or admin to edit
+    if (forum.created_by !== parseInt(user_id) && userRole !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Permission denied. Only the creator or admin can edit this post.' });
+    }
+    
+    const success = await updateForum(pool, forum_id, { title, topic, subject_id });
+    if (success) {
+      res.json({ success: true, message: 'Forum updated successfully' });
+    } else {
+      res.status(404).json({ success: false, error: 'Forum not found' });
+    }
+  } catch (err) {
+    console.error('Error updating forum:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Delete a forum
+app.delete('/api/forums/:id', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const forum_id = req.params.id;
+    const user_id = req.query.user_id;
+    
+    if (!user_id) {
+      return res.status(400).json({ success: false, error: 'User ID is required' });
+    }
+    
+    // Check if user has permission to delete
+    const forum = await getForumById(pool, forum_id);
+    if (!forum) {
+      return res.status(404).json({ success: false, error: 'Forum not found' });
+    }
+    
+    // Get user role
+    const [userRows] = await pool.query('SELECT role FROM users WHERE user_id = ?', [user_id]);
+    const userRole = userRows[0]?.role?.toLowerCase();
+    
+    // Only allow creator or admin to delete
+    if (forum.created_by !== parseInt(user_id) && userRole !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Permission denied. Only the creator or admin can delete this post.' });
+    }
+    
+    const success = await deleteForum(pool, forum_id);
+    if (success) {
+      res.json({ success: true, message: 'Forum deleted successfully' });
+    } else {
+      res.status(404).json({ success: false, error: 'Forum not found' });
+    }
+  } catch (err) {
+    console.error('Error deleting forum:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
