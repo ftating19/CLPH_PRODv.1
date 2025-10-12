@@ -233,6 +233,7 @@ export default function ManageSubjects() {
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [programFilter, setProgramFilter] = useState("");
+  const [yearLevelFilter, setYearLevelFilter] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Faculty state
@@ -485,7 +486,11 @@ export default function ManageSubjects() {
     const matchesProgram = !programFilter || programFilter === "all" || 
       (subject.program && subject.program.includes(programFilter));
     
-    return matchesSearch && matchesProgram;
+    // Year level filter
+    const matchesYearLevel = !yearLevelFilter || yearLevelFilter === "all" || 
+      subject.year_level === yearLevelFilter;
+    
+    return matchesSearch && matchesProgram && matchesYearLevel;
   });
 
   const SubjectCard = ({ subject }: { subject: Subject }) => {
@@ -733,15 +738,30 @@ export default function ManageSubjects() {
             </SelectContent>
           </Select>
         </div>
+        <div className="w-48">
+          <Select value={yearLevelFilter} onValueChange={setYearLevelFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by year level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Year Levels</SelectItem>
+              <SelectItem value="1st Year">1st Year</SelectItem>
+              <SelectItem value="2nd Year">2nd Year</SelectItem>
+              <SelectItem value="3rd Year">3rd Year</SelectItem>
+              <SelectItem value="4th Year">4th Year</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <Button variant="outline" onClick={fetchSubjects}>
           Refresh
         </Button>
-        {(searchQuery || (programFilter && programFilter !== "all")) && (
+        {(searchQuery || (programFilter && programFilter !== "all") || (yearLevelFilter && yearLevelFilter !== "all")) && (
           <Button 
             variant="ghost" 
             onClick={() => {
               setSearchQuery("");
               setProgramFilter("");
+              setYearLevelFilter("");
             }}
           >
             Clear Filters
