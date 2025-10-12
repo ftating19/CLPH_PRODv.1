@@ -64,6 +64,8 @@ interface Subject {
   subject_code: string;
   faculty_ids?: string[];
   year_level?: string;
+  program?: string[];
+  assigned_faculty?: string[];
 }
 
 // Multi-select component for programs
@@ -364,11 +366,18 @@ export default function ManageSubjects() {
         : [(subject as any).program]
       : [];
     
+    // Ensure faculty_ids is an array
+    const facultyIdsArray = (subject as any).faculty_ids 
+      ? Array.isArray((subject as any).faculty_ids) 
+        ? (subject as any).faculty_ids 
+        : [(subject as any).faculty_ids]
+      : [];
+    
     setEditForm({
       subject_name: subject.subject_name,
       description: subject.description,
       subject_code: subject.subject_code,
-      faculty_ids: subject.faculty_ids || [],
+      faculty_ids: facultyIdsArray,
       program: programArray,
       year_level: subject.year_level || ""
     });

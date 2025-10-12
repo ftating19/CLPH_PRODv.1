@@ -1388,7 +1388,23 @@ app.get('/api/subjects', async (req, res) => {
           ? `${user.first_name} ${user.middle_name ? user.middle_name + ' ' : ''}${user.last_name} (${user.email})`
           : `Faculty ID: ${fid}`;
       });
-      return { ...subj, assigned_faculty };
+      
+      // Parse program if it's a JSON string
+      let programArray = [];
+      if (subj.program) {
+        try {
+          programArray = JSON.parse(subj.program);
+        } catch {
+          programArray = [subj.program];
+        }
+      }
+      
+      return { 
+        ...subj, 
+        assigned_faculty, 
+        faculty_ids: facultyIds,
+        program: programArray
+      };
     });
 
     console.log(`✅ Found ${subjects.length} subjects`);
