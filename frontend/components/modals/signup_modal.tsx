@@ -26,6 +26,7 @@ export default function SignupModal({ open, onClose, onSubmit }: SignupModalProp
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [program, setProgram] = useState("");
 	const [role, setRole] = useState("Student");
+	const [yearLevel, setYearLevel] = useState("");
 	const [passwordVisible, setPasswordVisible] = useState(false);
 	const [passwordError, setPasswordError] = useState("");
 	const [confirmPasswordError, setConfirmPasswordError] = useState("");
@@ -90,6 +91,15 @@ export default function SignupModal({ open, onClose, onSubmit }: SignupModalProp
 			return;
 		}
 
+		if (!yearLevel) {
+			toast({
+				variant: "destructive",
+				title: "Year Level Required",
+				description: "Please select your year level.",
+			});
+			return;
+		}
+
 		if (!program) {
 			toast({
 				variant: "destructive",
@@ -122,7 +132,7 @@ export default function SignupModal({ open, onClose, onSubmit }: SignupModalProp
 		setPasswordError("");
 		setConfirmPasswordError("");
 
-		onSubmit({ user_id: userId, first_name: firstName, middle_name: middleName, last_name: lastName, email, password, program, role, status });
+		onSubmit({ user_id: userId, first_name: firstName, middle_name: middleName, last_name: lastName, email, password, program, role, year_level: yearLevel, status });
 		toast({
 			title: "Account created successfully!",
 			description: "Your account has been created and you can now login.",
@@ -224,6 +234,20 @@ export default function SignupModal({ open, onClose, onSubmit }: SignupModalProp
 							</Select>
 						</div>
 						<div>
+							<Label htmlFor="year_level">Year Level</Label>
+							<Select value={yearLevel} onValueChange={setYearLevel}>
+								<SelectTrigger className="w-full" aria-label="Year Level">
+									<SelectValue placeholder="Select your year level" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="1st Year">1st Year</SelectItem>
+									<SelectItem value="2nd Year">2nd Year</SelectItem>
+									<SelectItem value="3rd Year">3rd Year</SelectItem>
+									<SelectItem value="4th Year">4th Year</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+						<div>
 							<Label htmlFor="role">Role</Label>
 							<Select value={role} onValueChange={setRole}>
 								<SelectTrigger className="w-full" aria-label="Role">
@@ -233,11 +257,6 @@ export default function SignupModal({ open, onClose, onSubmit }: SignupModalProp
 									<SelectItem value="Student">Student</SelectItem>
 								</SelectContent>
 							</Select>
-						</div>
-						{/* Status is auto Active, not editable */}
-						<div>
-							<Label>Status</Label>
-							<Input value={status} disabled />
 						</div>
 					</div>
 					<DialogFooter className="mt-6">

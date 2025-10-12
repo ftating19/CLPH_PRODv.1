@@ -1,9 +1,9 @@
 // queries/users.js
 // Export functions related to users table queries.
-async function createUser(pool, { first_name, middle_name, last_name, email, password, program, role, status, first_login }) {
+async function createUser(pool, { first_name, middle_name, last_name, email, password, program, role, status, year_level, first_login }) {
   const [result] = await pool.query(
-    'INSERT INTO users (first_name, middle_name, last_name, email, password, program, role, status, first_login, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-    [first_name, middle_name || null, last_name, email, password, program || null, role || 'Student', status || 'Active', first_login !== undefined ? first_login : 1]
+    'INSERT INTO users (first_name, middle_name, last_name, email, password, program, role, status, year_level, first_login, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+    [first_name, middle_name || null, last_name, email, password, program || null, role || 'Student', status || 'Active', year_level || null, first_login !== undefined ? first_login : 1]
   )
   return result
 }
@@ -17,7 +17,7 @@ async function findUserByEmail(pool, email) {
 }
 
 async function updateUser(pool, userId, userData) {
-  const { first_name, middle_name, last_name, email, program, role, status } = userData;
+  const { first_name, middle_name, last_name, email, program, role, status, year_level } = userData;
   
   const [result] = await pool.query(
     `UPDATE users SET 
@@ -27,9 +27,10 @@ async function updateUser(pool, userId, userData) {
       email = ?, 
       program = ?, 
       role = ?, 
-      status = ?
+      status = ?,
+      year_level = ?
     WHERE user_id = ?`,
-    [first_name, middle_name || null, last_name, email, program, role, status, userId]
+    [first_name, middle_name || null, last_name, email, program, role, status, year_level || null, userId]
   );
   
   return result;
@@ -37,7 +38,7 @@ async function updateUser(pool, userId, userData) {
 
 async function findUserById(pool, userId) {
   const [rows] = await pool.query(
-    'SELECT user_id, first_name, middle_name, last_name, email, program, role, status FROM users WHERE user_id = ?',
+    'SELECT user_id, first_name, middle_name, last_name, email, program, role, status, year_level FROM users WHERE user_id = ?',
     [userId]
   );
   return rows.length > 0 ? rows[0] : null;

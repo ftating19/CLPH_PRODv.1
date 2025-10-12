@@ -237,7 +237,7 @@ app.post('/api/signup', async (req, res) => {
       url: req.url
     });
 
-    const { first_name, middle_name, last_name, email, password, program, role, status } = req.body;
+    const { first_name, middle_name, last_name, email, password, program, role, status, year_level } = req.body;
 
     // Ensure req.body is parsed correctly
     if (!req.body || Object.keys(req.body).length === 0) {
@@ -271,6 +271,7 @@ app.post('/api/signup', async (req, res) => {
       program,
       role,
       status,
+      year_level,
       first_login: 1, // Self-registered users don't need to reset password // kapag 1 ang value yung account is from sign up kapag 0 nag rereset ng password since si admin ang gumawa ng account
     });
 
@@ -286,7 +287,7 @@ app.post('/api/admin/create-user', async (req, res) => {
   try {
     console.log('Admin user creation request:', req.body);
 
-    const { first_name, middle_name, last_name, email, program, role, status } = req.body;
+    const { first_name, middle_name, last_name, email, program, role, status, year_level } = req.body;
 
     // Validate required fields
     if (!first_name || !last_name || !email || !program) {
@@ -319,6 +320,7 @@ app.post('/api/admin/create-user', async (req, res) => {
       program,
       role: role || 'Student',
       status: status || 'Active',
+      year_level,
       first_login: 0, // Admin-created users need to reset password on first login
     });
 
