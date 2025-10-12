@@ -79,7 +79,10 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 		}
 
 		try {
-			await onSubmit({ user_id: userId, first_name: firstName, middle_name: middleName, last_name: lastName, email, program, role, year_level: yearLevel, status });
+			// Set year level to N/A for Admin and Faculty roles
+			const finalYearLevel = (role === "Admin" || role === "Faculty") ? "N/A" : yearLevel;
+			
+			await onSubmit({ user_id: userId, first_name: firstName, middle_name: middleName, last_name: lastName, email, program, role, year_level: finalYearLevel, status });
 			toast({
 				title: "User account created successfully!",
 				description: "A temporary password has been sent to the user's email.",
@@ -157,35 +160,6 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 							</div>
 						</div>
 						<div>
-							<Label htmlFor="program">Program</Label>
-							<Select value={program} onValueChange={setProgram}>
-								<SelectTrigger className="w-full" aria-label="Program">
-									<SelectValue placeholder="Select a program" />
-								</SelectTrigger>
-								<SelectContent>
-									{CICT_PROGRAMS.map((program) => (
-										<SelectItem key={program} value={program}>
-											{program}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-						<div>
-							<Label htmlFor="year_level">Year Level</Label>
-							<Select value={yearLevel} onValueChange={setYearLevel}>
-								<SelectTrigger className="w-full" aria-label="Year Level">
-									<SelectValue placeholder="Select year level" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="1st Year">1st Year</SelectItem>
-									<SelectItem value="2nd Year">2nd Year</SelectItem>
-									<SelectItem value="3rd Year">3rd Year</SelectItem>
-									<SelectItem value="4th Year">4th Year</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-						<div>
 							<Label htmlFor="role">Role</Label>
 							<Select value={role} onValueChange={setRole}>
 								<SelectTrigger className="w-full" aria-label="Role">
@@ -200,6 +174,37 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 								</SelectContent>
 							</Select>
 						</div>
+						<div>
+							<Label htmlFor="program">Program</Label>
+							<Select value={program} onValueChange={setProgram}>
+								<SelectTrigger className="w-full" aria-label="Program">
+									<SelectValue placeholder="Select a program" />
+								</SelectTrigger>
+								<SelectContent>
+									{CICT_PROGRAMS.map((program) => (
+										<SelectItem key={program} value={program}>
+											{program}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+						{role !== "Admin" && role !== "Faculty" && (
+							<div>
+								<Label htmlFor="year_level">Year Level</Label>
+								<Select value={yearLevel} onValueChange={setYearLevel}>
+									<SelectTrigger className="w-full" aria-label="Year Level">
+										<SelectValue placeholder="Select year level" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="1st Year">1st Year</SelectItem>
+										<SelectItem value="2nd Year">2nd Year</SelectItem>
+										<SelectItem value="3rd Year">3rd Year</SelectItem>
+										<SelectItem value="4th Year">4th Year</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						)}
 						{/* Status is auto Active, not editable */}
 						<div>
 							<Label>Status</Label>
