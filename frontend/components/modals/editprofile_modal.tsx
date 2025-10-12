@@ -18,6 +18,7 @@ interface EditProfileModalProps {
 
 interface UserData {
   id: number;
+  user_id: number;
   first_name: string;
   middle_name: string;
   last_name: string;
@@ -34,6 +35,7 @@ export default function EditProfileModal({ open, onClose, onUpdate }: EditProfil
   const [lastName, setLastName] = useState("");
   const [description, setDescription] = useState("");
   const [program, setProgram] = useState("");
+  const [yearLevel, setYearLevel] = useState("");
   const [role, setRole] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -47,24 +49,106 @@ export default function EditProfileModal({ open, onClose, onUpdate }: EditProfil
 
   useEffect(() => {
     if (open) {
-      // Get user data from localStorage
+      fetchUserData();
+    }
+  }, [open]);
+
+  const fetchUserData = async () => {
+    try {
+      // Get user ID from localStorage to know which user to fetch
+      let userId = null;
+      
+      // Try 'currentUser' key first
+      const currentUserData = localStorage.getItem('currentUser');
+      if (currentUserData) {
+        try {
+          const currentUser = JSON.parse(currentUserData);
+          userId = currentUser.user_id;
+        } catch (error) {
+          console.error('Error parsing currentUser data:', error);
+        }
+      }
+      
+      // If no user ID, try 'user' key
+      if (!userId) {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          try {
+            const user = JSON.parse(storedUser);
+            userId = user.id || user.user_id;
+          } catch (error) {
+            console.error('Error parsing user data:', error);
+          }
+        }
+      }
+
+      if (!userId) {
+        console.error('No user ID found in localStorage');
+        return;
+      }
+
+      // Fetch fresh user data from database
+      console.log(`Fetching user data from database for ID: ${userId}`);
+      const response = await fetch(`http://localhost:4000/api/users/${userId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user data: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success || !data.user) {
+        throw new Error('Invalid response format from server');
+      }
+      
+      const apiUser = data.user;
+      console.log('Fresh user data from database:', apiUser);
+      
+      // Set the user data in state
+      setUserData({
+        id: apiUser.user_id,
+        user_id: apiUser.user_id,
+        first_name: apiUser.first_name || '',
+        middle_name: apiUser.middle_name || '',
+        last_name: apiUser.last_name || '',
+        email: apiUser.email,
+        role: apiUser.role
+      });
+      
+      // Set form fields from database data
+      setFirstName(apiUser.first_name || '');
+      setMiddleName(apiUser.middle_name || '');
+      setLastName(apiUser.last_name || '');
+      setDescription(apiUser.description || '');
+      setProgram(apiUser.program || '');
+      setYearLevel(apiUser.year_level || '');
+      setRole(apiUser.role || '');
+      
+      console.log('Set year level from database:', apiUser.year_level || 'empty');
+      
+    } catch (error) {
+      console.error('Error fetching user data from database:', error);
+      // Fallback to localStorage data if API fails
+      console.log('Falling back to localStorage data');
+      
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         try {
           const user = JSON.parse(storedUser);
           setUserData(user);
-          setFirstName(user.name?.split(' ')[0] || '');
-          setMiddleName(user.name?.split(' ')[1] || '');
-          setLastName(user.name?.split(' ').slice(-1)[0] || '');
+          setFirstName(user.first_name || user.name?.split(' ')[0] || '');
+          setMiddleName(user.middle_name || user.name?.split(' ')[1] || '');
+          setLastName(user.last_name || user.name?.split(' ').slice(-1)[0] || '');
           setDescription(user.description || '');
           setProgram(user.program || '');
+          setYearLevel(user.year_level || '');
           setRole(user.role || '');
         } catch (error) {
-          console.error('Error parsing user data:', error);
+          console.error('Error parsing fallback localStorage data:', error);
         }
       }
     }
-  }, [open]);
+  };
 
   const validatePassword = (password: string) => {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
@@ -114,6 +198,7 @@ export default function EditProfileModal({ open, onClose, onUpdate }: EditProfil
         last_name: lastName,
         description: description,
         program: program,
+        year_level: yearLevel,
         role: role,
       };
 
@@ -143,6 +228,7 @@ export default function EditProfileModal({ open, onClose, onUpdate }: EditProfil
         name: `${firstName} ${middleName ? middleName + ' ' : ''}${lastName}`.trim(),
         description: description,
         program: program,
+        year_level: yearLevel,
         role: role,
       };
       localStorage.setItem('user', JSON.stringify(updatedUser));
@@ -155,6 +241,7 @@ export default function EditProfileModal({ open, onClose, onUpdate }: EditProfil
           last_name: lastName,
           email: userData.email, // Use the email from userData since it's not editable
           program: program,
+          year_level: yearLevel,
           role: role
         });
       }
@@ -268,6 +355,20 @@ export default function EditProfileModal({ open, onClose, onUpdate }: EditProfil
                       <SelectItem value="Bachelor of Science in Computer Science">Bachelor of Science in Computer Science</SelectItem>
                       <SelectItem value="Bachelor of Library and Information Science">Bachelor of Library and Information Science</SelectItem>
                       <SelectItem value="Bachelor of Science in Entertainment and Multimedia Computing">Bachelor of Science in Entertainment and Multimedia Computing</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="year_level" className="text-sm">Year Level</Label>
+                  <Select value={yearLevel} onValueChange={setYearLevel}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select your year level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1st Year">1st Year</SelectItem>
+                      <SelectItem value="2nd Year">2nd Year</SelectItem>
+                      <SelectItem value="3rd Year">3rd Year</SelectItem>
+                      <SelectItem value="4th Year">4th Year</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

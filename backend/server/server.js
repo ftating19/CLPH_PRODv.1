@@ -366,7 +366,7 @@ app.get('/api/users', async (req, res) => {
 
     // Fetch all users (excluding passwords for security)
     const [users] = await pool.query(
-      'SELECT user_id, first_name, middle_name, last_name, email, program, role, status, first_login, created_at FROM users ORDER BY created_at DESC'
+      'SELECT user_id, first_name, middle_name, last_name, email, program, role, status, year_level, first_login, created_at FROM users ORDER BY created_at DESC'
     );
 
     console.log(`✅ Found ${users.length} users`);
@@ -382,6 +382,50 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
+// Get single user by ID
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    console.log(`Fetching user with ID: ${userId}`);
+
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid user ID is required' 
+      });
+    }
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Fetch single user (excluding password for security)
+    const [users] = await pool.query(
+      'SELECT user_id, first_name, middle_name, last_name, email, program, role, status, year_level, first_login, created_at, description FROM users WHERE user_id = ?',
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'User not found' 
+      });
+    }
+
+    console.log(`✅ Found user: ${users[0].email}`);
+    
+    res.status(200).json({ 
+      success: true,
+      user: users[0]
+    });
+  } catch (err) {
+    console.error('Error fetching user by ID:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
 // Add endpoint to fetch students specifically
 // Add endpoint to fetch faculty specifically
 app.get('/api/faculty', async (req, res) => {
@@ -393,7 +437,7 @@ app.get('/api/faculty', async (req, res) => {
 
     // Fetch only faculty with active status (excluding passwords for security)
     const [faculty] = await pool.query(
-      'SELECT user_id, first_name, middle_name, last_name, email, program, role, status, first_login, created_at FROM users WHERE role = ? AND status = ? ORDER BY created_at DESC',
+      'SELECT user_id, first_name, middle_name, last_name, email, program, role, status, year_level, first_login, created_at FROM users WHERE role = ? AND status = ? ORDER BY created_at DESC',
       ['Faculty', 'active']
     );
 
@@ -417,7 +461,7 @@ app.get('/api/students', async (req, res) => {
 
     // Fetch only students with active status (excluding passwords for security)
     const [students] = await pool.query(
-      'SELECT user_id, first_name, middle_name, last_name, email, program, role, status, first_login, created_at FROM users WHERE role = ? AND status = ? ORDER BY created_at DESC',
+      'SELECT user_id, first_name, middle_name, last_name, email, program, role, status, year_level, first_login, created_at FROM users WHERE role = ? AND status = ? ORDER BY created_at DESC',
       ['Student', 'active']
     );
 
@@ -657,7 +701,7 @@ app.post('/api/login', async (req, res) => {
 app.put('/api/update-profile/:id', async (req, res) => {
   try {
     const userId = req.params.id;
-    const { first_name, middle_name, last_name, description, program, role, currentPassword, newPassword } = req.body;
+    const { first_name, middle_name, last_name, description, program, role, year_level, currentPassword, newPassword } = req.body;
 
     console.log('Profile update attempt:', { userId, timestamp: new Date().toISOString() });
 
@@ -701,16 +745,16 @@ app.put('/api/update-profile/:id', async (req, res) => {
 
       // Update profile with new password
       await pool.query(
-        'UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, description = ?, program = ?, role = ?, password = ? WHERE user_id = ?',
-        [first_name, middle_name || null, last_name, description || null, program || null, role, hashedNewPassword, userId]
+        'UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, description = ?, program = ?, role = ?, year_level = ?, password = ? WHERE user_id = ?',
+        [first_name, middle_name || null, last_name, description || null, program || null, role, year_level || null, hashedNewPassword, userId]
       );
 
       console.log('Profile updated with password change for user:', userId);
     } else {
       // Update profile without password change
       await pool.query(
-        'UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, description = ?, program = ?, role = ? WHERE user_id = ?',
-        [first_name, middle_name || null, last_name, description || null, program || null, role, userId]
+        'UPDATE users SET first_name = ?, middle_name = ?, last_name = ?, description = ?, program = ?, role = ?, year_level = ? WHERE user_id = ?',
+        [first_name, middle_name || null, last_name, description || null, program || null, role, year_level || null, userId]
       );
 
       console.log('Profile updated for user:', userId);

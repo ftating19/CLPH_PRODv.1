@@ -11,6 +11,7 @@ interface User {
   program: string;
   role: string;
   status: string;
+  year_level?: string;
   first_login: number;
   created_at: string;
   description?: string;
@@ -56,6 +57,7 @@ export function UserProvider({ children }: UserProviderProps) {
             program: userData.program || '',
             role: userData.role,
             status: 'Active',
+            year_level: userData.year_level || '',
             first_login: 1,
             created_at: new Date().toISOString()
           };
@@ -115,6 +117,7 @@ export function UserProvider({ children }: UserProviderProps) {
         middle_name: updatedUser.middle_name,
         last_name: updatedUser.last_name,
         program: updatedUser.program,
+        year_level: updatedUser.year_level,
         user_id: updatedUser.user_id
       };
       localStorage.setItem('user', JSON.stringify(userForProfile));
