@@ -25,10 +25,10 @@ const getSubjectById = async (pool, subjectId) => {
 // Create new subject
 const createSubject = async (pool, subjectData) => {
   try {
-    const { subject_name, description, subject_code, user_id, program } = subjectData;
+    const { subject_name, description, subject_code, user_id, program, year_level } = subjectData;
     const [result] = await pool.query(
-      'INSERT INTO subjects (subject_name, description, subject_code, user_id, program) VALUES (?, ?, ?, ?, ?)',
-      [subject_name, description, subject_code, user_id, program]
+      'INSERT INTO subjects (subject_name, description, subject_code, user_id, program, year_level) VALUES (?, ?, ?, ?, ?, ?)',
+      [subject_name, description, subject_code, user_id, program, year_level]
     );
     return {
       subject_id: result.insertId,
@@ -36,7 +36,8 @@ const createSubject = async (pool, subjectData) => {
       description,
       subject_code,
       user_id,
-      program
+      program,
+      year_level
     };
   } catch (error) {
     console.error('Error creating subject:', error);
@@ -47,10 +48,10 @@ const createSubject = async (pool, subjectData) => {
 // Update subject
 const updateSubject = async (pool, subjectId, subjectData) => {
   try {
-    const { subject_name, description, subject_code, user_id, program } = subjectData;
+    const { subject_name, description, subject_code, user_id, program, year_level } = subjectData;
     await pool.query(
-      'UPDATE subjects SET subject_name = ?, description = ?, subject_code = ?, user_id = ?, program = ? WHERE subject_id = ?',
-      [subject_name, description, subject_code, user_id, program, subjectId]
+      'UPDATE subjects SET subject_name = ?, description = ?, subject_code = ?, user_id = ?, program = ?, year_level = ? WHERE subject_id = ?',
+      [subject_name, description, subject_code, user_id, program, year_level, subjectId]
     );
     return {
       subject_id: subjectId,
@@ -58,7 +59,8 @@ const updateSubject = async (pool, subjectId, subjectData) => {
       description,
       subject_code,
       user_id,
-      program
+      program,
+      year_level
     };
   } catch (error) {
     console.error('Error updating subject:', error);

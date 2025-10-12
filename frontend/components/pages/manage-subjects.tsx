@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Library, Plus, Search, Edit, Trash2, Loader2, MoreVertical } from "lucide-react"
+import { Library, Plus, Search, Edit, Trash2, Loader2, MoreVertical, ChevronDown, X } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +39,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
+import { CICT_PROGRAMS } from "@/lib/constants"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 // TypeScript interfaces for faculty and subject data
 interface Faculty {
@@ -49,7 +63,165 @@ interface Subject {
   description: string;
   subject_code: string;
   faculty_ids?: string[];
+  year_level?: string;
 }
+
+// Multi-select component for programs
+const ProgramMultiSelect = ({ 
+  selectedPrograms, 
+  onSelectionChange 
+}: { 
+  selectedPrograms: string[], 
+  onSelectionChange: (programs: string[]) => void 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleProgramToggle = (program: string) => {
+    const newSelection = selectedPrograms.includes(program)
+      ? selectedPrograms.filter(p => p !== program)
+      : [...selectedPrograms, program];
+    onSelectionChange(newSelection);
+  };
+
+  const removeProgram = (program: string) => {
+    onSelectionChange(selectedPrograms.filter(p => p !== program));
+  };
+
+  return (
+    <div className="space-y-2">
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button 
+            variant="outline" 
+            className="w-full justify-between h-auto min-h-[40px] p-2"
+          >
+            <div className="flex flex-wrap gap-1">
+              {selectedPrograms.length === 0 ? (
+                <span className="text-muted-foreground">Select programs...</span>
+              ) : (
+                selectedPrograms.map(program => (
+                  <Badge key={program} variant="secondary" className="text-xs">
+                    {program}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeProgram(program);
+                      }}
+                      className="ml-1 hover:text-red-500"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))
+              )}
+            </div>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-2" align="start">
+          <div className="space-y-2">
+            {CICT_PROGRAMS.map((program) => (
+              <div key={program} className="flex items-center space-x-2">
+                <Checkbox
+                  id={program}
+                  checked={selectedPrograms.includes(program)}
+                  onCheckedChange={() => handleProgramToggle(program)}
+                />
+                <Label htmlFor={program} className="text-sm cursor-pointer">
+                  {program}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
+
+// Multi-select component for faculty
+const FacultyMultiSelect = ({ 
+  selectedFaculty, 
+  onSelectionChange, 
+  facultyList 
+}: { 
+  selectedFaculty: string[], 
+  onSelectionChange: (faculty: string[]) => void,
+  facultyList: Faculty[]
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleFacultyToggle = (facultyId: string) => {
+    const newSelection = selectedFaculty.includes(facultyId)
+      ? selectedFaculty.filter(f => f !== facultyId)
+      : [...selectedFaculty, facultyId];
+    onSelectionChange(newSelection);
+  };
+
+  const removeFaculty = (facultyId: string) => {
+    onSelectionChange(selectedFaculty.filter(f => f !== facultyId));
+  };
+
+  const getFacultyName = (facultyId: string) => {
+    const faculty = facultyList.find(f => f.user_id === facultyId);
+    return faculty 
+      ? `${faculty.first_name} ${faculty.middle_name ? faculty.middle_name + ' ' : ''}${faculty.last_name}`
+      : 'Unknown Faculty';
+  };
+
+  return (
+    <div className="space-y-2">
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button 
+            variant="outline" 
+            className="w-full justify-between h-auto min-h-[40px] p-2"
+          >
+            <div className="flex flex-wrap gap-1">
+              {selectedFaculty.length === 0 ? (
+                <span className="text-muted-foreground">Select faculty...</span>
+              ) : (
+                selectedFaculty.map(facultyId => (
+                  <Badge key={facultyId} variant="secondary" className="text-xs">
+                    {getFacultyName(facultyId)}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFaculty(facultyId);
+                      }}
+                      className="ml-1 hover:text-red-500"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))
+              )}
+            </div>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-2" align="start">
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {facultyList.map((faculty) => (
+              <div key={faculty.user_id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={faculty.user_id}
+                  checked={selectedFaculty.includes(faculty.user_id)}
+                  onCheckedChange={() => handleFacultyToggle(faculty.user_id)}
+                />
+                <Label htmlFor={faculty.user_id} className="text-sm cursor-pointer">
+                  {faculty.first_name} {faculty.middle_name ? faculty.middle_name + ' ' : ''}{faculty.last_name} ({faculty.email})
+                </Label>
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
 
 export default function ManageSubjects() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -65,24 +237,21 @@ export default function ManageSubjects() {
   // Faculty state
   const [facultyList, setFacultyList] = useState<Faculty[]>([]);
 
-  // Program options
-  const programOptions = [
-    "BSCS", "BSIT", "BSIS", "BLIS", "BSEMC", "Other"
-  ];
-
   // Form states
   const [createForm, setCreateForm] = useState<{
     subject_name: string;
     description: string;
     subject_code: string;
     faculty_ids: string[];
-    program: string;
+    program: string[];
+    year_level: string;
   }>({
     subject_name: "",
     description: "",
     subject_code: "",
     faculty_ids: [],
-    program: ""
+    program: [],
+    year_level: ""
   });
 
   const [editForm, setEditForm] = useState<{
@@ -90,13 +259,15 @@ export default function ManageSubjects() {
     description: string;
     subject_code: string;
     faculty_ids: string[];
-    program: string;
+    program: string[];
+    year_level: string;
   }>({
     subject_name: "",
     description: "",
     subject_code: "",
     faculty_ids: [],
-    program: ""
+    program: [],
+    year_level: ""
   });
 
   const { toast } = useToast();
@@ -144,7 +315,7 @@ export default function ManageSubjects() {
   }, []);
 
   const handleCreateSubject = async () => {
-    if (!createForm.subject_name.trim() || !createForm.description.trim() || !createForm.subject_code.trim()) {
+    if (!createForm.subject_name.trim() || !createForm.description.trim() || !createForm.subject_code.trim() || !createForm.year_level.trim()) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields.",
@@ -171,7 +342,7 @@ export default function ManageSubjects() {
           description: `${createForm.subject_name} has been successfully created.`,
           duration: 3000,
         });
-        setCreateForm({ subject_name: "", description: "", subject_code: "", faculty_ids: [], program: "" });
+        setCreateForm({ subject_name: "", description: "", subject_code: "", faculty_ids: [], program: [], year_level: "" });
         setShowCreateDialog(false);
         fetchSubjects();
       }
@@ -189,19 +360,26 @@ export default function ManageSubjects() {
 
   const handleEditSubject = (subject: Subject) => {
     setSelectedSubject(subject);
+    const programArray = (subject as any).program 
+      ? Array.isArray((subject as any).program) 
+        ? (subject as any).program 
+        : [(subject as any).program]
+      : [];
+    
     setEditForm({
       subject_name: subject.subject_name,
       description: subject.description,
       subject_code: subject.subject_code,
       faculty_ids: subject.faculty_ids || [],
-      program: (subject as any).program || ""
+      program: programArray,
+      year_level: subject.year_level || ""
     });
     setShowEditDialog(true);
   };
 
   const handleUpdateSubject = async () => {
     if (!selectedSubject) return;
-    if (!editForm.subject_name.trim() || !editForm.description.trim() || !editForm.subject_code.trim()) {
+    if (!editForm.subject_name.trim() || !editForm.description.trim() || !editForm.subject_code.trim() || !editForm.year_level.trim()) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields.",
@@ -423,20 +601,32 @@ export default function ManageSubjects() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="program">Program *</Label>
-                <select
-                  id="program"
-                  value={selectedSubject ? editForm.program : createForm.program}
-                  onChange={e => selectedSubject
-                    ? setEditForm({ ...editForm, program: e.target.value })
-                    : setCreateForm({ ...createForm, program: e.target.value })}
-                  className="w-full border rounded p-2 bg-white dark:bg-gray-900"
+                <Label htmlFor="program">Programs *</Label>
+                <ProgramMultiSelect
+                  selectedPrograms={selectedSubject ? editForm.program : createForm.program}
+                  onSelectionChange={(programs) => selectedSubject
+                    ? setEditForm({ ...editForm, program: programs })
+                    : setCreateForm({ ...createForm, program: programs })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="year_level">Year Level *</Label>
+                <Select
+                  value={selectedSubject ? editForm.year_level : createForm.year_level}
+                  onValueChange={(value) => selectedSubject
+                    ? setEditForm({ ...editForm, year_level: value })
+                    : setCreateForm({ ...createForm, year_level: value })}
                 >
-                  <option value="">Select Program</option>
-                  {programOptions.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select year level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1st Year">1st Year</SelectItem>
+                    <SelectItem value="2nd Year">2nd Year</SelectItem>
+                    <SelectItem value="3rd Year">3rd Year</SelectItem>
+                    <SelectItem value="4th Year">4th Year</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description *</Label>
@@ -452,27 +642,13 @@ export default function ManageSubjects() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="faculty">Assign Faculty</Label>
-                <select
-                  multiple
-                  id="faculty"
-                  value={selectedSubject ? editForm.faculty_ids : createForm.faculty_ids}
-                  onChange={e => {
-                    const options = Array.from(e.target.selectedOptions).map(opt => opt.value);
-                    if (selectedSubject) {
-                      setEditForm({ ...editForm, faculty_ids: options });
-                    } else {
-                      setCreateForm({ ...createForm, faculty_ids: options });
-                    }
-                  }}
-                  className="w-full border rounded p-2 bg-white dark:bg-gray-900"
-                >
-                  {facultyList.map(faculty => (
-                    <option key={faculty.user_id} value={faculty.user_id}>
-                      {faculty.first_name} {faculty.middle_name ? faculty.middle_name + ' ' : ''}{faculty.last_name} ({faculty.email})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground">Hold Ctrl (Windows) or Cmd (Mac) to select multiple faculty.</p>
+                <FacultyMultiSelect
+                  selectedFaculty={selectedSubject ? editForm.faculty_ids : createForm.faculty_ids}
+                  onSelectionChange={(faculty) => selectedSubject
+                    ? setEditForm({ ...editForm, faculty_ids: faculty })
+                    : setCreateForm({ ...createForm, faculty_ids: faculty })}
+                  facultyList={facultyList}
+                />
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => {
@@ -576,24 +752,36 @@ export default function ManageSubjects() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-faculty">Assign Faculty</Label>
-                <select
-                  multiple
-                  id="edit-faculty"
-                  value={editForm.faculty_ids}
-                  onChange={e => {
-                    const options = Array.from(e.target.selectedOptions).map(opt => opt.value);
-                    setEditForm({ ...editForm, faculty_ids: options });
-                  }}
-                  className="w-full border rounded p-2 bg-white dark:bg-gray-900"
+                <Label htmlFor="edit-program">Programs *</Label>
+                <ProgramMultiSelect
+                  selectedPrograms={editForm.program}
+                  onSelectionChange={(programs) => setEditForm({ ...editForm, program: programs })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-year_level">Year Level *</Label>
+                <Select
+                  value={editForm.year_level}
+                  onValueChange={(value) => setEditForm({ ...editForm, year_level: value })}
                 >
-                  {facultyList.map(faculty => (
-                    <option key={faculty.user_id} value={faculty.user_id}>
-                      {faculty.first_name} {faculty.middle_name ? faculty.middle_name + ' ' : ''}{faculty.last_name} ({faculty.email})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground">Hold Ctrl (Windows) or Cmd (Mac) to select multiple faculty.</p>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select year level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1st Year">1st Year</SelectItem>
+                    <SelectItem value="2nd Year">2nd Year</SelectItem>
+                    <SelectItem value="3rd Year">3rd Year</SelectItem>
+                    <SelectItem value="4th Year">4th Year</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-faculty">Assign Faculty</Label>
+                <FacultyMultiSelect
+                  selectedFaculty={editForm.faculty_ids}
+                  onSelectionChange={(faculty) => setEditForm({ ...editForm, faculty_ids: faculty })}
+                  facultyList={facultyList}
+                />
               </div>
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setShowEditDialog(false)}>

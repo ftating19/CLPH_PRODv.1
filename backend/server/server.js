@@ -1448,7 +1448,7 @@ app.get('/api/subjects/:id', async (req, res) => {
 // Create new subject
 app.post('/api/subjects', async (req, res) => {
   try {
-  const { subject_name, description, subject_code, faculty_ids, program } = req.body;
+  const { subject_name, description, subject_code, faculty_ids, program, year_level } = req.body;
     
     // Validation
     if (!subject_name || !description || !subject_code) {
@@ -1463,12 +1463,15 @@ app.post('/api/subjects', async (req, res) => {
     const pool = await db.getPool();
     // Store faculty_ids as JSON string in user_id field
     const user_id = Array.isArray(faculty_ids) ? JSON.stringify(faculty_ids) : faculty_ids ? JSON.stringify([faculty_ids]) : null;
+    // Store program as JSON string if it's an array
+    const programString = Array.isArray(program) ? JSON.stringify(program) : program;
     const newSubject = await createSubject(pool, {
       subject_name,
       description,
       subject_code,
       user_id,
-      program
+      program: programString,
+      year_level
     });
     
     console.log(`✅ Subject created successfully with ID: ${newSubject.subject_id}`);
@@ -1499,7 +1502,7 @@ app.post('/api/subjects', async (req, res) => {
 app.put('/api/subjects/:id', async (req, res) => {
   try {
     const subjectId = parseInt(req.params.id);
-  const { subject_name, description, subject_code, faculty_ids, program } = req.body;
+  const { subject_name, description, subject_code, faculty_ids, program, year_level } = req.body;
     
     if (!subjectId) {
       return res.status(400).json({ 
@@ -1531,12 +1534,15 @@ app.put('/api/subjects/:id', async (req, res) => {
     
     // Store faculty_ids as JSON string in user_id field
     const user_id = Array.isArray(faculty_ids) ? JSON.stringify(faculty_ids) : faculty_ids ? JSON.stringify([faculty_ids]) : null;
+    // Store program as JSON string if it's an array
+    const programString = Array.isArray(program) ? JSON.stringify(program) : program;
     const updatedSubject = await updateSubject(pool, subjectId, {
       subject_name,
       description,
       subject_code,
       user_id,
-      program
+      program: programString,
+      year_level
     });
     
     console.log(`✅ Subject updated successfully: ${subject_name}`);
