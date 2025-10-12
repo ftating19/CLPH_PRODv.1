@@ -152,14 +152,35 @@ export default function DiscussionForums() {
       const data = await res.json();
       
       if (res.ok) {
+        console.log('✅ Forum updated successfully, response:', data);
+        
         toast({
           title: "Success",
           description: "Forum post updated successfully",
         });
         setShowEditModal(false);
-        // Refresh forums
+        
+        // Refresh forums with proper user_id parameter
+        console.log('🔄 Refreshing forums list...');
         const forumsRes = await fetch(`http://localhost:4000/api/forums?user_id=${currentUser.user_id}`);
         const forumsData = await forumsRes.json();
+        console.log('📋 Refreshed forums data:', forumsData.forums?.length, 'forums');
+        
+        // Log first forum to check is_edited field
+        if (forumsData.forums && forumsData.forums.length > 0) {
+          const sampleForum = forumsData.forums.find((f: any) => f.forum_id === editingForum.forum_id);
+          if (sampleForum) {
+            console.log('🔍 Updated forum details:', {
+              forum_id: sampleForum.forum_id,
+              title: sampleForum.title,
+              created_at: sampleForum.created_at,
+              updated_at: sampleForum.updated_at,
+              is_edited: sampleForum.is_edited,
+              is_edited_type: typeof sampleForum.is_edited
+            });
+          }
+        }
+        
         setForums(forumsData.forums || []);
       } else {
         setEditError(data.error || "Failed to update forum post");
@@ -377,9 +398,23 @@ export default function DiscussionForums() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm">{forum.created_by_name}</span>
-                    <span className="text-xs text-muted-foreground">• {new Date(forum.created_at).toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground">
+                      • {new Date(forum.created_at).toLocaleString()}
+                      {(forum.is_edited === 1 || forum.is_edited === true) && forum.updated_at && (
+                        <span className="ml-1 italic">
+                          (edited {new Date(forum.updated_at).toLocaleString()})
+                        </span>
+                      )}
+                    </span>
                   </div>
-                  <Badge variant="secondary" className="text-xs mt-1">{forum.subject_name}</Badge>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="secondary" className="text-xs">{forum.subject_name}</Badge>
+                    {(forum.is_edited === 1 || forum.is_edited === true) && (
+                      <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 bg-amber-50">
+                        Edited
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
               {/* Edit/Delete dropdown menu */}

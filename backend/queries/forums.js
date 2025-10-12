@@ -9,7 +9,12 @@ async function getAllForums(pool) {
       s.subject_name,
       (
         SELECT COUNT(*) FROM comments c WHERE c.forum_id = f.forum_id
-      ) AS comment_count
+      ) AS comment_count,
+      f.updated_at,
+      CASE 
+        WHEN f.updated_at IS NOT NULL AND f.updated_at > f.created_at THEN 1
+        ELSE 0
+      END AS is_edited
     FROM forums f
     LEFT JOIN users u ON f.created_by = u.user_id
     LEFT JOIN subjects s ON f.subject_id = s.subject_id
@@ -36,7 +41,7 @@ async function createForum(pool, { title, topic, subject_id, created_by }) {
 // Update a forum
 async function updateForum(pool, forum_id, { title, topic, subject_id }) {
   const [result] = await pool.query(
-    'UPDATE forums SET title = ?, topic = ?, subject_id = ? WHERE forum_id = ?',
+    'UPDATE forums SET title = ?, topic = ?, subject_id = ?, updated_at = NOW() WHERE forum_id = ?',
     [title, topic, subject_id, forum_id]
   );
   return result.affectedRows > 0;

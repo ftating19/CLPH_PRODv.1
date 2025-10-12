@@ -5527,6 +5527,19 @@ app.get('/api/forums', async (req, res) => {
     const forums = await getAllForums(pool);
     const user_id = req.query.user_id;
     const forumsQueries = require('../queries/forums');
+    
+    // Log raw forum data to debug
+    console.log('📋 Fetching forums, total count:', forums.length);
+    if (forums.length > 0) {
+      console.log('Sample forum (first):', {
+        forum_id: forums[0].forum_id,
+        created_at: forums[0].created_at,
+        updated_at: forums[0].updated_at,
+        is_edited: forums[0].is_edited,
+        is_edited_type: typeof forums[0].is_edited
+      });
+    }
+    
     // Transform to always include user name, subject name, and liked_by_current_user
     const transformed = await Promise.all(forums.map(async forum => {
       let liked_by_current_user = false;
@@ -5540,6 +5553,9 @@ app.get('/api/forums', async (req, res) => {
         liked_by_current_user
       };
     }));
+    
+    console.log('✅ Transformed forums being sent to client');
+    
     res.json({ success: true, forums: transformed });
   } catch (err) {
     console.error('Error fetching forums:', err);
@@ -5607,7 +5623,23 @@ app.put('/api/forums/:id', async (req, res) => {
     
     const success = await updateForum(pool, forum_id, { title, topic, subject_id });
     if (success) {
-      res.json({ success: true, message: 'Forum updated successfully' });
+      // Log the update for debugging
+      console.log(`✅ Forum ${forum_id} updated successfully`);
+      
+      // Fetch the updated forum to return the latest data
+      const updatedForum = await getForumById(pool, forum_id);
+      console.log('Updated forum data:', {
+        forum_id: updatedForum.forum_id,
+        created_at: updatedForum.created_at,
+        updated_at: updatedForum.updated_at,
+        is_edited: updatedForum.updated_at > updatedForum.created_at ? 1 : 0
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Forum updated successfully',
+        forum: updatedForum 
+      });
     } else {
       res.status(404).json({ success: false, error: 'Forum not found' });
     }
