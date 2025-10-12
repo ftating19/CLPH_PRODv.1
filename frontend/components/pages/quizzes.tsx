@@ -192,6 +192,10 @@ export default function Quizzes() {
   // User attempts state
   const [userAttempts, setUserAttempts] = useState<{[quizId: number]: any[]}>({})
   const [attemptsLoading, setAttemptsLoading] = useState(true)
+  
+  // Quiz statistics state (unique users count)
+  const [quizStatistics, setQuizStatistics] = useState<{[quizId: number]: {unique_users: number}}>({})
+  const [statisticsLoading, setStatisticsLoading] = useState(true)
 
   // Fetch user attempts when user is available
   useEffect(() => {
@@ -227,6 +231,57 @@ export default function Quizzes() {
 
     fetchUserAttempts()
   }, [currentUser?.user_id])
+
+  // Fetch quiz statistics for all quizzes
+  useEffect(() => {
+    const fetchQuizStatistics = async () => {
+      if (quizzes.length === 0) {
+        setStatisticsLoading(false)
+        return
+      }
+
+      try {
+        const statisticsPromises = quizzes.map(async (quiz: any) => {
+          try {
+            const response = await fetch(`http://localhost:4000/api/quiz-attempts/statistics/${quiz.quizzes_id}`)
+            const data = await response.json()
+            
+            if (data.success && data.statistics) {
+              return {
+                quizId: quiz.quizzes_id,
+                unique_users: data.statistics.unique_users || 0
+              }
+            }
+            return {
+              quizId: quiz.quizzes_id,
+              unique_users: 0
+            }
+          } catch (error) {
+            console.error(`Error fetching statistics for quiz ${quiz.quizzes_id}:`, error)
+            return {
+              quizId: quiz.quizzes_id,
+              unique_users: 0
+            }
+          }
+        })
+
+        const statisticsArray = await Promise.all(statisticsPromises)
+        const statisticsMap: {[quizId: number]: {unique_users: number}} = {}
+        
+        statisticsArray.forEach(stat => {
+          statisticsMap[stat.quizId] = { unique_users: stat.unique_users }
+        })
+        
+        setQuizStatistics(statisticsMap)
+      } catch (error) {
+        console.error('Error fetching quiz statistics:', error)
+      } finally {
+        setStatisticsLoading(false)
+      }
+    }
+
+    fetchQuizStatistics()
+  }, [quizzes])
 
   // Get user_id early for use in filters
   const user_id = currentUser?.user_id
@@ -1261,8 +1316,8 @@ export default function Quizzes() {
             <span>Your Highest Score: {quiz.bestScore ? `${quiz.bestScore}%` : "Not attempted"}</span>
           </div>
           <div className="flex items-center space-x-2">
-            <CheckCircle className="w-4 h-4 text-muted-foreground" />
-            <span>{quiz.completedTimes} attempts</span>
+            <User className="w-4 h-4 text-muted-foreground" />
+            <span>{quizStatistics[quiz.id]?.unique_users || 0} {(quizStatistics[quiz.id]?.unique_users || 0) === 1 ? 'user' : 'users'} took this</span>
           </div>
         </div>
 
