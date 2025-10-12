@@ -147,6 +147,16 @@ const {
   createPreAssessmentQuestions
 } = require('../queries/preAssessmentQuestions')
 
+const {
+  createPreAssessmentResult,
+  getResultsByUserId,
+  getResultsByAssessmentId,
+  getResultByUserAndAssessment,
+  getAllResults,
+  deleteResult,
+  getAssessmentStatistics
+} = require('../queries/preAssessmentResults')
+
 const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
@@ -2331,6 +2341,56 @@ app.get('/api/pre-assessments/year-level/:yearLevel', async (req, res) => {
   }
 });
 
+// Get pre-assessments by program and year level
+app.get('/api/pre-assessments/program/:program/year/:yearLevel', async (req, res) => {
+  try {
+    const { program, yearLevel } = req.params;
+    
+    console.log(`Fetching pre-assessments for program: ${program} and year level: ${yearLevel}`);
+    
+    const pool = await db.getPool();
+    const [preAssessments] = await pool.query(`
+      SELECT 
+        pa.id,
+        pa.title,
+        pa.description,
+        pa.created_by,
+        pa.program,
+        pa.year_level,
+        pa.duration,
+        pa.duration_unit,
+        pa.difficulty,
+        pa.status,
+        pa.created_at,
+        pa.updated_at,
+        CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
+        COUNT(DISTINCT q.id) as question_count
+      FROM pre_assessments pa
+      LEFT JOIN users u ON pa.created_by = u.user_id
+      LEFT JOIN pre_assessment_questions q ON pa.id = q.pre_assessment_id
+      WHERE pa.program = ? AND pa.year_level = ? AND pa.status = 'active'
+      GROUP BY pa.id, pa.title, pa.description, pa.created_by, 
+               pa.program, pa.year_level, pa.duration, pa.duration_unit, 
+               pa.difficulty, pa.status, pa.created_at, pa.updated_at,
+               u.first_name, u.last_name
+      ORDER BY pa.created_at DESC
+    `, [program, yearLevel]);
+    
+    console.log(`✅ Found ${preAssessments.length} pre-assessments for program ${program} and year level ${yearLevel}`);
+    
+    res.json({
+      success: true,
+      preAssessments: preAssessments || []
+    });
+  } catch (err) {
+    console.error('Error fetching pre-assessments by program and year level:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
 // ===== PRE-ASSESSMENT QUESTIONS API ENDPOINTS =====
 
 // Get questions for a pre-assessment
@@ -2596,6 +2656,229 @@ app.post('/api/pre-assessment-questions/bulk', async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
+    });
+  }
+});
+
+// ===== PRE-ASSESSMENT RESULTS API ENDPOINTS =====
+
+// Submit pre-assessment result
+app.post('/api/pre-assessment-results', async (req, res) => {
+  try {
+    const { 
+      user_id, 
+      pre_assessment_id, 
+      score, 
+      total_points, 
+      correct_answers, 
+      total_questions, 
+      time_taken_seconds,
+      started_at,
+      answers 
+    } = req.body;
+
+    if (!user_id || !pre_assessment_id || score === undefined || total_points === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: user_id, pre_assessment_id, score, total_points'
+      });
+    }
+
+    const percentage = total_points > 0 ? (score / total_points) * 100 : 0;
+
+    const resultData = {
+      user_id,
+      pre_assessment_id,
+      score,
+      total_points,
+      percentage: parseFloat(percentage.toFixed(2)),
+      correct_answers: correct_answers || 0,
+      total_questions: total_questions || 0,
+      time_taken_seconds,
+      started_at,
+      answers
+    };
+
+    const pool = db.getPool();
+    const result = await createPreAssessmentResult(pool, resultData);
+
+    res.status(201).json({
+      success: true,
+      result: result
+    });
+  } catch (err) {
+    console.error('Error creating pre-assessment result:', err);
+    
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        success: false,
+        error: 'User has already taken this pre-assessment'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get results by user ID
+app.get('/api/pre-assessment-results/user/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid user ID'
+      });
+    }
+
+    const pool = db.getPool();
+    const results = await getResultsByUserId(pool, userId);
+
+    res.json({
+      success: true,
+      results: results
+    });
+  } catch (err) {
+    console.error('Error fetching results by user ID:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get results by assessment ID
+app.get('/api/pre-assessment-results/assessment/:assessmentId', async (req, res) => {
+  try {
+    const assessmentId = parseInt(req.params.assessmentId);
+
+    if (!assessmentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid assessment ID'
+      });
+    }
+
+    const pool = db.getPool();
+    const results = await getResultsByAssessmentId(pool, assessmentId);
+
+    res.json({
+      success: true,
+      results: results
+    });
+  } catch (err) {
+    console.error('Error fetching results by assessment ID:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get specific result by user and assessment
+app.get('/api/pre-assessment-results/user/:userId/assessment/:assessmentId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const assessmentId = parseInt(req.params.assessmentId);
+
+    if (!userId || !assessmentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid user ID or assessment ID'
+      });
+    }
+
+    const pool = db.getPool();
+    const result = await getResultByUserAndAssessment(pool, userId, assessmentId);
+
+    res.json({
+      success: true,
+      result: result
+    });
+  } catch (err) {
+    console.error('Error fetching result by user and assessment:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get all results (admin only)
+app.get('/api/pre-assessment-results', async (req, res) => {
+  try {
+    const pool = db.getPool();
+    const results = await getAllResults(pool);
+
+    res.json({
+      success: true,
+      results: results
+    });
+  } catch (err) {
+    console.error('Error fetching all results:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get assessment statistics
+app.get('/api/pre-assessment-results/statistics/:assessmentId', async (req, res) => {
+  try {
+    const assessmentId = parseInt(req.params.assessmentId);
+
+    if (!assessmentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid assessment ID'
+      });
+    }
+
+    const pool = db.getPool();
+    const statistics = await getAssessmentStatistics(pool, assessmentId);
+
+    res.json({
+      success: true,
+      statistics: statistics
+    });
+  } catch (err) {
+    console.error('Error fetching assessment statistics:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Delete result
+app.delete('/api/pre-assessment-results/:resultId', async (req, res) => {
+  try {
+    const resultId = parseInt(req.params.resultId);
+
+    if (!resultId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid result ID'
+      });
+    }
+
+    const pool = db.getPool();
+    await deleteResult(pool, resultId);
+
+    res.json({
+      success: true,
+      message: 'Result deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting result:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
     });
   }
 });

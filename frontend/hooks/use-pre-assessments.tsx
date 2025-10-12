@@ -168,3 +168,56 @@ export function usePreAssessmentsByYearLevel(yearLevel: string | null) {
     refetch
   }
 }
+
+// Hook to fetch pre-assessments by program and year level
+export function usePreAssessmentsByProgramAndYear(program: string | null, yearLevel: string | null) {
+  const [preAssessments, setPreAssessments] = useState<PreAssessment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchPreAssessmentsByProgramAndYear = async () => {
+    if (!program || !yearLevel) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      const response = await fetch(`http://localhost:4000/api/pre-assessments/program/${encodeURIComponent(program)}/year/${encodeURIComponent(yearLevel)}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setPreAssessments(data.preAssessments || [])
+        setError(null)
+      } else {
+        throw new Error(data.error || 'Failed to fetch pre-assessments')
+      }
+    } catch (err) {
+      console.error('Error fetching pre-assessments by program and year level:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch pre-assessments')
+      setPreAssessments([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchPreAssessmentsByProgramAndYear()
+  }, [program, yearLevel])
+
+  const refetch = () => {
+    fetchPreAssessmentsByProgramAndYear()
+  }
+
+  return {
+    preAssessments,
+    loading,
+    error,
+    refetch
+  }
+}

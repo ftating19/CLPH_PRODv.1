@@ -1,6 +1,7 @@
 "use client"
 import BookingForm from "@/components/modals/BookingForm"
 import EnhancedBookingForm from "@/components/modals/EnhancedBookingForm"
+import PreAssessmentTestModal from "@/components/modals/PreAssessmentTestModal"
 
 import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -369,21 +370,11 @@ export default function TutorMatching() {
             Take our test
           </Button>
         </div>
-        <Dialog open={showTestModal} onOpenChange={setShowTestModal}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Sample Tutor Matching Test</DialogTitle>
-              <DialogDescription>
-                This test will help us match you with the best tutors based on your results. Click Start to begin the sample test.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col items-center justify-center py-4">
-              <Button className="bg-blue-600 hover:bg-blue-700 w-full" onClick={() => { setShowTestModal(false); /* TODO: Start sample test logic here */ }}>
-                Start Test
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <PreAssessmentTestModal 
+          open={showTestModal} 
+          onOpenChange={setShowTestModal}
+          currentUser={currentUser}
+        />
         <Dialog open={showApplyModal} onOpenChange={setShowApplyModal}>
           <DialogTrigger asChild>
             <Button className="bg-green-600 hover:bg-green-700">
