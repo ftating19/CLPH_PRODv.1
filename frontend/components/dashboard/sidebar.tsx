@@ -367,6 +367,11 @@ export default function Sidebar() {
                       <NavItem href="/manage-subjects" icon={Library}>
                         Manage Subjects
                       </NavItem>
+                      {userRole === "admin" && (
+                        <NavItem href="/pre-assessments" icon={FileText}>
+                          Pre-Assessments
+                        </NavItem>
+                      )}
                     </div>
                   </div>
                 </>

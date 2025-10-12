@@ -128,6 +128,15 @@ const {
 const { createSession, getSessions } = require('../queries/sessions')
 const { getAllForums, getForumById, createForum } = require('../queries/forums')
 const { getCommentsByForumId, addComment } = require('../queries/comments')
+const {
+  getAllPreAssessments,
+  getPreAssessmentById,
+  createPreAssessment,
+  updatePreAssessment,
+  deletePreAssessment,
+  getPreAssessmentsByProgram,
+  getPreAssessmentsByYearLevel
+} = require('../queries/preAssessments')
 
 const multer = require('multer')
 const path = require('path')
@@ -1983,6 +1992,287 @@ app.get('/api/study-materials/search/:term', async (req, res) => {
     });
   } catch (err) {
     console.error('Error searching study materials:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ===== PRE-ASSESSMENTS API ENDPOINTS =====
+
+// Get all pre-assessments
+app.get('/api/pre-assessments', async (req, res) => {
+  try {
+    console.log('Fetching all pre-assessments');
+    
+    const pool = await db.getPool();
+    const preAssessments = await getAllPreAssessments(pool);
+    
+    console.log(`✅ Found ${preAssessments.length} pre-assessments`);
+    
+    res.json({
+      success: true,
+      preAssessments: preAssessments,
+      total: preAssessments.length
+    });
+  } catch (err) {
+    console.error('Error fetching pre-assessments:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pre-assessment by ID
+app.get('/api/pre-assessments/:id', async (req, res) => {
+  try {
+    const preAssessmentId = parseInt(req.params.id);
+    
+    if (!preAssessmentId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid pre-assessment ID is required' 
+      });
+    }
+    
+    console.log(`Fetching pre-assessment ID: ${preAssessmentId}`);
+    
+    const pool = await db.getPool();
+    const preAssessment = await getPreAssessmentById(pool, preAssessmentId);
+    
+    if (!preAssessment) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pre-assessment not found' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      preAssessment: preAssessment
+    });
+  } catch (err) {
+    console.error('Error fetching pre-assessment:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Create new pre-assessment
+app.post('/api/pre-assessments', async (req, res) => {
+  try {
+    const { 
+      title, 
+      subject_id, 
+      description, 
+      created_by, 
+      program, 
+      year_level, 
+      duration, 
+      duration_unit, 
+      difficulty 
+    } = req.body;
+    
+    // Validation
+    if (!title || !subject_id || !description || !created_by) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Title, subject, description, and creator are required' 
+      });
+    }
+    
+    console.log(`Creating new pre-assessment: ${title}`);
+    
+    const pool = await db.getPool();
+    const newPreAssessment = await createPreAssessment(pool, {
+      title,
+      subject_id,
+      description,
+      created_by,
+      program: program || '',
+      year_level: year_level || '',
+      duration: duration || 30,
+      duration_unit: duration_unit || 'minutes',
+      difficulty: difficulty || 'Medium'
+    });
+    
+    console.log(`✅ Pre-assessment created successfully with ID: ${newPreAssessment.id}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Pre-assessment created successfully',
+      preAssessment: newPreAssessment
+    });
+  } catch (err) {
+    console.error('Error creating pre-assessment:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Update pre-assessment
+app.put('/api/pre-assessments/:id', async (req, res) => {
+  try {
+    const preAssessmentId = parseInt(req.params.id);
+    const { 
+      title, 
+      subject_id, 
+      description, 
+      program, 
+      year_level, 
+      duration, 
+      duration_unit, 
+      difficulty 
+    } = req.body;
+    
+    if (!preAssessmentId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid pre-assessment ID is required' 
+      });
+    }
+    
+    // Validation
+    if (!title || !subject_id || !description) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Title, subject, and description are required' 
+      });
+    }
+    
+    console.log(`Updating pre-assessment ID: ${preAssessmentId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if pre-assessment exists
+    const existingPreAssessment = await getPreAssessmentById(pool, preAssessmentId);
+    if (!existingPreAssessment) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pre-assessment not found' 
+      });
+    }
+    
+    const updatedPreAssessment = await updatePreAssessment(pool, preAssessmentId, {
+      title,
+      subject_id,
+      description,
+      program: program || '',
+      year_level: year_level || '',
+      duration: duration || 30,
+      duration_unit: duration_unit || 'minutes',
+      difficulty: difficulty || 'Medium'
+    });
+    
+    console.log(`✅ Pre-assessment updated successfully: ${title}`);
+    
+    res.json({
+      success: true,
+      message: 'Pre-assessment updated successfully',
+      preAssessment: updatedPreAssessment
+    });
+  } catch (err) {
+    console.error('Error updating pre-assessment:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete pre-assessment
+app.delete('/api/pre-assessments/:id', async (req, res) => {
+  try {
+    const preAssessmentId = parseInt(req.params.id);
+    
+    if (!preAssessmentId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid pre-assessment ID is required' 
+      });
+    }
+    
+    console.log(`Deleting pre-assessment ID: ${preAssessmentId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if pre-assessment exists
+    const existingPreAssessment = await getPreAssessmentById(pool, preAssessmentId);
+    if (!existingPreAssessment) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pre-assessment not found' 
+      });
+    }
+    
+    await deletePreAssessment(pool, preAssessmentId);
+    
+    console.log(`✅ Pre-assessment deleted successfully: ${preAssessmentId}`);
+    
+    res.json({
+      success: true,
+      message: 'Pre-assessment deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting pre-assessment:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pre-assessments by program
+app.get('/api/pre-assessments/program/:program', async (req, res) => {
+  try {
+    const program = req.params.program;
+    
+    console.log(`Fetching pre-assessments for program: ${program}`);
+    
+    const pool = await db.getPool();
+    const preAssessments = await getPreAssessmentsByProgram(pool, program);
+    
+    console.log(`✅ Found ${preAssessments.length} pre-assessments for program ${program}`);
+    
+    res.json({
+      success: true,
+      preAssessments: preAssessments,
+      total: preAssessments.length
+    });
+  } catch (err) {
+    console.error('Error fetching pre-assessments by program:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pre-assessments by year level
+app.get('/api/pre-assessments/year-level/:yearLevel', async (req, res) => {
+  try {
+    const yearLevel = req.params.yearLevel;
+    
+    console.log(`Fetching pre-assessments for year level: ${yearLevel}`);
+    
+    const pool = await db.getPool();
+    const preAssessments = await getPreAssessmentsByYearLevel(pool, yearLevel);
+    
+    console.log(`✅ Found ${preAssessments.length} pre-assessments for year level ${yearLevel}`);
+    
+    res.json({
+      success: true,
+      preAssessments: preAssessments,
+      total: preAssessments.length
+    });
+  } catch (err) {
+    console.error('Error fetching pre-assessments by year level:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 
