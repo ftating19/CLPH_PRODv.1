@@ -3,6 +3,7 @@ import React, { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, MessageSquare, Users, Clock, Plus, Filter, Edit, Trash2, MoreVertical } from "lucide-react"
@@ -295,39 +296,79 @@ export default function DiscussionForums() {
 
       {/* New Topic Modal */}
       {showNewTopicModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-4">Create New Forum Topic</h2>
-            <div className="space-y-3">
-              <Input
-                placeholder="Title"
-                value={newTopicTitle}
-                onChange={e => setNewTopicTitle(e.target.value)}
-              />
-              <Input
-                placeholder="Description"
-                value={newTopicDesc}
-                onChange={e => setNewTopicDesc(e.target.value)}
-              />
-              <Select
-                value={newTopicSubject}
-                onValueChange={setNewTopicSubject}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects && subjects.map((subject) => (
-                    <SelectItem key={subject.subject_id} value={String(subject.subject_id)}>{subject.subject_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-2">Create New Forum Topic</h2>
+            <p className="text-sm text-muted-foreground mb-6">Start a discussion and connect with your peers</p>
+            
+            <div className="space-y-5">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Topic Title</label>
+                <Input
+                  placeholder="Enter a clear and descriptive title..."
+                  value={newTopicTitle}
+                  onChange={e => setNewTopicTitle(e.target.value)}
+                  className="text-base"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-2 block">Subject</label>
+                <Select
+                  value={newTopicSubject}
+                  onValueChange={setNewTopicSubject}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a subject for this discussion" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects && subjects.map((subject) => (
+                      <SelectItem key={subject.subject_id} value={String(subject.subject_id)}>
+                        {subject.subject_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-2 block">Description</label>
+                <Textarea
+                  placeholder="What would you like to discuss? Provide details, context, or questions..."
+                  value={newTopicDesc}
+                  onChange={e => setNewTopicDesc(e.target.value)}
+                  className="min-h-[200px] resize-y text-base"
+                  rows={8}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Be clear and specific to get the best responses from the community
+                </p>
+              </div>
             </div>
-            {newTopicError && <div className="text-red-500 text-sm mt-2">{newTopicError}</div>}
-            <div className="flex justify-end space-x-2 mt-6">
-              <Button variant="outline" onClick={() => setShowNewTopicModal(false)} disabled={newTopicLoading}>Cancel</Button>
+            
+            {newTopicError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg mt-4">
+                {newTopicError}
+              </div>
+            )}
+            
+            <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowNewTopicModal(false);
+                  setNewTopicTitle("");
+                  setNewTopicDesc("");
+                  setNewTopicSubject("");
+                  setNewTopicError("");
+                }} 
+                disabled={newTopicLoading}
+                className="px-6"
+              >
+                Cancel
+              </Button>
               <Button
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 px-6"
                 disabled={newTopicLoading || !newTopicTitle.trim() || !newTopicDesc.trim() || !newTopicSubject}
                 onClick={async () => {
                   setNewTopicLoading(true);
@@ -565,36 +606,63 @@ export default function DiscussionForums() {
 
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-4">Edit Forum Post</h2>
-            <div className="space-y-3">
-              <Input
-                placeholder="Title"
-                value={editTitle}
-                onChange={e => setEditTitle(e.target.value)}
-              />
-              <Input
-                placeholder="Description"
-                value={editDesc}
-                onChange={e => setEditDesc(e.target.value)}
-              />
-              <Select
-                value={editSubject}
-                onValueChange={setEditSubject}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects && subjects.map((subject) => (
-                    <SelectItem key={subject.subject_id} value={String(subject.subject_id)}>{subject.subject_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-2">Edit Forum Post</h2>
+            <p className="text-sm text-muted-foreground mb-6">Update your discussion topic</p>
+            
+            <div className="space-y-5">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Topic Title</label>
+                <Input
+                  placeholder="Enter a clear and descriptive title..."
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="text-base"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-2 block">Subject</label>
+                <Select
+                  value={editSubject}
+                  onValueChange={setEditSubject}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a subject for this discussion" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects && subjects.map((subject) => (
+                      <SelectItem key={subject.subject_id} value={String(subject.subject_id)}>
+                        {subject.subject_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-2 block">Description</label>
+                <Textarea
+                  placeholder="What would you like to discuss? Provide details, context, or questions..."
+                  value={editDesc}
+                  onChange={e => setEditDesc(e.target.value)}
+                  className="min-h-[200px] resize-y text-base"
+                  rows={8}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Be clear and specific to get the best responses from the community
+                </p>
+              </div>
             </div>
-            {editError && <div className="text-red-500 text-sm mt-2">{editError}</div>}
-            <div className="flex justify-end space-x-2 mt-6">
+            
+            {editError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg mt-4">
+                {editError}
+              </div>
+            )}
+            
+            <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
               <Button 
                 variant="outline" 
                 onClick={() => {
@@ -603,11 +671,12 @@ export default function DiscussionForums() {
                   setEditError("");
                 }} 
                 disabled={editLoading}
+                className="px-6"
               >
                 Cancel
               </Button>
               <Button
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 px-6"
                 disabled={editLoading || !editTitle.trim() || !editDesc.trim() || !editSubject}
                 onClick={handleSubmitEdit}
               >
