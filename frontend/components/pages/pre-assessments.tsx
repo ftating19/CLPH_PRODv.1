@@ -32,19 +32,89 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { BookOpen, Brain, Clock, Trophy, Plus, Search, Edit, Trash2, Eye, Target, FileText, Users } from "lucide-react"
+import { BookOpen, Brain, Clock, Trophy, Plus, Search, Edit, Trash2, Eye, Target, FileText, Users, ChevronDown } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { usePreAssessments } from "@/hooks/use-pre-assessments"
 import { CICT_PROGRAMS } from "@/lib/constants"
 
+// Custom multi-select component for subjects
+const SubjectMultiSelect = ({ 
+  selectedSubjects, 
+  onChange, 
+  subjects,
+  disabled = false 
+}: { 
+  selectedSubjects: number[]
+  onChange: (subjects: number[]) => void
+  subjects: any[]
+  disabled?: boolean
+}) => {
+  const [open, setOpen] = useState(false)
+  
+  const handleSubjectToggle = (subjectId: number) => {
+    const updatedSubjects = selectedSubjects.includes(subjectId)
+      ? selectedSubjects.filter(id => id !== subjectId)
+      : [...selectedSubjects, subjectId]
+    onChange(updatedSubjects)
+  }
+
+  const selectedSubjectNames = subjects
+    .filter(subject => selectedSubjects.includes(subject.subject_id))
+    .map(subject => subject.subject_name)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild disabled={disabled}>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+          disabled={disabled}
+        >
+          {selectedSubjects.length === 0 
+            ? "Select subjects..." 
+            : `${selectedSubjects.length} subject${selectedSubjects.length !== 1 ? 's' : ''} selected`
+          }
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0">
+        <div className="max-h-60 overflow-auto">
+          {subjects.length === 0 ? (
+            <div className="p-4 text-sm text-muted-foreground text-center">
+              No subjects available for selected program and year level
+            </div>
+          ) : (
+            subjects.map((subject) => (
+              <div key={subject.subject_id} className="flex items-center space-x-2 p-2 hover:bg-accent cursor-pointer">
+                <Checkbox
+                  checked={selectedSubjects.includes(subject.subject_id)}
+                  onCheckedChange={() => handleSubjectToggle(subject.subject_id)}
+                />
+                <span className="text-sm">{subject.subject_name} ({subject.subject_code})</span>
+              </div>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 // Question types
 type QuestionType = "multiple-choice" | "true-false" | "enumeration" | "essay"
 
 interface Question {
-  id: string
+  id: number
   type: QuestionType
   question: string
   options?: string[]
@@ -56,8 +126,10 @@ interface Question {
 interface PreAssessment {
   id: number
   title: string
-  subject_id: number
-  subject_name?: string
+  subject_ids?: number[] // Optional for backward compatibility
+  subject_id?: number // Keep for backward compatibility
+  subject_names?: string // Will be comma-separated names
+  subject_name?: string // Keep for backward compatibility
   description: string
   created_by: number
   program: string
@@ -78,6 +150,7 @@ export default function PreAssessments() {
   // State management
   const { preAssessments, loading, error, refetch } = usePreAssessments()
   const [subjects, setSubjects] = useState<any[]>([])
+  const [filteredSubjects, setFilteredSubjects] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [programFilter, setProgramFilter] = useState("all")
   const [selectedPreAssessment, setSelectedPreAssessment] = useState<PreAssessment | null>(null)
@@ -85,16 +158,18 @@ export default function PreAssessments() {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showQuestionDialog, setShowQuestionDialog] = useState(false)
+  const [showQuestionManagerDialog, setShowQuestionManagerDialog] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
+  const [questions, setQuestions] = useState<Question[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Form states
   const [createForm, setCreateForm] = useState({
     title: "",
-    subject_id: "",
-    description: "",
     program: "",
     year_level: "",
+    subject_ids: [] as number[],
+    description: "",
     duration: 30,
     duration_unit: "minutes",
     difficulty: "Medium" as "Easy" | "Medium" | "Hard"
@@ -102,10 +177,10 @@ export default function PreAssessments() {
 
   const [editForm, setEditForm] = useState({
     title: "",
-    subject_id: "",
-    description: "",
     program: "",
     year_level: "",
+    subject_ids: [] as number[],
+    description: "",
     duration: 30,
     duration_unit: "minutes",
     difficulty: "Medium" as "Easy" | "Medium" | "Hard"
@@ -141,6 +216,45 @@ export default function PreAssessments() {
     }
   }, [isAdmin])
 
+  // Filter subjects based on program and year level
+  useEffect(() => {
+    filterSubjects()
+  }, [subjects, createForm.program, createForm.year_level, editForm.program, editForm.year_level])
+
+  const filterSubjects = () => {
+    const program = createForm.program || editForm.program
+    const yearLevel = createForm.year_level || editForm.year_level
+    
+    if (!program || !yearLevel) {
+      setFilteredSubjects([])
+      return
+    }
+    
+    const filtered = subjects.filter(subject => {
+      // Check if subject.program is an array or string
+      let subjectPrograms = []
+      
+      if (typeof subject.program === 'string') {
+        try {
+          // Try to parse as JSON array
+          subjectPrograms = JSON.parse(subject.program)
+        } catch {
+          // If not JSON, treat as single program
+          subjectPrograms = [subject.program]
+        }
+      } else if (Array.isArray(subject.program)) {
+        subjectPrograms = subject.program
+      }
+      
+      // Check if the selected program is in the subject's programs
+      // and if year level matches
+      return subjectPrograms.includes(program) && subject.year_level === yearLevel
+    })
+    
+    console.log('Filtering subjects:', { program, yearLevel, totalSubjects: subjects.length, filteredCount: filtered.length, filtered })
+    setFilteredSubjects(filtered)
+  }
+
   const fetchSubjects = async () => {
     try {
       const response = await fetch('http://localhost:4000/api/subjects')
@@ -154,10 +268,11 @@ export default function PreAssessments() {
 
   // Create pre-assessment
   const handleCreatePreAssessment = async () => {
-    if (!createForm.title.trim() || !createForm.subject_id || !createForm.description.trim()) {
+    if (!createForm.title.trim() || !createForm.program || !createForm.year_level || 
+        createForm.subject_ids.length === 0 || !createForm.description.trim()) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields.",
+        description: "Please fill in all required fields and select at least one subject.",
         variant: "destructive"
       })
       return
@@ -188,10 +303,10 @@ export default function PreAssessments() {
       setShowCreateDialog(false)
       setCreateForm({
         title: "",
-        subject_id: "",
-        description: "",
         program: "",
         year_level: "",
+        subject_ids: [],
+        description: "",
         duration: 30,
         duration_unit: "minutes",
         difficulty: "Medium"
@@ -214,10 +329,10 @@ export default function PreAssessments() {
     setSelectedPreAssessment(preAssessment)
     setEditForm({
       title: preAssessment.title,
-      subject_id: preAssessment.subject_id.toString(),
-      description: preAssessment.description,
       program: preAssessment.program,
       year_level: preAssessment.year_level,
+      subject_ids: preAssessment.subject_ids || [],
+      description: preAssessment.description,
       duration: preAssessment.duration,
       duration_unit: preAssessment.duration_unit,
       difficulty: preAssessment.difficulty
@@ -227,6 +342,16 @@ export default function PreAssessments() {
 
   const handleUpdatePreAssessment = async () => {
     if (!selectedPreAssessment) return
+
+    if (!editForm.title.trim() || !editForm.program || !editForm.year_level || 
+        editForm.subject_ids.length === 0 || !editForm.description.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields and select at least one subject.",
+        variant: "destructive"
+      })
+      return
+    }
 
     try {
       setIsSubmitting(true)
@@ -292,6 +417,145 @@ export default function PreAssessments() {
       toast({
         title: "Error",
         description: "Failed to delete pre-assessment",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Question management handlers
+  const handleManageQuestions = async (preAssessment: PreAssessment) => {
+    setSelectedPreAssessment(preAssessment)
+    await fetchQuestions(preAssessment.id)
+    setShowQuestionManagerDialog(true)
+  }
+
+  const fetchQuestions = async (preAssessmentId: number) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/pre-assessment-questions/pre-assessment/${preAssessmentId}`)
+      if (!response.ok) throw new Error('Failed to fetch questions')
+      const data = await response.json()
+      setQuestions(data.questions || [])
+    } catch (error) {
+      console.error('Error fetching questions:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch questions",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleAddQuestion = () => {
+    setEditingQuestion(null)
+    setQuestionForm({
+      type: "multiple-choice",
+      question: "",
+      options: ["", "", "", ""],
+      correctAnswer: "",
+      explanation: "",
+      points: 1
+    })
+    setShowQuestionDialog(true)
+  }
+
+  const handleEditQuestion = (question: Question) => {
+    setEditingQuestion(question)
+    setQuestionForm({
+      type: question.type,
+      question: question.question,
+      options: question.options || ["", "", "", ""],
+      correctAnswer: Array.isArray(question.correctAnswer) ? question.correctAnswer.join(", ") : question.correctAnswer,
+      explanation: question.explanation || "",
+      points: question.points
+    })
+    setShowQuestionDialog(true)
+  }
+
+  const handleSaveQuestion = async () => {
+    if (!questionForm.question.trim() || !questionForm.correctAnswer.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Question and correct answer are required.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      const questionData = {
+        pre_assessment_id: selectedPreAssessment?.id,
+        question_type: questionForm.type,
+        question: questionForm.question,
+        options: questionForm.type === "multiple-choice" ? questionForm.options.filter(option => option.trim()) : null,
+        correct_answer: questionForm.correctAnswer,
+        explanation: questionForm.explanation,
+        points: questionForm.points
+      }
+
+      const url = editingQuestion 
+        ? `http://localhost:4000/api/pre-assessment-questions/${editingQuestion.id}`
+        : 'http://localhost:4000/api/pre-assessment-questions'
+      
+      const method = editingQuestion ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(questionData)
+      })
+
+      if (!response.ok) throw new Error('Failed to save question')
+
+      toast({
+        title: "Success",
+        description: `Question ${editingQuestion ? 'updated' : 'created'} successfully`,
+        variant: "default"
+      })
+
+      setShowQuestionDialog(false)
+      if (selectedPreAssessment) {
+        await fetchQuestions(selectedPreAssessment.id)
+      }
+    } catch (error) {
+      console.error('Error saving question:', error)
+      toast({
+        title: "Error",
+        description: "Failed to save question",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteQuestion = async (questionId: number) => {
+    try {
+      setIsSubmitting(true)
+      const response = await fetch(`http://localhost:4000/api/pre-assessment-questions/${questionId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete question')
+
+      toast({
+        title: "Success",
+        description: "Question deleted successfully",
+        variant: "default"
+      })
+
+      if (selectedPreAssessment) {
+        await fetchQuestions(selectedPreAssessment.id)
+      }
+    } catch (error) {
+      console.error('Error deleting question:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete question",
         variant: "destructive"
       })
     } finally {
@@ -448,6 +712,9 @@ export default function PreAssessments() {
                 </p>
               </div>
               <div className="flex gap-2 pt-4">
+                <Button size="sm" variant="outline" onClick={() => handleManageQuestions(assessment)}>
+                  <Brain className="w-4 h-4 mr-1" /> Manage Questions
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => handleEditPreAssessment(assessment)}>
                   <Edit className="w-4 h-4 mr-1" /> Edit
                 </Button>
@@ -502,23 +769,10 @@ export default function PreAssessments() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="subject">Subject *</Label>
-              <Select value={createForm.subject_id} onValueChange={(value) => setCreateForm({ ...createForm, subject_id: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((subject) => (
-                    <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                      {subject.subject_name} ({subject.subject_code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="program">Program</Label>
-              <Select value={createForm.program} onValueChange={(value) => setCreateForm({ ...createForm, program: value })}>
+              <Label htmlFor="program">Program *</Label>
+              <Select value={createForm.program} onValueChange={(value) => {
+                setCreateForm({ ...createForm, program: value, year_level: "", subject_ids: [] })
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select program" />
                 </SelectTrigger>
@@ -532,8 +786,12 @@ export default function PreAssessments() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="year_level">Year Level</Label>
-              <Select value={createForm.year_level} onValueChange={(value) => setCreateForm({ ...createForm, year_level: value })}>
+              <Label htmlFor="year_level">Year Level *</Label>
+              <Select 
+                value={createForm.year_level} 
+                onValueChange={(value) => setCreateForm({ ...createForm, year_level: value, subject_ids: [] })}
+                disabled={!createForm.program}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select year level" />
                 </SelectTrigger>
@@ -544,6 +802,26 @@ export default function PreAssessments() {
                   <SelectItem value="4th Year">4th Year</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Subjects *</Label>
+              <SubjectMultiSelect
+                selectedSubjects={createForm.subject_ids}
+                onChange={(subjects) => setCreateForm({ ...createForm, subject_ids: subjects })}
+                subjects={filteredSubjects}
+                disabled={!createForm.program || !createForm.year_level}
+              />
+              {createForm.subject_ids.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {filteredSubjects
+                    .filter(subject => createForm.subject_ids.includes(subject.subject_id))
+                    .map((subject) => (
+                      <Badge key={subject.subject_id} variant="secondary" className="text-xs">
+                        {subject.subject_name}
+                      </Badge>
+                    ))}
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -624,23 +902,10 @@ export default function PreAssessments() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-subject">Subject *</Label>
-                <Select value={editForm.subject_id} onValueChange={(value) => setEditForm({ ...editForm, subject_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subjects.map((subject) => (
-                      <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                        {subject.subject_name} ({subject.subject_code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-program">Program</Label>
-                <Select value={editForm.program} onValueChange={(value) => setEditForm({ ...editForm, program: value })}>
+                <Label htmlFor="edit-program">Program *</Label>
+                <Select value={editForm.program} onValueChange={(value) => {
+                  setEditForm({ ...editForm, program: value, year_level: "", subject_ids: [] })
+                }}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -654,8 +919,12 @@ export default function PreAssessments() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-year_level">Year Level</Label>
-                <Select value={editForm.year_level} onValueChange={(value) => setEditForm({ ...editForm, year_level: value })}>
+                <Label htmlFor="edit-year_level">Year Level *</Label>
+                <Select 
+                  value={editForm.year_level} 
+                  onValueChange={(value) => setEditForm({ ...editForm, year_level: value, subject_ids: [] })}
+                  disabled={!editForm.program}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -666,6 +935,26 @@ export default function PreAssessments() {
                     <SelectItem value="4th Year">4th Year</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Subjects *</Label>
+                <SubjectMultiSelect
+                  selectedSubjects={editForm.subject_ids}
+                  onChange={(subjects) => setEditForm({ ...editForm, subject_ids: subjects })}
+                  subjects={filteredSubjects}
+                  disabled={!editForm.program || !editForm.year_level}
+                />
+                {editForm.subject_ids.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {filteredSubjects
+                      .filter(subject => editForm.subject_ids.includes(subject.subject_id))
+                      .map((subject) => (
+                        <Badge key={subject.subject_id} variant="secondary" className="text-xs">
+                          {subject.subject_name}
+                        </Badge>
+                      ))}
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -743,6 +1032,215 @@ export default function PreAssessments() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Question Manager Dialog */}
+      <Dialog open={showQuestionManagerDialog} onOpenChange={setShowQuestionManagerDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage Questions - {selectedPreAssessment?.title}</DialogTitle>
+            <DialogDescription>
+              Add, edit, or remove questions for this pre-assessment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-muted-foreground">
+                {questions.length} question{questions.length !== 1 ? 's' : ''} total
+              </p>
+              <Button onClick={handleAddQuestion}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Question
+              </Button>
+            </div>
+            
+            {questions.length === 0 ? (
+              <div className="text-center py-8">
+                <Brain className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No questions added yet</p>
+                <Button variant="outline" onClick={handleAddQuestion} className="mt-4">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Your First Question
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {questions.map((question, index) => (
+                  <Card key={question.id}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline">{question.type}</Badge>
+                            <Badge variant="secondary">{question.points} pt{question.points !== 1 ? 's' : ''}</Badge>
+                          </div>
+                          <p className="font-medium mb-2">Q{index + 1}: {question.question}</p>
+                          {question.type === "multiple-choice" && question.options && (
+                            <div className="space-y-1 text-sm text-muted-foreground">
+                              {question.options.map((option, optIndex) => (
+                                <div key={optIndex} className={`pl-4 ${option === question.correctAnswer ? 'text-green-600 font-medium' : ''}`}>
+                                  {String.fromCharCode(65 + optIndex)}. {option}
+                                  {option === question.correctAnswer && ' ✓'}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {question.type !== "multiple-choice" && (
+                            <p className="text-sm text-green-600">
+                              <strong>Answer:</strong> {Array.isArray(question.correctAnswer) ? question.correctAnswer.join(", ") : question.correctAnswer}
+                            </p>
+                          )}
+                          {question.explanation && (
+                            <p className="text-sm text-muted-foreground mt-2">
+                              <strong>Explanation:</strong> {question.explanation}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <Button size="sm" variant="ghost" onClick={() => handleEditQuestion(question)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDeleteQuestion(question.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Question Dialog */}
+      <Dialog open={showQuestionDialog} onOpenChange={setShowQuestionDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingQuestion ? 'Edit Question' : 'Add New Question'}</DialogTitle>
+            <DialogDescription>
+              {editingQuestion ? 'Update the question details' : 'Create a new question for this pre-assessment'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="question-type">Question Type</Label>
+              <Select value={questionForm.type} onValueChange={(value: QuestionType) => setQuestionForm({ ...questionForm, type: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
+                  <SelectItem value="true-false">True/False</SelectItem>
+                  <SelectItem value="enumeration">Enumeration</SelectItem>
+                  <SelectItem value="essay">Essay</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="question-text">Question *</Label>
+              <Textarea
+                id="question-text"
+                rows={3}
+                value={questionForm.question}
+                onChange={(e) => setQuestionForm({ ...questionForm, question: e.target.value })}
+                placeholder="Enter your question here..."
+              />
+            </div>
+
+            {questionForm.type === "multiple-choice" && (
+              <div className="space-y-2">
+                <Label>Answer Options</Label>
+                {questionForm.options.map((option, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-sm font-medium w-6">{String.fromCharCode(65 + index)}.</span>
+                    <Input
+                      value={option}
+                      onChange={(e) => {
+                        const newOptions = [...questionForm.options]
+                        newOptions[index] = e.target.value
+                        setQuestionForm({ ...questionForm, options: newOptions })
+                      }}
+                      placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="correct-answer">Correct Answer *</Label>
+              {questionForm.type === "multiple-choice" ? (
+                <Select value={questionForm.correctAnswer} onValueChange={(value) => setQuestionForm({ ...questionForm, correctAnswer: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select correct answer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {questionForm.options.map((option, index) => (
+                      option.trim() && (
+                        <SelectItem key={index} value={option}>
+                          {String.fromCharCode(65 + index)}. {option}
+                        </SelectItem>
+                      )
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : questionForm.type === "true-false" ? (
+                <Select value={questionForm.correctAnswer} onValueChange={(value) => setQuestionForm({ ...questionForm, correctAnswer: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select correct answer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="True">True</SelectItem>
+                    <SelectItem value="False">False</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Textarea
+                  id="correct-answer"
+                  rows={2}
+                  value={questionForm.correctAnswer}
+                  onChange={(e) => setQuestionForm({ ...questionForm, correctAnswer: e.target.value })}
+                  placeholder={questionForm.type === "enumeration" ? "Enter correct answers separated by commas" : "Enter the correct answer"}
+                />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="explanation">Explanation (Optional)</Label>
+              <Textarea
+                id="explanation"
+                rows={2}
+                value={questionForm.explanation}
+                onChange={(e) => setQuestionForm({ ...questionForm, explanation: e.target.value })}
+                placeholder="Provide an explanation for the answer..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="points">Points</Label>
+              <Input
+                id="points"
+                type="number"
+                min="1"
+                max="10"
+                value={questionForm.points}
+                onChange={(e) => setQuestionForm({ ...questionForm, points: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowQuestionDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveQuestion} disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : (editingQuestion ? "Update Question" : "Add Question")}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

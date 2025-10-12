@@ -137,6 +137,15 @@ const {
   getPreAssessmentsByProgram,
   getPreAssessmentsByYearLevel
 } = require('../queries/preAssessments')
+const {
+  getQuestionsByPreAssessmentId,
+  getPreAssessmentQuestionById,
+  createPreAssessmentQuestion,
+  updatePreAssessmentQuestion,
+  deletePreAssessmentQuestion,
+  deleteQuestionsByPreAssessmentId,
+  createPreAssessmentQuestions
+} = require('../queries/preAssessmentQuestions')
 
 const multer = require('multer')
 const path = require('path')
@@ -2273,6 +2282,269 @@ app.get('/api/pre-assessments/year-level/:yearLevel', async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching pre-assessments by year level:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ===== PRE-ASSESSMENT QUESTIONS API ENDPOINTS =====
+
+// Get questions for a pre-assessment
+app.get('/api/pre-assessment-questions/pre-assessment/:preAssessmentId', async (req, res) => {
+  try {
+    const preAssessmentId = parseInt(req.params.preAssessmentId);
+    
+    if (!preAssessmentId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid pre-assessment ID is required' 
+      });
+    }
+    
+    console.log(`Fetching questions for pre-assessment ID: ${preAssessmentId}`);
+    
+    const pool = await db.getPool();
+    const questions = await getQuestionsByPreAssessmentId(pool, preAssessmentId);
+    
+    console.log(`✅ Found ${questions.length} questions`);
+    
+    res.json({
+      success: true,
+      questions: questions,
+      total: questions.length
+    });
+  } catch (err) {
+    console.error('Error fetching questions by pre-assessment ID:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get question by ID
+app.get('/api/pre-assessment-questions/:id', async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.id);
+    
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid question ID is required' 
+      });
+    }
+    
+    console.log(`Fetching pre-assessment question ID: ${questionId}`);
+    
+    const pool = await db.getPool();
+    const question = await getPreAssessmentQuestionById(pool, questionId);
+    
+    if (!question) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Question not found' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      question: question
+    });
+  } catch (err) {
+    console.error('Error fetching pre-assessment question:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Create new question
+app.post('/api/pre-assessment-questions', async (req, res) => {
+  try {
+    const { 
+      pre_assessment_id, 
+      question_type, 
+      question, 
+      options, 
+      correct_answer, 
+      explanation, 
+      points 
+    } = req.body;
+    
+    // Validation
+    if (!pre_assessment_id || !question_type || !question || !correct_answer) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Pre-assessment ID, question type, question text, and correct answer are required' 
+      });
+    }
+    
+    console.log(`Creating question for pre-assessment ID: ${pre_assessment_id}`);
+    
+    const pool = await db.getPool();
+    const newQuestion = await createPreAssessmentQuestion(pool, {
+      pre_assessment_id,
+      question_type,
+      question,
+      options: options || null,
+      correct_answer,
+      explanation: explanation || '',
+      points: points || 1
+    });
+    
+    console.log(`✅ Question created successfully with ID: ${newQuestion.id}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Question created successfully',
+      question: newQuestion
+    });
+  } catch (err) {
+    console.error('Error creating pre-assessment question:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Update question
+app.put('/api/pre-assessment-questions/:id', async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.id);
+    const { 
+      question_type, 
+      question, 
+      options, 
+      correct_answer, 
+      explanation, 
+      points 
+    } = req.body;
+    
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid question ID is required' 
+      });
+    }
+    
+    // Validation
+    if (!question_type || !question || !correct_answer) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Question type, question text, and correct answer are required' 
+      });
+    }
+    
+    console.log(`Updating pre-assessment question ID: ${questionId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if question exists
+    const existingQuestion = await getPreAssessmentQuestionById(pool, questionId);
+    if (!existingQuestion) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Question not found' 
+      });
+    }
+    
+    const updatedQuestion = await updatePreAssessmentQuestion(pool, questionId, {
+      question_type,
+      question,
+      options: options || null,
+      correct_answer,
+      explanation: explanation || '',
+      points: points || 1
+    });
+    
+    console.log(`✅ Question updated successfully: ${questionId}`);
+    
+    res.json({
+      success: true,
+      message: 'Question updated successfully',
+      question: updatedQuestion
+    });
+  } catch (err) {
+    console.error('Error updating pre-assessment question:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete question
+app.delete('/api/pre-assessment-questions/:id', async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.id);
+    
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid question ID is required' 
+      });
+    }
+    
+    console.log(`Deleting pre-assessment question ID: ${questionId}`);
+    
+    const pool = await db.getPool();
+    
+    // Check if question exists
+    const existingQuestion = await getPreAssessmentQuestionById(pool, questionId);
+    if (!existingQuestion) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Question not found' 
+      });
+    }
+    
+    await deletePreAssessmentQuestion(pool, questionId);
+    
+    console.log(`✅ Question deleted successfully: ${questionId}`);
+    
+    res.json({
+      success: true,
+      message: 'Question deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting pre-assessment question:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Bulk create questions for pre-assessment
+app.post('/api/pre-assessment-questions/bulk', async (req, res) => {
+  try {
+    const { pre_assessment_id, questions } = req.body;
+    
+    if (!pre_assessment_id || !questions || !Array.isArray(questions)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Pre-assessment ID and questions array are required' 
+      });
+    }
+    
+    console.log(`Creating ${questions.length} questions for pre-assessment ID: ${pre_assessment_id}`);
+    
+    const pool = await db.getPool();
+    const result = await createPreAssessmentQuestions(pool, pre_assessment_id, questions);
+    
+    console.log(`✅ Created ${result.insertedCount} questions`);
+    
+    res.status(201).json({
+      success: true,
+      message: `${result.insertedCount} questions created successfully`,
+      insertedCount: result.insertedCount
+    });
+  } catch (err) {
+    console.error('Error creating pre-assessment questions in bulk:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 

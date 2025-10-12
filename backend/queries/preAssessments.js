@@ -5,35 +5,103 @@ const getAllPreAssessments = async (pool) => {
   try {
     console.log('🔍 Fetching all pre-assessments...');
     
-    const [rows] = await pool.query(`
-      SELECT 
-        pa.id,
-        pa.title,
-        pa.subject_id,
-        pa.description,
-        pa.created_by,
-        pa.program,
-        pa.year_level,
-        pa.duration,
-        pa.duration_unit,
-        pa.difficulty,
-        pa.status,
-        pa.created_at,
-        s.subject_name,
-        s.subject_code,
-        u.first_name,
-        u.last_name,
-        COUNT(DISTINCT q.id) as question_count
-      FROM pre_assessments pa
-      LEFT JOIN subjects s ON pa.subject_id = s.subject_id
-      LEFT JOIN users u ON pa.created_by = u.user_id
-      LEFT JOIN pre_assessment_questions q ON pa.id = q.pre_assessment_id
-      GROUP BY pa.id
-      ORDER BY pa.created_at DESC
+    // Check if subject_ids column exists
+    const [columnCheck] = await pool.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = 'pre_assessments' 
+      AND COLUMN_NAME = 'subject_ids'
     `);
     
-    console.log(`✅ Found ${rows.length} pre-assessments`);
-    return rows;
+    const hasSubjectIds = columnCheck.length > 0;
+    
+    let query;
+    if (hasSubjectIds) {
+      // Use new structure with subject_ids
+      query = `
+        SELECT 
+          pa.id,
+          pa.title,
+          COALESCE(pa.subject_ids, JSON_ARRAY(pa.subject_id)) as subject_ids,
+          pa.subject_id,
+          pa.description,
+          pa.created_by,
+          pa.program,
+          pa.year_level,
+          pa.duration,
+          pa.duration_unit,
+          pa.difficulty,
+          pa.status,
+          pa.created_at,
+          GROUP_CONCAT(DISTINCT s.subject_name SEPARATOR ', ') as subject_names,
+          GROUP_CONCAT(DISTINCT s.subject_code SEPARATOR ', ') as subject_codes,
+          u.first_name,
+          u.last_name,
+          COUNT(DISTINCT q.id) as question_count
+        FROM pre_assessments pa
+        LEFT JOIN subjects s ON (
+          (pa.subject_ids IS NOT NULL AND JSON_CONTAINS(pa.subject_ids, CAST(s.subject_id AS JSON))) OR
+          (pa.subject_ids IS NULL AND pa.subject_id = s.subject_id)
+        )
+        LEFT JOIN users u ON pa.created_by = u.user_id
+        LEFT JOIN pre_assessment_questions q ON pa.id = q.pre_assessment_id
+        GROUP BY pa.id
+        ORDER BY pa.created_at DESC
+      `;
+    } else {
+      // Use old structure with only subject_id
+      query = `
+        SELECT 
+          pa.id,
+          pa.title,
+          pa.subject_id,
+          pa.description,
+          pa.created_by,
+          pa.program,
+          pa.year_level,
+          pa.duration,
+          pa.duration_unit,
+          pa.difficulty,
+          pa.status,
+          pa.created_at,
+          s.subject_name,
+          s.subject_code,
+          u.first_name,
+          u.last_name,
+          COUNT(DISTINCT q.id) as question_count
+        FROM pre_assessments pa
+        LEFT JOIN subjects s ON pa.subject_id = s.subject_id
+        LEFT JOIN users u ON pa.created_by = u.user_id
+        LEFT JOIN pre_assessment_questions q ON pa.id = q.pre_assessment_id
+        GROUP BY pa.id, pa.title, pa.subject_id, pa.description, pa.created_by, 
+                 pa.program, pa.year_level, pa.duration, pa.duration_unit, 
+                 pa.difficulty, pa.status, pa.created_at, s.subject_name, 
+                 s.subject_code, u.first_name, u.last_name
+        ORDER BY pa.created_at DESC
+      `;
+    }
+    
+    const [rows] = await pool.query(query);
+    
+    // Normalize the data format
+    const processedRows = rows.map(row => {
+      if (hasSubjectIds) {
+        return {
+          ...row,
+          subject_ids: row.subject_ids ? JSON.parse(row.subject_ids) : (row.subject_id ? [row.subject_id] : [])
+        };
+      } else {
+        return {
+          ...row,
+          subject_ids: row.subject_id ? [row.subject_id] : [],
+          subject_names: row.subject_name || ''
+        };
+      }
+    });
+    
+    console.log(`✅ Found ${processedRows.length} pre-assessments`);
+    return processedRows;
   } catch (error) {
     console.error('Error fetching pre-assessments:', error);
     throw error;
@@ -49,6 +117,7 @@ const getPreAssessmentById = async (pool, id) => {
       SELECT 
         pa.id,
         pa.title,
+        COALESCE(pa.subject_ids, JSON_ARRAY(pa.subject_id)) as subject_ids,
         pa.subject_id,
         pa.description,
         pa.created_by,
@@ -59,15 +128,23 @@ const getPreAssessmentById = async (pool, id) => {
         pa.difficulty,
         pa.status,
         pa.created_at,
-        s.subject_name,
-        s.subject_code,
+        GROUP_CONCAT(DISTINCT s.subject_name SEPARATOR ', ') as subject_names,
+        GROUP_CONCAT(DISTINCT s.subject_code SEPARATOR ', ') as subject_codes,
         u.first_name,
         u.last_name
       FROM pre_assessments pa
-      LEFT JOIN subjects s ON pa.subject_id = s.subject_id
+      LEFT JOIN subjects s ON (
+        (pa.subject_ids IS NOT NULL AND JSON_CONTAINS(pa.subject_ids, CAST(s.subject_id AS JSON))) OR
+        (pa.subject_ids IS NULL AND pa.subject_id = s.subject_id)
+      )
       LEFT JOIN users u ON pa.created_by = u.user_id
       WHERE pa.id = ?
+      GROUP BY pa.id
     `, [id]);
+    
+    if (rows[0]) {
+      rows[0].subject_ids = rows[0].subject_ids ? JSON.parse(rows[0].subject_ids) : (rows[0].subject_id ? [rows[0].subject_id] : []);
+    }
     
     return rows[0] || null;
   } catch (error) {
@@ -81,7 +158,8 @@ const createPreAssessment = async (pool, preAssessmentData) => {
   try {
     const { 
       title, 
-      subject_id, 
+      subject_ids,
+      subject_id, // Keep for backward compatibility
       description, 
       created_by, 
       program, 
@@ -93,27 +171,91 @@ const createPreAssessment = async (pool, preAssessmentData) => {
     
     console.log(`📝 Creating pre-assessment: ${title}`);
     
-    const [result] = await pool.query(`
-      INSERT INTO pre_assessments (
+    // Check if subject_ids column exists
+    const [columnCheck] = await pool.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = 'pre_assessments' 
+      AND COLUMN_NAME = 'subject_ids'
+    `);
+    
+    const hasSubjectIds = columnCheck.length > 0;
+    
+    let query, values;
+    
+    if (hasSubjectIds) {
+      // Use new structure with subject_ids
+      const subjectIdsJson = subject_ids ? JSON.stringify(subject_ids) : (subject_id ? JSON.stringify([subject_id]) : null);
+      const singleSubjectId = subject_ids ? subject_ids[0] : subject_id;
+      
+      query = `
+        INSERT INTO pre_assessments (
+          title, 
+          subject_ids,
+          subject_id, 
+          description, 
+          created_by, 
+          program, 
+          year_level, 
+          duration, 
+          duration_unit, 
+          difficulty,
+          status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+      `;
+      values = [
         title, 
-        subject_id, 
+        subjectIdsJson,
+        singleSubjectId, 
         description, 
         created_by, 
         program, 
         year_level, 
         duration, 
         duration_unit, 
-        difficulty,
-        status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
-    `, [title, subject_id, description, created_by, program, year_level, duration, duration_unit, difficulty]);
+        difficulty
+      ];
+    } else {
+      // Use old structure with only subject_id
+      const singleSubjectId = subject_ids ? subject_ids[0] : subject_id;
+      
+      query = `
+        INSERT INTO pre_assessments (
+          title, 
+          subject_id, 
+          description, 
+          created_by, 
+          program, 
+          year_level, 
+          duration, 
+          duration_unit, 
+          difficulty,
+          status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+      `;
+      values = [
+        title, 
+        singleSubjectId, 
+        description, 
+        created_by, 
+        program, 
+        year_level, 
+        duration, 
+        duration_unit, 
+        difficulty
+      ];
+    }
+    
+    const [result] = await pool.query(query, values);
     
     console.log(`✅ Pre-assessment created with ID: ${result.insertId}`);
     
     return {
       id: result.insertId,
       title,
-      subject_id,
+      subject_ids: subject_ids || (subject_id ? [subject_id] : []),
+      subject_id: subject_ids ? subject_ids[0] : subject_id,
       description,
       created_by,
       program,
@@ -134,7 +276,8 @@ const updatePreAssessment = async (pool, id, preAssessmentData) => {
   try {
     const { 
       title, 
-      subject_id, 
+      subject_ids,
+      subject_id, // Keep for backward compatibility
       description, 
       program, 
       year_level, 
@@ -145,9 +288,14 @@ const updatePreAssessment = async (pool, id, preAssessmentData) => {
     
     console.log(`📝 Updating pre-assessment ID: ${id}`);
     
+    // Handle both new format (subject_ids array) and old format (single subject_id)
+    const subjectIdsJson = subject_ids ? JSON.stringify(subject_ids) : (subject_id ? JSON.stringify([subject_id]) : null);
+    const singleSubjectId = subject_ids ? subject_ids[0] : subject_id; // For backward compatibility
+    
     await pool.query(`
       UPDATE pre_assessments SET 
         title = ?, 
+        subject_ids = ?,
         subject_id = ?, 
         description = ?, 
         program = ?, 
@@ -156,14 +304,15 @@ const updatePreAssessment = async (pool, id, preAssessmentData) => {
         duration_unit = ?, 
         difficulty = ?
       WHERE id = ?
-    `, [title, subject_id, description, program, year_level, duration, duration_unit, difficulty, id]);
+    `, [title, subjectIdsJson, singleSubjectId, description, program, year_level, duration, duration_unit, difficulty, id]);
     
     console.log(`✅ Pre-assessment updated: ${title}`);
     
     return {
       id,
       title,
-      subject_id,
+      subject_ids: subject_ids || (subject_id ? [subject_id] : []),
+      subject_id: singleSubjectId,
       description,
       program,
       year_level,
