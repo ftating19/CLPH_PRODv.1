@@ -23,6 +23,7 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 	const [email, setEmail] = useState("");
 	const [program, setProgram] = useState("");
 	const [role, setRole] = useState("Student");
+	const [yearLevel, setYearLevel] = useState("");
 	const [emailError, setEmailError] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const status = "Active";
@@ -78,7 +79,7 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 		}
 
 		try {
-			await onSubmit({ user_id: userId, first_name: firstName, middle_name: middleName, last_name: lastName, email, program, role, status });
+			await onSubmit({ user_id: userId, first_name: firstName, middle_name: middleName, last_name: lastName, email, program, role, year_level: yearLevel, status });
 			toast({
 				title: "User account created successfully!",
 				description: "A temporary password has been sent to the user's email.",
@@ -91,6 +92,7 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 			setEmail("");
 			setProgram("");
 			setRole("Student");
+			setYearLevel("");
 			setEmailError("");
 			setIsSubmitting(false);
 			
@@ -114,6 +116,7 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 		setEmail("");
 		setProgram("");
 		setRole("Student");
+		setYearLevel("");
 		setEmailError("");
 		setIsSubmitting(false);
 		onClose();
@@ -165,6 +168,20 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 											{program}
 										</SelectItem>
 									))}
+								</SelectContent>
+							</Select>
+						</div>
+						<div>
+							<Label htmlFor="year_level">Year Level</Label>
+							<Select value={yearLevel} onValueChange={setYearLevel}>
+								<SelectTrigger className="w-full" aria-label="Year Level">
+									<SelectValue placeholder="Select year level" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="1st Year">1st Year</SelectItem>
+									<SelectItem value="2nd Year">2nd Year</SelectItem>
+									<SelectItem value="3rd Year">3rd Year</SelectItem>
+									<SelectItem value="4th Year">4th Year</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>

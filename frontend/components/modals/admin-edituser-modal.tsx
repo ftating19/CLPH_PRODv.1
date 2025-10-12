@@ -30,6 +30,7 @@ interface User {
   program: string;
   role: string;
   status: string;
+  year_level?: string;
   first_login: number;
   created_at: string;
 }
@@ -51,7 +52,8 @@ export default function EditUserModal({ user, isOpen, onClose, onUserUpdated }: 
     email: '',
     program: '',
     role: '',
-    status: ''
+    status: '',
+    year_level: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,8 @@ export default function EditUserModal({ user, isOpen, onClose, onUserUpdated }: 
         email: user.email || '',
         program: user.program || '',
         role: user.role || '',
-        status: user.status || ''
+        status: user.status || '',
+        year_level: user.year_level || ''
       });
       setError(null);
       setSuccess(false);
@@ -116,7 +119,8 @@ export default function EditUserModal({ user, isOpen, onClose, onUserUpdated }: 
           email: formData.email,
           program: formData.program,
           role: formData.role,
-          status: formData.status
+          status: formData.status,
+          year_level: formData.year_level
         };
         
         updateCurrentUser(updatedUserData);
@@ -132,6 +136,7 @@ export default function EditUserModal({ user, isOpen, onClose, onUserUpdated }: 
           middle_name: formData.middle_name,
           last_name: formData.last_name,
           program: formData.program,
+          year_level: formData.year_level,
           user_id: user.user_id
         };
         
@@ -301,6 +306,24 @@ export default function EditUserModal({ user, isOpen, onClose, onUserUpdated }: 
                         {program}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="year_level">Year Level</Label>
+                <Select
+                  value={formData.year_level}
+                  onValueChange={(value) => handleInputChange('year_level', value)}
+                  disabled={loading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select year level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1st Year">1st Year</SelectItem>
+                    <SelectItem value="2nd Year">2nd Year</SelectItem>
+                    <SelectItem value="3rd Year">3rd Year</SelectItem>
+                    <SelectItem value="4th Year">4th Year</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

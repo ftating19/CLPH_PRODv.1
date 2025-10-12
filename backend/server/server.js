@@ -491,7 +491,7 @@ app.put('/api/admin/edit-user/:id', async (req, res) => {
     console.log('Request body:', req.body);
     
     const userId = parseInt(req.params.id);
-    const { first_name, middle_name, last_name, email, program, role, status } = req.body;
+    const { first_name, middle_name, last_name, email, program, role, status, year_level } = req.body;
 
     console.log(`Admin updating user ${userId}:`, req.body);
 
@@ -547,7 +547,8 @@ app.put('/api/admin/edit-user/:id', async (req, res) => {
       email,
       program,
       role,
-      status
+      status,
+      year_level
     });
 
     console.log('Update result:', result);

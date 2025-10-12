@@ -33,6 +33,7 @@ interface User {
   program: string;
   role: string;
   status: string;
+  year_level?: string;
   first_login: number;
   created_at: string;
 }
@@ -173,7 +174,8 @@ export default function UserManagement() {
           email: userToDeactivate.email,
           program: userToDeactivate.program,
           role: userToDeactivate.role,
-          status: 'Inactive'
+          status: 'Inactive',
+          year_level: userToDeactivate.year_level
         }),
       });
 
