@@ -95,18 +95,16 @@ const getResultsByUserId = async (pool, userId) => {
         pa.difficulty,
         CONCAT(u.first_name, ' ', u.last_name) as user_name,
         (
-          SELECT JSON_ARRAYAGG(
-            JSON_OBJECT(
-              'subject_id', s.subject_id,
-              'subject_name', s.subject_name,
-              'subject_code', s.subject_code
-            )
+          SELECT GROUP_CONCAT(
+            DISTINCT CONCAT(
+              '{"subject_id":', s.subject_id, 
+              ',"subject_name":"', REPLACE(s.subject_name, '"', '\\\\"'), 
+              '","subject_code":"', REPLACE(s.subject_code, '"', '\\\\"'), '"}'
+            ) SEPARATOR ','
           )
           FROM pre_assessment_questions paq
-          LEFT JOIN subjects s ON paq.subject_id = s.subject_id
+          INNER JOIN subjects s ON paq.subject_id = s.subject_id
           WHERE paq.pre_assessment_id = par.pre_assessment_id
-          AND s.subject_id IS NOT NULL
-          GROUP BY paq.pre_assessment_id
         ) as subjects_covered
       FROM pre_assessment_results par
       LEFT JOIN pre_assessments pa ON par.pre_assessment_id = pa.id
@@ -116,6 +114,20 @@ const getResultsByUserId = async (pool, userId) => {
     `;
     
     const [rows] = await pool.query(query, [userId]);
+    
+    // Parse subjects_covered from GROUP_CONCAT to JSON array
+    rows.forEach(row => {
+      if (row.subjects_covered) {
+        try {
+          row.subjects_covered = JSON.parse(`[${row.subjects_covered}]`);
+        } catch (e) {
+          console.warn('Failed to parse subjects_covered:', e);
+          row.subjects_covered = [];
+        }
+      } else {
+        row.subjects_covered = [];
+      }
+    });
     
     console.log(`✅ Found ${rows.length} pre-assessment results for user ${userId}`);
     return rows;

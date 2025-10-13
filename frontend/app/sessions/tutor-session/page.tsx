@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2 } from "lucide-react"
 import Layout from "@/components/dashboard/layout"
 import { useUser } from "@/contexts/UserContext"
+import ChatModal from "@/components/modals/ChatModal"
+import PostTestModal from "@/components/modals/PostTestModal"
 
 // Updated booking data structure
 interface Booking {
@@ -35,6 +37,12 @@ export default function TutorSessionPage() {
   const [showRatingModal, setShowRatingModal] = useState<{open: boolean, bookingId?: number}>({open: false})
   const [pendingRating, setPendingRating] = useState<number>(0)
   const [remarksInput, setRemarksInput] = useState<{[key:number]: string}>({})
+
+  // State for chat modal
+  const [showChatModal, setShowChatModal] = useState<{open: boolean, bookingId?: number, bookingDetails?: Booking}>({open: false})
+
+  // State for post-test modal
+  const [showPostTestModal, setShowPostTestModal] = useState<{open: boolean, bookingId?: number, bookingDetails?: Booking}>({open: false})
 
   // Mark session as complete handler for student
   const handleStudentComplete = async (booking_id: number) => {
@@ -401,6 +409,34 @@ export default function TutorSessionPage() {
 
                   <div className="flex items-center justify-end pt-4 border-t">
                     <div className="flex space-x-2">
+                      {/* Chat Button - Only for accepted sessions for tutor and student */}
+                      {((currentUser?.user_id === booking.tutor_id) || (currentUser?.user_id === booking.student_id)) && 
+                       (booking.status === "Accepted" || booking.status === "accepted") && 
+                       !isSessionExpired(booking) && (
+                        <Button 
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowChatModal({open: true, bookingId: booking.booking_id, bookingDetails: booking})}
+                        >
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          Chat
+                        </Button>
+                      )}
+
+                      {/* Create Post-test Button - Only for tutors in accepted sessions */}
+                      {currentUser?.user_id === booking.tutor_id && 
+                       (booking.status === "Accepted" || booking.status === "accepted") && 
+                       !isSessionExpired(booking) && (
+                        <Button 
+                          size="sm"
+                          variant="default"
+                          onClick={() => setShowPostTestModal({open: true, bookingId: booking.booking_id, bookingDetails: booking})}
+                        >
+                          <Award className="w-4 h-4 mr-2" />
+                          Create Post-test
+                        </Button>
+                      )}
+
                       {/* Tutor Accept/Reject Buttons - Only for pending sessions */}
                       {currentUser?.user_id === booking.tutor_id && 
                        (booking.status === "Pending" || booking.status === "pending") && 
@@ -521,6 +557,22 @@ export default function TutorSessionPage() {
             </div>
           </div>
         )}
+
+        {/* Chat Modal */}
+        {showChatModal.bookingDetails && (
+          <ChatModal
+            isOpen={showChatModal.open}
+            onClose={() => setShowChatModal({open: false})}
+            booking={showChatModal.bookingDetails}
+          />
+        )}
+
+        {/* Post-Test Modal */}
+        <PostTestModal
+          isOpen={showPostTestModal.open}
+          onClose={() => setShowPostTestModal({open: false})}
+          booking={showPostTestModal.bookingDetails!}
+        />
       </div>
     </Layout>
   )

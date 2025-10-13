@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS post_test_results (
+  result_id INT PRIMARY KEY AUTO_INCREMENT,
+  post_test_id INT NOT NULL,
+  student_id INT NOT NULL,
+  booking_id INT NOT NULL,
+  answers JSON NOT NULL,
+  score DECIMAL(5,2) NOT NULL,
+  total_questions INT NOT NULL,
+  correct_answers INT NOT NULL,
+  time_taken INT,
+  passed BOOLEAN DEFAULT FALSE,
+  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  completed_at TIMESTAMP NULL,
+  FOREIGN KEY (post_test_id) REFERENCES post_tests(post_test_id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
+  INDEX idx_post_test_id (post_test_id),
+  INDEX idx_student_id (student_id),
+  INDEX idx_booking_id (booking_id),
+  UNIQUE KEY unique_student_test (post_test_id, student_id)
+);

@@ -127,6 +127,14 @@ const {
   deletePendingFlashcardsBySubId
 } = require('../queries/pendingFlashcards')
 const { createSession, getSessions } = require('../queries/sessions')
+const { 
+  createChatMessage, 
+  getChatMessagesByBooking, 
+  markMessagesAsRead, 
+  getUnreadMessageCount, 
+  deleteChatMessage,
+  updateChatMessage
+} = require('../queries/chatMessages')
 const { getAllForums, getForumById, createForum, updateForum, deleteForum } = require('../queries/forums')
 const { getCommentsByForumId, addComment } = require('../queries/comments')
 const {
@@ -157,6 +165,31 @@ const {
   deleteResult,
   getAssessmentStatistics
 } = require('../queries/preAssessmentResults')
+const {
+  createPostTest,
+  getAllPostTests,
+  getPostTestById,
+  updatePostTest,
+  deletePostTest,
+  publishPostTest
+} = require('../queries/postTests')
+const {
+  createPostTestQuestion,
+  createPostTestQuestions,
+  getQuestionsByPostTestId,
+  getPostTestQuestionById,
+  updatePostTestQuestion,
+  deletePostTestQuestion,
+  deleteQuestionsByPostTestId
+} = require('../queries/postTestQuestions')
+const {
+  createPostTestResult,
+  getAllPostTestResults,
+  getPostTestResultById,
+  getResultByStudentAndPostTest,
+  deletePostTestResult,
+  getPostTestStatistics
+} = require('../queries/postTestResults')
 
 const multer = require('multer')
 const path = require('path')
@@ -2708,7 +2741,7 @@ app.post('/api/pre-assessment-results', async (req, res) => {
       answers
     };
 
-    const pool = db.getPool();
+    const pool = await db.getPool();
     const result = await createPreAssessmentResult(pool, resultData);
 
     res.status(201).json({
@@ -2744,12 +2777,14 @@ app.get('/api/pre-assessment-results/user/:userId', async (req, res) => {
       });
     }
 
-    const pool = db.getPool();
+    const pool = await db.getPool();
     const results = await getResultsByUserId(pool, userId);
+
+    console.log(`✅ Found ${results.length} pre-assessment results for user ${userId}`);
 
     res.json({
       success: true,
-      results: results
+      results: results || []
     });
   } catch (err) {
     console.error('Error fetching results by user ID:', err);
@@ -2772,12 +2807,12 @@ app.get('/api/pre-assessment-results/assessment/:assessmentId', async (req, res)
       });
     }
 
-    const pool = db.getPool();
+    const pool = await db.getPool();
     const results = await getResultsByAssessmentId(pool, assessmentId);
 
     res.json({
       success: true,
-      results: results
+      results: results || []
     });
   } catch (err) {
     console.error('Error fetching results by assessment ID:', err);
@@ -2801,12 +2836,12 @@ app.get('/api/pre-assessment-results/user/:userId/assessment/:assessmentId', asy
       });
     }
 
-    const pool = db.getPool();
+    const pool = await db.getPool();
     const result = await getResultByUserAndAssessment(pool, userId, assessmentId);
 
     res.json({
       success: true,
-      result: result
+      result: result || null
     });
   } catch (err) {
     console.error('Error fetching result by user and assessment:', err);
@@ -2820,12 +2855,12 @@ app.get('/api/pre-assessment-results/user/:userId/assessment/:assessmentId', asy
 // Get all results (admin only)
 app.get('/api/pre-assessment-results', async (req, res) => {
   try {
-    const pool = db.getPool();
+    const pool = await db.getPool();
     const results = await getAllResults(pool);
 
     res.json({
       success: true,
-      results: results
+      results: results || []
     });
   } catch (err) {
     console.error('Error fetching all results:', err);
@@ -2848,12 +2883,12 @@ app.get('/api/pre-assessment-results/statistics/:assessmentId', async (req, res)
       });
     }
 
-    const pool = db.getPool();
+    const pool = await db.getPool();
     const statistics = await getAssessmentStatistics(pool, assessmentId);
 
     res.json({
       success: true,
-      statistics: statistics
+      statistics: statistics || {}
     });
   } catch (err) {
     console.error('Error fetching assessment statistics:', err);
@@ -2876,7 +2911,7 @@ app.delete('/api/pre-assessment-results/:resultId', async (req, res) => {
       });
     }
 
-    const pool = db.getPool();
+    const pool = await db.getPool();
     await deleteResult(pool, resultId);
 
     res.json({
@@ -5525,6 +5560,722 @@ app.put('/api/sessions/:booking_id/rating', async (req, res) => {
       res.status(500).json({ success: false, error: 'Internal server error' });
     }
   });
+
+// ===== CHAT MESSAGES API ENDPOINTS =====
+
+// Get all chat messages for a booking session
+app.get('/api/sessions/:booking_id/chat', async (req, res) => {
+  try {
+    const booking_id = parseInt(req.params.booking_id);
+    const user_id = req.query.user_id;
+    
+    if (!booking_id) {
+      return res.status(400).json({ success: false, error: 'Valid booking_id is required' });
+    }
+
+    console.log(`Fetching chat messages for booking ${booking_id}`);
+    
+    const pool = await db.getPool();
+    
+    // First verify the user has access to this booking (either tutor or student)
+    const [bookingRows] = await pool.query(
+      'SELECT tutor_id, student_id, status FROM bookings WHERE booking_id = ?', 
+      [booking_id]
+    );
+    
+    if (bookingRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+    
+    const booking = bookingRows[0];
+    if (user_id && booking.tutor_id !== parseInt(user_id) && booking.student_id !== parseInt(user_id)) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
+    // Get chat messages
+    const messages = await getChatMessagesByBooking(pool, booking_id);
+    
+    // Mark messages as read by current user if user_id is provided
+    if (user_id) {
+      await markMessagesAsRead(pool, booking_id, user_id);
+    }
+    
+    console.log(`✅ Found ${messages.length} chat messages for booking ${booking_id}`);
+    
+    res.json({
+      success: true,
+      messages: messages,
+      total: messages.length
+    });
+  } catch (err) {
+    console.error('Error fetching chat messages:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Send a new chat message
+app.post('/api/sessions/:booking_id/chat', async (req, res) => {
+  try {
+    const booking_id = parseInt(req.params.booking_id);
+    const { sender_id, message } = req.body;
+    
+    if (!booking_id || !sender_id || !message?.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'booking_id, sender_id, and message are required' 
+      });
+    }
+
+    console.log(`Creating chat message for booking ${booking_id} from user ${sender_id}`);
+    
+    const pool = await db.getPool();
+    
+    // Verify the user has access to this booking (either tutor or student)
+    const [bookingRows] = await pool.query(
+      'SELECT tutor_id, student_id, status FROM bookings WHERE booking_id = ?', 
+      [booking_id]
+    );
+    
+    if (bookingRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+    
+    const booking = bookingRows[0];
+    if (booking.tutor_id !== sender_id && booking.student_id !== sender_id) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
+    // Only allow chat in accepted sessions
+    if (booking.status?.toLowerCase() !== 'accepted') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Chat is only available for accepted sessions' 
+      });
+    }
+    
+    // Get sender name
+    const [userRows] = await pool.query(
+      'SELECT CONCAT(first_name, " ", last_name) AS name FROM users WHERE user_id = ?', 
+      [sender_id]
+    );
+    
+    const sender_name = userRows[0]?.name || 'Unknown User';
+    
+    // Create the message
+    const message_id = await createChatMessage(pool, {
+      booking_id,
+      sender_id,
+      sender_name,
+      message: message.trim()
+    });
+    
+    console.log(`✅ Chat message created with ID: ${message_id}`);
+    
+    res.status(201).json({
+      success: true,
+      message_id: message_id,
+      message: 'Message sent successfully'
+    });
+  } catch (err) {
+    console.error('Error creating chat message:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get unread message count for a user in a booking
+app.get('/api/sessions/:booking_id/chat/unread', async (req, res) => {
+  try {
+    const booking_id = parseInt(req.params.booking_id);
+    const user_id = req.query.user_id;
+    
+    if (!booking_id || !user_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'booking_id and user_id are required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    
+    // Verify user has access to this booking
+    const [bookingRows] = await pool.query(
+      'SELECT tutor_id, student_id FROM bookings WHERE booking_id = ?', 
+      [booking_id]
+    );
+    
+    if (bookingRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+    
+    const booking = bookingRows[0];
+    if (booking.tutor_id !== parseInt(user_id) && booking.student_id !== parseInt(user_id)) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
+    const unread_count = await getUnreadMessageCount(pool, booking_id, user_id);
+    
+    res.json({
+      success: true,
+      unread_count: unread_count
+    });
+  } catch (err) {
+    console.error('Error getting unread message count:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Delete a chat message
+app.delete('/api/sessions/:booking_id/chat/:message_id', async (req, res) => {
+  try {
+    const booking_id = parseInt(req.params.booking_id);
+    const message_id = parseInt(req.params.message_id);
+    const { user_id } = req.body;
+    
+    if (!booking_id || !message_id || !user_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'booking_id, message_id, and user_id are required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    
+    // Delete the message (only sender can delete their own messages)
+    const success = await deleteChatMessage(pool, message_id, user_id);
+    
+    if (!success) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Message not found or you can only delete your own messages' 
+      });
+    }
+    
+    console.log(`✅ Chat message ${message_id} deleted by user ${user_id}`);
+    
+    res.json({
+      success: true,
+      message: 'Message deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting chat message:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Edit a chat message
+app.put('/api/sessions/:booking_id/chat/:message_id', async (req, res) => {
+  try {
+    const booking_id = parseInt(req.params.booking_id);
+    const message_id = parseInt(req.params.message_id);
+    const { user_id, message } = req.body;
+    
+    if (!booking_id || !message_id || !user_id || !message?.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'booking_id, message_id, user_id, and message are required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    
+    // Update the message (only sender can edit their own messages)
+    const success = await updateChatMessage(pool, message_id, user_id, message.trim());
+    
+    if (!success) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Message not found or you can only edit your own messages' 
+      });
+    }
+    
+    console.log(`✅ Chat message ${message_id} updated by user ${user_id}`);
+    
+    res.json({
+      success: true,
+      message: 'Message updated successfully'
+    });
+  } catch (err) {
+    console.error('Error updating chat message:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ===== POST-TEST API ENDPOINTS =====
+
+// Get all post-tests with optional filters
+app.get('/api/post-tests', async (req, res) => {
+  try {
+    const { tutor_id, student_id, booking_id, status } = req.query;
+    
+    console.log('Fetching post-tests with filters:', { tutor_id, student_id, booking_id, status });
+    
+    const pool = await db.getPool();
+    const postTests = await getAllPostTests(pool, {
+      tutor_id: tutor_id ? parseInt(tutor_id) : undefined,
+      student_id: student_id ? parseInt(student_id) : undefined,
+      booking_id: booking_id ? parseInt(booking_id) : undefined,
+      status: status
+    });
+    
+    console.log(`✅ Found ${postTests.length} post-tests`);
+    
+    res.json({
+      success: true,
+      postTests: postTests,
+      total: postTests.length
+    });
+  } catch (err) {
+    console.error('Error fetching post-tests:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get post-test by ID
+app.get('/api/post-tests/:id', async (req, res) => {
+  try {
+    const postTestId = parseInt(req.params.id);
+    
+    if (!postTestId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid post-test ID is required' 
+      });
+    }
+    
+    console.log(`Fetching post-test ${postTestId}`);
+    
+    const pool = await db.getPool();
+    const postTest = await getPostTestById(pool, postTestId);
+    
+    if (!postTest) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Post-test not found' 
+      });
+    }
+    
+    // Also get questions for the post-test
+    const questions = await getQuestionsByPostTestId(pool, postTestId);
+    
+    console.log(`✅ Found post-test ${postTestId} with ${questions.length} questions`);
+    
+    res.json({
+      success: true,
+      postTest: postTest,
+      questions: questions
+    });
+  } catch (err) {
+    console.error('Error fetching post-test:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Create a new post-test
+app.post('/api/post-tests', async (req, res) => {
+  try {
+    const { booking_id, tutor_id, student_id, title, description, subject_id, subject_name, time_limit, passing_score, questions } = req.body;
+    
+    console.log('Creating new post-test:', req.body);
+    
+    // Validate required fields
+    if (!booking_id || !tutor_id || !student_id || !title) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'booking_id, tutor_id, student_id, and title are required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    
+    // Verify the booking exists and tutor has access
+    const [bookingRows] = await pool.query(
+      'SELECT tutor_id, student_id, status FROM bookings WHERE booking_id = ?', 
+      [booking_id]
+    );
+    
+    if (bookingRows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+    
+    const booking = bookingRows[0];
+    if (booking.tutor_id !== tutor_id) {
+      return res.status(403).json({ success: false, error: 'Only the session tutor can create post-tests' });
+    }
+    
+    // Check if post-test already exists for this booking
+    const existingPostTests = await getAllPostTests(pool, { booking_id });
+    if (existingPostTests.length > 0) {
+      return res.status(409).json({ 
+        success: false, 
+        error: 'A post-test already exists for this session' 
+      });
+    }
+    
+    // Create the post-test
+    const postTest = await createPostTest(pool, {
+      booking_id: parseInt(booking_id),
+      tutor_id: parseInt(tutor_id),
+      student_id: parseInt(student_id),
+      title,
+      description,
+      subject_id: subject_id ? parseInt(subject_id) : null,
+      subject_name,
+      time_limit,
+      passing_score
+    });
+    
+    // Add questions if provided
+    if (questions && Array.isArray(questions) && questions.length > 0) {
+      const createdQuestions = await createPostTestQuestions(pool, postTest.post_test_id, questions);
+      console.log(`✅ Created ${createdQuestions.length} questions for post-test ${postTest.post_test_id}`);
+    }
+    
+    console.log(`✅ Post-test created with ID: ${postTest.post_test_id}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Post-test created successfully',
+      postTest: postTest
+    });
+  } catch (err) {
+    console.error('Error creating post-test:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Update post-test
+app.put('/api/post-tests/:id', async (req, res) => {
+  try {
+    const postTestId = parseInt(req.params.id);
+    const { title, description, time_limit, passing_score, status, tutor_id } = req.body;
+    
+    if (!postTestId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid post-test ID is required' 
+      });
+    }
+    
+    console.log(`Updating post-test ${postTestId}:`, req.body);
+    
+    const pool = await db.getPool();
+    
+    // Verify the post-test exists and user has permission
+    const postTest = await getPostTestById(pool, postTestId);
+    if (!postTest) {
+      return res.status(404).json({ success: false, error: 'Post-test not found' });
+    }
+    
+    if (tutor_id && postTest.tutor_id !== tutor_id) {
+      return res.status(403).json({ success: false, error: 'Only the creator can update this post-test' });
+    }
+    
+    // Update the post-test
+    const success = await updatePostTest(pool, postTestId, {
+      title,
+      description,
+      time_limit,
+      passing_score,
+      status
+    });
+    
+    if (!success) {
+      return res.status(500).json({ success: false, error: 'Failed to update post-test' });
+    }
+    
+    console.log(`✅ Post-test ${postTestId} updated successfully`);
+    
+    res.json({
+      success: true,
+      message: 'Post-test updated successfully'
+    });
+  } catch (err) {
+    console.error('Error updating post-test:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Publish post-test
+app.put('/api/post-tests/:id/publish', async (req, res) => {
+  try {
+    const postTestId = parseInt(req.params.id);
+    const { tutor_id } = req.body;
+    
+    if (!postTestId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid post-test ID is required' 
+      });
+    }
+    
+    console.log(`Publishing post-test ${postTestId}`);
+    
+    const pool = await db.getPool();
+    
+    // Verify the post-test exists and user has permission
+    const postTest = await getPostTestById(pool, postTestId);
+    if (!postTest) {
+      return res.status(404).json({ success: false, error: 'Post-test not found' });
+    }
+    
+    if (tutor_id && postTest.tutor_id !== tutor_id) {
+      return res.status(403).json({ success: false, error: 'Only the creator can publish this post-test' });
+    }
+    
+    // Publish the post-test
+    const success = await publishPostTest(pool, postTestId);
+    
+    if (!success) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Cannot publish post-test. Make sure it has questions.' 
+      });
+    }
+    
+    console.log(`✅ Post-test ${postTestId} published successfully`);
+    
+    res.json({
+      success: true,
+      message: 'Post-test published successfully'
+    });
+  } catch (err) {
+    console.error('Error publishing post-test:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Delete post-test
+app.delete('/api/post-tests/:id', async (req, res) => {
+  try {
+    const postTestId = parseInt(req.params.id);
+    const { tutor_id } = req.body;
+    
+    if (!postTestId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid post-test ID is required' 
+      });
+    }
+    
+    console.log(`Deleting post-test ${postTestId}`);
+    
+    const pool = await db.getPool();
+    
+    // Verify the post-test exists and user has permission
+    const postTest = await getPostTestById(pool, postTestId);
+    if (!postTest) {
+      return res.status(404).json({ success: false, error: 'Post-test not found' });
+    }
+    
+    if (tutor_id && postTest.tutor_id !== tutor_id) {
+      return res.status(403).json({ success: false, error: 'Only the creator can delete this post-test' });
+    }
+    
+    // Delete the post-test (cascades to questions and results)
+    const success = await deletePostTest(pool, postTestId);
+    
+    if (!success) {
+      return res.status(500).json({ success: false, error: 'Failed to delete post-test' });
+    }
+    
+    console.log(`✅ Post-test ${postTestId} deleted successfully`);
+    
+    res.json({
+      success: true,
+      message: 'Post-test deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting post-test:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get questions for a post-test
+app.get('/api/post-tests/:id/questions', async (req, res) => {
+  try {
+    const postTestId = parseInt(req.params.id);
+    
+    if (!postTestId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid post-test ID is required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    const questions = await getQuestionsByPostTestId(pool, postTestId);
+    
+    console.log(`✅ Found ${questions.length} questions for post-test ${postTestId}`);
+    
+    res.json({
+      success: true,
+      questions: questions,
+      total: questions.length
+    });
+  } catch (err) {
+    console.error('Error fetching post-test questions:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Add questions to post-test
+app.post('/api/post-tests/:id/questions', async (req, res) => {
+  try {
+    const postTestId = parseInt(req.params.id);
+    const { questions, tutor_id } = req.body;
+    
+    if (!postTestId || !questions || !Array.isArray(questions)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid post-test ID and questions array are required' 
+      });
+    }
+    
+    console.log(`Adding ${questions.length} questions to post-test ${postTestId}`);
+    
+    const pool = await db.getPool();
+    
+    // Verify the post-test exists and user has permission
+    const postTest = await getPostTestById(pool, postTestId);
+    if (!postTest) {
+      return res.status(404).json({ success: false, error: 'Post-test not found' });
+    }
+    
+    if (tutor_id && postTest.tutor_id !== tutor_id) {
+      return res.status(403).json({ success: false, error: 'Only the creator can add questions' });
+    }
+    
+    // Create the questions
+    const createdQuestions = await createPostTestQuestions(pool, postTestId, questions);
+    
+    console.log(`✅ Added ${createdQuestions.length} questions to post-test ${postTestId}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Questions added successfully',
+      questions: createdQuestions
+    });
+  } catch (err) {
+    console.error('Error adding post-test questions:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Submit post-test results
+app.post('/api/post-tests/:id/submit', async (req, res) => {
+  try {
+    const postTestId = parseInt(req.params.id);
+    const { student_id, answers, time_taken } = req.body;
+    
+    if (!postTestId || !student_id || !answers) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'post-test ID, student_id, and answers are required' 
+      });
+    }
+    
+    console.log(`Submitting post-test ${postTestId} results for student ${student_id}`);
+    
+    const pool = await db.getPool();
+    
+    // Get the post-test and questions
+    const postTest = await getPostTestById(pool, postTestId);
+    if (!postTest) {
+      return res.status(404).json({ success: false, error: 'Post-test not found' });
+    }
+    
+    if (postTest.status !== 'published') {
+      return res.status(400).json({ success: false, error: 'Post-test is not available for taking' });
+    }
+    
+    if (postTest.student_id !== student_id) {
+      return res.status(403).json({ success: false, error: 'You are not authorized to take this post-test' });
+    }
+    
+    // Check if student already submitted
+    const existingResult = await getResultByStudentAndPostTest(pool, student_id, postTestId);
+    if (existingResult) {
+      return res.status(409).json({ 
+        success: false, 
+        error: 'You have already submitted this post-test' 
+      });
+    }
+    
+    const questions = await getQuestionsByPostTestId(pool, postTestId);
+    
+    // Calculate score
+    let correctAnswers = 0;
+    const totalQuestions = questions.length;
+    
+    questions.forEach(question => {
+      const studentAnswer = answers[question.question_id];
+      if (studentAnswer && studentAnswer.toLowerCase() === question.correct_answer.toLowerCase()) {
+        correctAnswers++;
+      }
+    });
+    
+    const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+    const passed = score >= postTest.passing_score;
+    
+    // Save the result
+    const result = await createPostTestResult(pool, {
+      post_test_id: postTestId,
+      student_id,
+      booking_id: postTest.booking_id,
+      answers,
+      score: parseFloat(score.toFixed(2)),
+      total_questions: totalQuestions,
+      correct_answers: correctAnswers,
+      time_taken: time_taken || null,
+      passed
+    });
+    
+    console.log(`✅ Post-test ${postTestId} submitted by student ${student_id} with score ${score.toFixed(2)}%`);
+    
+    res.json({
+      success: true,
+      message: 'Post-test submitted successfully',
+      result: {
+        score: parseFloat(score.toFixed(2)),
+        correctAnswers,
+        totalQuestions,
+        passed,
+        passingScore: postTest.passing_score
+      }
+    });
+  } catch (err) {
+    console.error('Error submitting post-test:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get post-test results
+app.get('/api/post-test-results', async (req, res) => {
+  try {
+    const { student_id, tutor_id, post_test_id, booking_id } = req.query;
+    
+    console.log('Fetching post-test results with filters:', { student_id, tutor_id, post_test_id, booking_id });
+    
+    const pool = await db.getPool();
+    const results = await getAllPostTestResults(pool, {
+      student_id: student_id ? parseInt(student_id) : undefined,
+      tutor_id: tutor_id ? parseInt(tutor_id) : undefined,
+      post_test_id: post_test_id ? parseInt(post_test_id) : undefined,
+      booking_id: booking_id ? parseInt(booking_id) : undefined
+    });
+    
+    console.log(`✅ Found ${results.length} post-test results`);
+    
+    res.json({
+      success: true,
+      results: results,
+      total: results.length
+    });
+  } catch (err) {
+    console.error('Error fetching post-test results:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 
 // ===== FORUMS API ENDPOINTS =====
 

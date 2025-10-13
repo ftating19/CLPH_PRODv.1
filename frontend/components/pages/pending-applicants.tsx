@@ -34,20 +34,16 @@ interface TutorApplication {
   application_id: number
   user_id: number
   name: string
+  email: string
   subject_id: number
   subject_name: string
   application_date: string
   status: string
   validatedby: number | null
-  tutor_information: {
-    program: string
-    specialties: string
-  }
-  // Additional display info from user table
-  email?: string
-  studentId?: string
-  yearLevel?: string
-  gpa?: string
+  tutor_information: string
+  program: string
+  year_level: string
+  specialties: string
   avatar?: string
 }
 
@@ -235,7 +231,7 @@ export default function PendingApplicants() {
             <div className="flex items-center space-x-4 mt-2">
               <div className="flex items-center text-sm text-muted-foreground">
                 <User className="w-4 h-4 mr-1" />
-                ID: {applicant.user_id || 'N/A'} • {applicant.yearLevel || 'Year not specified'}
+                Year {applicant.year_level || 'Not specified'}
               </div>
               <div className="flex items-center text-sm text-muted-foreground">
                 <Calendar className="w-4 h-4 mr-1" />
@@ -246,15 +242,9 @@ export default function PendingApplicants() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center space-x-2">
-            <BookOpen className="w-4 h-4 text-muted-foreground" />
-            <span>GPA: {applicant.gpa || 'Not provided'}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <GraduationCap className="w-4 h-4 text-muted-foreground" />
-            <span>{applicant.tutor_information?.program || 'Program not specified'}</span>
-          </div>
+        <div className="flex items-center space-x-2 text-sm">
+          <GraduationCap className="w-4 h-4 text-muted-foreground" />
+          <span>Program: {applicant.program || 'Program not specified'}</span>
         </div>
 
         {/* Subject Information */}
@@ -269,7 +259,7 @@ export default function PendingApplicants() {
         <div className="space-y-2">
           <Label className="text-sm font-medium">Specialties & Experience</Label>
           <p className="text-sm text-muted-foreground line-clamp-3">
-            {applicant.tutor_information?.specialties || 'No specialties or experience provided'}
+            {applicant.specialties || 'No specialties or experience provided'}
           </p>
         </div>
 
@@ -336,7 +326,7 @@ export default function PendingApplicants() {
           <p className="text-sm text-muted-foreground">Applications will appear here when students apply to become tutors.</p>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {applicants.map((applicant) => (
             <ApplicantCard key={applicant.application_id} applicant={applicant} />
           ))}
@@ -360,20 +350,8 @@ export default function PendingApplicants() {
                   <p className="text-sm">{currentApplicant.name}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Email</Label>
-                  <p className="text-sm">{currentApplicant.email || 'Not available'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Student ID</Label>
-                  <p className="text-sm">{currentApplicant.studentId || 'Not available'}</p>
-                </div>
-                <div>
                   <Label className="text-sm font-medium">Year Level</Label>
-                  <p className="text-sm">{currentApplicant.yearLevel || 'Not available'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">GPA</Label>
-                  <p className="text-sm">{currentApplicant.gpa || 'Not available'}</p>
+                  <p className="text-sm">{currentApplicant.year_level || 'Not available'}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Application Date</Label>
@@ -388,12 +366,12 @@ export default function PendingApplicants() {
               
               <div>
                 <Label className="text-sm font-medium">Program</Label>
-                <p className="text-sm">{currentApplicant.tutor_information?.program || 'Program not specified'}</p>
+                <p className="text-sm">{currentApplicant.program || 'Program not specified'}</p>
               </div>
               
               <div>
                 <Label className="text-sm font-medium">Specialties & Experience</Label>
-                <p className="text-sm text-muted-foreground">{currentApplicant.tutor_information?.specialties || 'No specialties or experience provided'}</p>
+                <p className="text-sm text-muted-foreground">{currentApplicant.specialties || 'No specialties or experience provided'}</p>
               </div>
             </div>
           )}

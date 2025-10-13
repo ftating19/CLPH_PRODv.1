@@ -22,10 +22,12 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
       return
     }
 
-    // Only check for students
-    if (currentUser.role !== 'Student') {
+    // Only check for students - allow all other roles immediate access
+    const userRole = currentUser.role?.toLowerCase()
+    if (userRole !== 'student') {
       setHasCompleted(true)
       setIsLoading(false)
+      setError(null)
       return
     }
 
@@ -37,7 +39,15 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
       const resultsResponse = await fetch(`http://localhost:4000/api/pre-assessment-results/user/${currentUser.user_id}`)
       
       if (!resultsResponse.ok) {
-        throw new Error('Failed to fetch pre-assessment results')
+        // If the API endpoint doesn't exist (404), bypass the requirement
+        if (resultsResponse.status === 404) {
+          console.warn('Pre-assessment API not implemented, allowing access')
+          setHasCompleted(true)
+          setAvailablePreAssessments([])
+          setIsLoading(false)
+          return
+        }
+        throw new Error(`Failed to fetch pre-assessment results (${resultsResponse.status})`)
       }
 
       const resultsData = await resultsResponse.json()
@@ -54,7 +64,15 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
         )
         
         if (!assessmentsResponse.ok) {
-          throw new Error('Failed to fetch available pre-assessments')
+          // If the API endpoint doesn't exist (404), bypass the requirement
+          if (assessmentsResponse.status === 404) {
+            console.warn('Pre-assessment configuration API not implemented, allowing access')
+            setHasCompleted(true)
+            setAvailablePreAssessments([])
+            setIsLoading(false)
+            return
+          }
+          throw new Error(`Failed to fetch available pre-assessments (${assessmentsResponse.status})`)
         }
 
         const assessmentsData = await assessmentsResponse.json()
@@ -70,10 +88,20 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
         }
       }
     } catch (err) {
-      console.error('Error checking pre-assessment status:', err)
-      setError(err instanceof Error ? err.message : 'Failed to check pre-assessment status')
-      // On error, allow access to prevent blocking users
-      setHasCompleted(true)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to check pre-assessment status'
+      console.warn('Pre-assessment check failed:', errorMessage)
+      
+      // Check if this is a network error (backend not running) vs a server error
+      if (errorMessage.includes('fetch') || errorMessage.includes('NetworkError') || errorMessage.includes('Failed to fetch')) {
+        setError('Unable to connect to server. Please check your internet connection or try again later.')
+      } else if (errorMessage.includes('(500)')) {
+        setError('Server error occurred. Please try again or contact support if the issue persists.')
+      } else {
+        setError(errorMessage)
+      }
+      
+      // Don't set hasCompleted to true on error for students - let the guard handle the error state
+      setHasCompleted(null)
       setAvailablePreAssessments([])
     } finally {
       setIsLoading(false)
