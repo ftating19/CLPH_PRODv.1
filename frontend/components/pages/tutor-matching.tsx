@@ -153,14 +153,18 @@ export default function TutorMatching() {
         data.results.forEach((result: any) => {
           if (result.percentage < 70 && result.subjects_covered) {
             try {
-              const subjects = JSON.parse(result.subjects_covered)
+              // subjects_covered is already an array from the backend
+              const subjects = Array.isArray(result.subjects_covered) 
+                ? result.subjects_covered 
+                : JSON.parse(result.subjects_covered);
+              
               subjects.forEach((subject: any) => {
                 if (subject.subject_id && !needHelpSubjects.includes(subject.subject_id)) {
                   needHelpSubjects.push(subject.subject_id)
                 }
               })
             } catch (e) {
-              console.error('Error parsing subjects_covered:', e)
+              console.error('Error parsing subjects_covered:', e, result.subjects_covered)
             }
           }
         })

@@ -97,10 +97,10 @@ const getResultsByUserId = async (pool, userId) => {
         (
           SELECT GROUP_CONCAT(
             DISTINCT CONCAT(
-              '{"subject_id":', s.subject_id, 
-              ',"subject_name":"', REPLACE(s.subject_name, '"', '\\\\"'), 
-              '","subject_code":"', REPLACE(s.subject_code, '"', '\\\\"'), '"}'
-            ) SEPARATOR ','
+              s.subject_id, ':', 
+              REPLACE(REPLACE(s.subject_name, '"', ''), ',', ''), ':', 
+              REPLACE(REPLACE(s.subject_code, '"', ''), ',', '')
+            ) SEPARATOR '||'
           )
           FROM pre_assessment_questions paq
           INNER JOIN subjects s ON paq.subject_id = s.subject_id
@@ -119,9 +119,18 @@ const getResultsByUserId = async (pool, userId) => {
     rows.forEach(row => {
       if (row.subjects_covered) {
         try {
-          row.subjects_covered = JSON.parse(`[${row.subjects_covered}]`);
+          // Format: "id:name:code||id:name:code"
+          const subjectsArray = row.subjects_covered.split('||').map((item) => {
+            const [subject_id, subject_name, subject_code] = item.split(':');
+            return {
+              subject_id: parseInt(subject_id),
+              subject_name: subject_name || '',
+              subject_code: subject_code || ''
+            };
+          });
+          row.subjects_covered = subjectsArray;
         } catch (e) {
-          console.warn('Failed to parse subjects_covered:', e);
+          console.warn('Failed to parse subjects_covered:', e, 'Raw value:', row.subjects_covered);
           row.subjects_covered = [];
         }
       } else {
