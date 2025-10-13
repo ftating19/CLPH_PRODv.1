@@ -123,10 +123,22 @@ export default function PreAssessmentRequired({
       
       console.log('Transformed questions:', transformedQuestions)
       
-      setQuestions(transformedQuestions)
+      // Shuffle questions for randomization
+      const shuffleArray = (array: any[]) => {
+        const shuffled = [...array]
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+        }
+        return shuffled
+      }
+      
+      const shuffledQuestions = shuffleArray(transformedQuestions)
+      
+      setQuestions(shuffledQuestions)
       
       // Initialize answers array
-      const initialAnswers = transformedQuestions.map((q: Question) => ({
+      const initialAnswers = shuffledQuestions.map((q: Question) => ({
         questionId: q.id,
         answer: ""
       }))
