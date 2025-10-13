@@ -756,6 +756,9 @@ export default function TutorMatching() {
         ) : (
           tutors
             .filter((tutor) => {
+              // Filter out current user from tutor list (users shouldn't see themselves)
+              const isNotCurrentUser = currentUser?.user_id !== tutor.user_id;
+              
               // Subject filter
               const subjectMatch = selectedSubjectFilter === 'all' || tutor.subject_id.toString() === selectedSubjectFilter;
               
@@ -784,7 +787,7 @@ export default function TutorMatching() {
                 searchMatch = nameMatch || specialtyMatch || subjectNameMatch;
               }
               
-              return subjectMatch && programMatch && searchMatch;
+              return isNotCurrentUser && subjectMatch && programMatch && searchMatch;
             })
             .sort((a, b) => {
               // Priority 1: Recommended tutors first (based on pre-assessment results)
