@@ -79,6 +79,7 @@ export default function TutorMatching() {
   const [searchTerm, setSearchTerm] = useState("");
   const [preAssessmentResults, setPreAssessmentResults] = useState<PreAssessmentResult[]>([])
   const [recommendedSubjects, setRecommendedSubjects] = useState<number[]>([])
+  const [avgLowScore, setAvgLowScore] = useState<string>('70')
   const [loadingResults, setLoadingResults] = useState(false)
   const { currentUser } = useUser()
   const { toast } = useToast()
@@ -149,9 +150,11 @@ export default function TutorMatching() {
         
         // Determine subjects where student needs help (scored below 70%)
         const needHelpSubjects: number[] = []
+        const lowScores: number[] = []
         
         data.results.forEach((result: any) => {
           if (result.percentage < 70 && result.subjects_covered) {
+            lowScores.push(result.percentage)
             try {
               // subjects_covered is already an array from the backend
               const subjects = Array.isArray(result.subjects_covered) 
@@ -169,7 +172,10 @@ export default function TutorMatching() {
           }
         })
         
+        // Calculate the average of low scores for display
+        const calculatedAvgScore = lowScores.length > 0 ? (lowScores.reduce((a, b) => a + b, 0) / lowScores.length).toFixed(1) : '70'
         setRecommendedSubjects(needHelpSubjects)
+        setAvgLowScore(calculatedAvgScore)
         
         console.log('Pre-assessment results:', data.results)
         console.log('Recommended subjects (scored < 70%):', needHelpSubjects)
@@ -691,7 +697,7 @@ export default function TutorMatching() {
             <div>
               <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">Personalized Tutor Recommendations</h3>
               <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                Based on your pre-assessment results (scored below 70%), we recommend tutors for the following subjects. 
+                Based on your pre-assessment results (average score: {avgLowScore}%), we recommend tutors for the following subjects. 
                 Recommended tutors are highlighted with a green badge and appear first, sorted by their ratings (5 stars to lowest).
               </p>
               <div className="mt-2 flex flex-wrap gap-1">
