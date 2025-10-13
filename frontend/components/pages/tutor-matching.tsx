@@ -49,6 +49,21 @@ interface Tutor {
   ratings?: number | string
 }
 
+// Interface for pre-assessment results
+interface PreAssessmentResult {
+  result_id: number
+  user_id: number
+  pre_assessment_id: number
+  subject_id?: number
+  subject_name?: string
+  score: number
+  total_points: number
+  percentage: number
+  correct_answers: number
+  total_questions: number
+  completed_at: string
+}
+
 export default function TutorMatching() {
   // Subject filter state
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all')
@@ -62,6 +77,9 @@ export default function TutorMatching() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("");
+  const [preAssessmentResults, setPreAssessmentResults] = useState<PreAssessmentResult[]>([])
+  const [recommendedSubjects, setRecommendedSubjects] = useState<number[]>([])
+  const [loadingResults, setLoadingResults] = useState(false)
   const { currentUser } = useUser()
   const { toast } = useToast()
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
@@ -111,6 +129,54 @@ export default function TutorMatching() {
     return programMatch && yearLevelMatch;
   });
 
+  // Fetch pre-assessment results and determine recommended subjects
+  const fetchPreAssessmentResults = async () => {
+    if (!currentUser?.user_id) return;
+    
+    try {
+      setLoadingResults(true)
+      
+      const response = await fetch(`http://localhost:4000/api/pre-assessment-results/user/${currentUser.user_id}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.success && data.results) {
+        setPreAssessmentResults(data.results)
+        
+        // Determine subjects where student needs help (scored below 70%)
+        const needHelpSubjects: number[] = []
+        
+        data.results.forEach((result: any) => {
+          if (result.percentage < 70 && result.subjects_covered) {
+            try {
+              const subjects = JSON.parse(result.subjects_covered)
+              subjects.forEach((subject: any) => {
+                if (subject.subject_id && !needHelpSubjects.includes(subject.subject_id)) {
+                  needHelpSubjects.push(subject.subject_id)
+                }
+              })
+            } catch (e) {
+              console.error('Error parsing subjects_covered:', e)
+            }
+          }
+        })
+        
+        setRecommendedSubjects(needHelpSubjects)
+        
+        console.log('Pre-assessment results:', data.results)
+        console.log('Recommended subjects (scored < 70%):', needHelpSubjects)
+      }
+    } catch (err) {
+      console.error('Error fetching pre-assessment results:', err)
+    } finally {
+      setLoadingResults(false)
+    }
+  }
+
   // Fetch tutors from API
   const fetchTutors = async () => {
     try {
@@ -139,10 +205,11 @@ export default function TutorMatching() {
     }
   }
 
-  // Load tutors on component mount
+  // Load tutors and pre-assessment results on component mount
   useEffect(() => {
     fetchTutors()
-  }, [])
+    fetchPreAssessmentResults()
+  }, [currentUser?.user_id])
 
   // Available programs (using constants)
   const programs = CICT_PROGRAMS
@@ -224,25 +291,35 @@ export default function TutorMatching() {
     }
   }
 
-  const TutorCard = ({ tutor }: { tutor: Tutor }) => (
-    <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
-      <CardHeader className="pb-4">
-        <div className="flex items-start space-x-4">
-          <Avatar className="w-16 h-16">
-            <AvatarImage src="/placeholder.svg" alt={tutor.name || 'Tutor'} />
-            <AvatarFallback className="text-lg font-semibold">
-              {tutor.name
-                ? tutor.name.split(" ").map((n) => n[0]).join("")
-                : 'T'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">{tutor.name || 'Name not provided'}</CardTitle>
-              <Badge variant={tutor.status === "approved" ? "default" : "secondary"} className="ml-2">
-                {tutor.status === "approved" ? "Available" : "Unavailable"}
-              </Badge>
-            </div>
+  const TutorCard = ({ tutor }: { tutor: Tutor }) => {
+    const isRecommended = recommendedSubjects.includes(tutor.subject_id);
+    
+    return (
+      <Card className={`hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 ${isRecommended ? 'ring-2 ring-green-400 border-green-300' : ''}`}>
+        <CardHeader className="pb-4">
+          <div className="flex items-start space-x-4">
+            <Avatar className="w-16 h-16">
+              <AvatarImage src="/placeholder.svg" alt={tutor.name || 'Tutor'} />
+              <AvatarFallback className="text-lg font-semibold">
+                {tutor.name
+                  ? tutor.name.split(" ").map((n) => n[0]).join("")
+                  : 'T'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="text-xl">{tutor.name || 'Name not provided'}</CardTitle>
+                <div className="flex gap-2">
+                  {isRecommended && (
+                    <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                      Recommended
+                    </Badge>
+                  )}
+                  <Badge variant={tutor.status === "approved" ? "default" : "secondary"}>
+                    {tutor.status === "approved" ? "Available" : "Unavailable"}
+                  </Badge>
+                </div>
+              </div>
             <CardDescription className="text-base mt-1">
               {tutor.program || 'Program not specified'}
             </CardDescription>
@@ -385,7 +462,8 @@ export default function TutorMatching() {
         </div>
       </CardContent>
     </Card>
-  )
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -588,6 +666,61 @@ export default function TutorMatching() {
         </div>
       </div>
 
+      {/* Recommendations Info */}
+      {loadingResults ? (
+        <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <Loader2 className="w-5 h-5 text-yellow-500 animate-spin" />
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+              Analyzing your pre-assessment results to provide personalized tutor recommendations...
+            </p>
+          </div>
+        </div>
+      ) : recommendedSubjects.length > 0 ? (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">Personalized Tutor Recommendations</h3>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                Based on your pre-assessment results (scored below 70%), we recommend tutors for the following subjects. 
+                Recommended tutors are highlighted with a green badge and appear first, sorted by their ratings (5 stars to lowest).
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {recommendedSubjects.map(subjectId => {
+                  const subject = subjects.find(s => s.subject_id === subjectId)
+                  return subject ? (
+                    <Badge key={subjectId} variant="outline" className="text-xs bg-green-100 border-green-300 text-green-700">
+                      {subject.subject_code}
+                    </Badge>
+                  ) : null
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : preAssessmentResults.length > 0 ? (
+        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-green-800 dark:text-green-200">Great Job!</h3>
+              <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                You scored 70% or above on all your pre-assessments. All tutors are available to help you excel even further!
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           <div className="col-span-full flex items-center justify-center py-12">
@@ -644,6 +777,14 @@ export default function TutorMatching() {
               return subjectMatch && programMatch && searchMatch;
             })
             .sort((a, b) => {
+              // Priority 1: Recommended tutors first (based on pre-assessment results)
+              const aIsRecommended = recommendedSubjects.includes(a.subject_id);
+              const bIsRecommended = recommendedSubjects.includes(b.subject_id);
+              
+              if (aIsRecommended && !bIsRecommended) return -1;
+              if (!aIsRecommended && bIsRecommended) return 1;
+              
+              // Priority 2: Within same recommendation status, sort by rating (highest first)
               const ratingA = typeof a.ratings === 'string' ? parseFloat(a.ratings) : a.ratings || 0;
               const ratingB = typeof b.ratings === 'string' ? parseFloat(b.ratings) : b.ratings || 0;
               return ratingB - ratingA;

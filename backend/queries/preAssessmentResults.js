@@ -93,7 +93,21 @@ const getResultsByUserId = async (pool, userId) => {
         pa.program,
         pa.year_level,
         pa.difficulty,
-        CONCAT(u.first_name, ' ', u.last_name) as user_name
+        CONCAT(u.first_name, ' ', u.last_name) as user_name,
+        (
+          SELECT JSON_ARRAYAGG(
+            JSON_OBJECT(
+              'subject_id', s.subject_id,
+              'subject_name', s.subject_name,
+              'subject_code', s.subject_code
+            )
+          )
+          FROM pre_assessment_questions paq
+          LEFT JOIN subjects s ON paq.subject_id = s.subject_id
+          WHERE paq.pre_assessment_id = par.pre_assessment_id
+          AND s.subject_id IS NOT NULL
+          GROUP BY paq.pre_assessment_id
+        ) as subjects_covered
       FROM pre_assessment_results par
       LEFT JOIN pre_assessments pa ON par.pre_assessment_id = pa.id
       LEFT JOIN users u ON par.user_id = u.user_id

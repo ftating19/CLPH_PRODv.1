@@ -869,6 +869,7 @@ app.get('/api/tutor-applications', async (req, res) => {
       validated_by: app.validated_by,
       tutor_information: app.tutor_information || '',
       program: app.program || '',
+      year_level: app.year_level || '',
       specialties: app.specialties || ''
     }));
 
@@ -913,7 +914,8 @@ app.get('/api/tutor-applications/:id', async (req, res) => {
       validated_by: application.validated_by,
       tutor_information: application.tutor_information || '',
       program: application.program || '',
-      specialties: app.specialties || ''
+      year_level: application.year_level || '',
+      specialties: application.specialties || ''
     };
 
     console.log(`✅ Found tutor application ${applicationId}`);
@@ -940,6 +942,7 @@ app.post('/api/tutor-applications', async (req, res) => {
       subject_name, 
       tutor_information, 
       program, 
+      year_level,
       specialties 
     } = req.body;
 
@@ -961,6 +964,7 @@ app.post('/api/tutor-applications', async (req, res) => {
       subject_name,
       tutor_information,
       program,
+      year_level,
       specialties
     });
 
@@ -1281,6 +1285,7 @@ app.get('/api/tutors', async (req, res) => {
       validated_by: tutor.validated_by,
       tutor_information: tutor.tutor_information || '',
       program: tutor.program || '',
+      year_level: tutor.year_level || '',
       specialties: tutor.specialties || '',
       ratings: tutor.ratings
     }));
@@ -1327,6 +1332,7 @@ app.get('/api/tutors/:id', async (req, res) => {
       validated_by: tutor.validated_by,
       tutor_information: tutor.tutor_information || '',
       program: tutor.program || '',
+      year_level: tutor.year_level || '',
       specialties: tutor.specialties || ''
     };
 
