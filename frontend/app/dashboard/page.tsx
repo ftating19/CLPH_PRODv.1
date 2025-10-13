@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Layout from "@/components/dashboard/layout"
 import Dashboard from "@/components/dashboard/dashboard-content"
 import { useUser } from "@/contexts/UserContext"
+import PreAssessmentGuard from "@/components/auth/pre-assessment-guard"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -60,8 +61,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <Layout>
-      <Dashboard currentUser={currentUser} />
-    </Layout>
+    <PreAssessmentGuard>
+      <Layout>
+        <Dashboard currentUser={currentUser} />
+      </Layout>
+    </PreAssessmentGuard>
   )
 }

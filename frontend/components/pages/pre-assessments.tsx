@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -40,10 +41,12 @@ import {
 } from "@/components/ui/popover"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { BookOpen, Brain, Clock, Trophy, Plus, Search, Edit, Trash2, Eye, Target, FileText, Users, ChevronDown } from "lucide-react"
+import { BookOpen, Brain, Clock, Trophy, Plus, Search, Edit, Trash2, Eye, Target, FileText, Users, ChevronDown, ArrowLeft, ArrowRight, Play, CheckCircle } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { usePreAssessments } from "@/hooks/use-pre-assessments"
+import { usePreAssessmentGuard } from "@/hooks/use-pre-assessment-guard"
 import { CICT_PROGRAMS } from "@/lib/constants"
 
 // Custom multi-select component for subjects
@@ -127,6 +130,11 @@ interface Question {
   subject_code?: string
 }
 
+interface Answer {
+  questionId: number
+  answer: string
+}
+
 interface PreAssessment {
   id: number
   title: string
@@ -146,7 +154,14 @@ interface PreAssessment {
 export default function PreAssessments() {
   const { currentUser } = useUser()
   const { toast } = useToast()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const userRole = currentUser?.role?.toLowerCase() || "student"
+  const { checkPreAssessmentStatus } = usePreAssessmentGuard()
+
+  // Check if this is a required assessment flow
+  const isRequired = searchParams?.get('required') === 'true'
+  const selectedAssessmentId = searchParams?.get('assessment')
 
   // State management
   const { preAssessments, loading, error, refetch } = usePreAssessments()
@@ -160,9 +175,16 @@ export default function PreAssessments() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showQuestionDialog, setShowQuestionDialog] = useState(false)
   const [showQuestionManagerDialog, setShowQuestionManagerDialog] = useState(false)
+  const [showStartDialog, setShowStartDialog] = useState(false)
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
+  const [answers, setAnswers] = useState<Answer[]>([])
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [timeLeft, setTimeLeft] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [studentResults, setStudentResults] = useState<any[]>([])
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
 
   // Form states
   const [createForm, setCreateForm] = useState({
@@ -197,24 +219,49 @@ export default function PreAssessments() {
 
   // Check if user is admin
   const isAdmin = userRole === "admin"
+  const isStudent = userRole === "student"
 
-  // Redirect if not admin
+  // Redirect if not admin and not a student
   useEffect(() => {
-    if (currentUser && !isAdmin) {
+    if (currentUser && !isAdmin && !isStudent) {
       toast({
         title: "Access Denied",
-        description: "Only administrators can manage pre-assessments.",
+        description: "You don't have permission to access this page.",
         variant: "destructive"
       })
+      router.push('/dashboard')
     }
-  }, [currentUser, isAdmin, toast])
+  }, [currentUser, isAdmin, isStudent, toast, router])
 
   // Fetch data
   useEffect(() => {
     if (isAdmin) {
       fetchSubjects()
+    } else if (isStudent) {
+      fetchStudentResults()
     }
-  }, [isAdmin])
+  }, [isAdmin, isStudent])
+
+  // Handle required assessment selection
+  useEffect(() => {
+    if (isRequired && selectedAssessmentId && preAssessments.length > 0) {
+      const assessment = preAssessments.find(a => a.id.toString() === selectedAssessmentId)
+      if (assessment) {
+        setSelectedPreAssessment(assessment)
+        setShowStartDialog(true)
+      }
+    }
+  }, [isRequired, selectedAssessmentId, preAssessments])
+
+  // Timer effect for student assessment
+  useEffect(() => {
+    if (timeLeft > 0 && showAssessmentModal && isStudent) {
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
+      return () => clearTimeout(timer)
+    } else if (timeLeft === 0 && selectedPreAssessment && showAssessmentModal && isStudent) {
+      handleSubmitStudentAssessment()
+    }
+  }, [timeLeft, selectedPreAssessment, showAssessmentModal, isStudent])
 
   // Filter subjects based on program and year level
   useEffect(() => {
@@ -310,6 +357,19 @@ export default function PreAssessments() {
       setSubjects(data.subjects || [])
     } catch (error) {
       console.error('Error fetching subjects:', error)
+    }
+  }
+
+  const fetchStudentResults = async () => {
+    if (!currentUser?.user_id) return
+    
+    try {
+      const response = await fetch(`http://localhost:4000/api/pre-assessment-results/user/${currentUser.user_id}`)
+      if (!response.ok) throw new Error('Failed to fetch student results')
+      const data = await response.json()
+      setStudentResults(data.results || [])
+    } catch (error) {
+      console.error('Error fetching student results:', error)
     }
   }
 
@@ -503,7 +563,7 @@ export default function PreAssessments() {
         id: q.id,
         type: q.question_type,
         question: q.question,
-        options: q.options,
+        options: q.options && typeof q.options === 'string' ? JSON.parse(q.options) : q.options,
         correctAnswer: q.correct_answer,
         explanation: q.explanation,
         points: q.points,
@@ -679,20 +739,178 @@ export default function PreAssessments() {
     }
   }
 
-  // Filter pre-assessments
-  const filteredPreAssessments = preAssessments.filter(assessment => {
-    const matchesSearch = assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      assessment.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      assessment.program.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      assessment.year_level.toLowerCase().includes(searchQuery.toLowerCase())
+  // Student-specific handlers
+  const handleStartAssessment = (assessment: PreAssessment) => {
+    setSelectedPreAssessment(assessment)
+    setShowStartDialog(true)
+  }
+
+  const handleConfirmStart = async () => {
+    if (!selectedPreAssessment) return
+
+    try {
+      setIsLoadingQuestions(true)
+      setShowStartDialog(false)
+
+      // Fetch questions
+      const questionsResponse = await fetch(`http://localhost:4000/api/pre-assessment-questions/pre-assessment/${selectedPreAssessment.id}`)
+      if (!questionsResponse.ok) throw new Error('Failed to fetch questions')
+      const questionsData = await questionsResponse.json()
+
+      // Transform questions data - parse options if they are JSON strings
+      const transformedQuestions = (questionsData.questions || []).map((q: any) => ({
+        ...q,
+        options: q.options && typeof q.options === 'string' ? JSON.parse(q.options) : q.options
+      }))
+      
+      setQuestions(transformedQuestions)
+      
+      // Initialize answers array
+      const initialAnswers = transformedQuestions.map((q: Question) => ({
+        questionId: q.id,
+        answer: ""
+      }))
+      setAnswers(initialAnswers)
+      setCurrentQuestionIndex(0)
+
+      // Set timer (convert to seconds)
+      const durationInSeconds = selectedPreAssessment.duration_unit === 'hours' 
+        ? selectedPreAssessment.duration * 3600
+        : selectedPreAssessment.duration * 60
+      setTimeLeft(durationInSeconds)
+
+      setShowAssessmentModal(true)
+    } catch (error) {
+      console.error('Error starting assessment:', error)
+      toast({
+        title: "Error",
+        description: "Failed to start assessment. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoadingQuestions(false)
+    }
+  }
+
+  // Student assessment handlers
+  const handleAnswerChange = (questionId: number, answer: string) => {
+    setAnswers(prev => prev.map(a => 
+      a.questionId === questionId ? { ...a, answer } : a
+    ))
+  }
+
+  const handleNextQuestion = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1)
+    }
+  }
+
+  const handlePreviousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1)
+    }
+  }
+
+  const handleSubmitStudentAssessment = async () => {
+    setIsSubmitting(true)
+    try {
+      const submissionData = {
+        pre_assessment_id: selectedPreAssessment!.id,
+        user_id: currentUser?.user_id,
+        answers: answers,
+        time_taken: timeLeft > 0 ? (selectedPreAssessment!.duration * (selectedPreAssessment!.duration_unit === 'hours' ? 3600 : 60)) - timeLeft : selectedPreAssessment!.duration * (selectedPreAssessment!.duration_unit === 'hours' ? 3600 : 60)
+      }
+
+      const response = await fetch('http://localhost:4000/api/pre-assessment-results', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(submissionData)
+      })
+
+      if (!response.ok) throw new Error('Failed to submit assessment')
+
+      toast({
+        title: "Assessment Completed!",
+        description: "Your answers have been recorded successfully.",
+        variant: "default"
+      })
+
+      setShowAssessmentModal(false)
+      
+      // Refresh results and guard status
+      if (isRequired) {
+        await checkPreAssessmentStatus()
+        router.push('/dashboard')
+      } else {
+        fetchStudentResults()
+      }
+
+    } catch (error) {
+      console.error('Error submitting assessment:', error)
+      toast({
+        title: "Error",
+        description: "Failed to submit assessment. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
     
-    const matchesProgram = programFilter === "all" || assessment.program === programFilter
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`
+  }
 
-    return matchesSearch && matchesProgram
-  })
+  const getAnsweredCount = () => {
+    return answers.filter(a => a.answer.trim() !== "").length
+  }
 
-  // Access denied for non-admin users
-  if (currentUser && !isAdmin) {
+  const hasCompletedAssessment = (assessmentId: number) => {
+    return studentResults.some(result => result.pre_assessment_id === assessmentId)
+  }
+
+  const getStudentAvailableAssessments = () => {
+    if (!currentUser || !isStudent) return []
+    
+    return preAssessments.filter(assessment => {
+      // Filter by student's program and year level
+      const matchesProgram = assessment.program === currentUser.program
+      const matchesYearLevel = assessment.year_level === currentUser.year_level
+      const isActive = assessment.status === 'active'
+      
+      return matchesProgram && matchesYearLevel && isActive
+    })
+  }
+
+  // Filter pre-assessments
+  const filteredPreAssessments = isStudent 
+    ? getStudentAvailableAssessments().filter(assessment => {
+        const matchesSearch = assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          assessment.description.toLowerCase().includes(searchQuery.toLowerCase())
+        return matchesSearch
+      })
+    : preAssessments.filter(assessment => {
+        const matchesSearch = assessment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          assessment.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          assessment.program.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          assessment.year_level.toLowerCase().includes(searchQuery.toLowerCase())
+        
+        const matchesProgram = programFilter === "all" || assessment.program === programFilter
+
+        return matchesSearch && matchesProgram
+      })
+
+  // Access denied for non-admin and non-student users
+  if (currentUser && !isAdmin && !isStudent) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -701,7 +919,7 @@ export default function PreAssessments() {
             Access Denied
           </h3>
           <p className="text-sm text-muted-foreground">
-            Only administrators can manage pre-assessments.
+            You don't have permission to access this page.
           </p>
         </div>
       </div>
@@ -719,6 +937,369 @@ export default function PreAssessments() {
     )
   }
 
+  // Student View
+  if (isStudent) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            {isRequired && (
+              <Button 
+                variant="ghost" 
+                onClick={() => router.push('/dashboard')}
+                className="mb-4"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            )}
+            <h1 className="text-3xl font-bold text-foreground">
+              {isRequired ? 'Required Pre-Assessment' : 'Available Pre-Assessments'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isRequired 
+                ? 'Complete a pre-assessment to access your dashboard'
+                : 'Take pre-assessments to evaluate your knowledge level'
+              }
+            </p>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="flex items-center space-x-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Search assessments..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {searchQuery && (
+            <Button variant="ghost" onClick={() => setSearchQuery("")}>
+              Clear
+            </Button>
+          )}
+        </div>
+
+        {/* Assessments Grid */}
+        <div className={`grid gap-6 ${
+          filteredPreAssessments.length === 1 
+            ? 'max-w-2xl mx-auto' 
+            : 'md:grid-cols-2 lg:grid-cols-3'
+        }`}>
+          {filteredPreAssessments.map((assessment) => {
+            const isCompleted = hasCompletedAssessment(assessment.id)
+            
+            return (
+              <Card 
+                key={assessment.id} 
+                className={`hover:shadow-lg transition-all duration-200 border-2 ${
+                  isCompleted ? 'border-green-200 bg-green-50 dark:bg-green-900/10' : 'hover:border-blue-200'
+                } ${
+                  filteredPreAssessments.length === 1 ? 'p-2' : ''
+                }`}
+              >
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <CardTitle className={`${
+                          filteredPreAssessments.length === 1 ? 'text-2xl' : 'text-lg'
+                        }`}>
+                          {assessment.title}
+                        </CardTitle>
+                        {isCompleted && (
+                          <Badge variant="default" className="bg-green-600">
+                            Completed
+                          </Badge>
+                        )}
+                      </div>
+                      <CardDescription className={`${
+                        filteredPreAssessments.length === 1 ? 'text-base' : 'text-sm'
+                      } mt-1`}>
+                        {assessment.description}
+                      </CardDescription>
+                    </div>
+                    <Badge 
+                      variant={assessment.difficulty === 'Easy' ? 'default' : assessment.difficulty === 'Medium' ? 'secondary' : 'destructive'}
+                    >
+                      {assessment.difficulty}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className={`grid gap-4 ${
+                    filteredPreAssessments.length === 1 ? 'grid-cols-4 text-base' : 'grid-cols-2 text-sm'
+                  }`}>
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <Clock className={`mr-2 ${
+                        filteredPreAssessments.length === 1 ? 'w-5 h-5' : 'w-4 h-4'
+                      }`} />
+                      {assessment.duration} {assessment.duration_unit}
+                    </div>
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <BookOpen className={`mr-2 ${
+                        filteredPreAssessments.length === 1 ? 'w-5 h-5' : 'w-4 h-4'
+                      }`} />
+                      {assessment.question_count || 'N/A'} questions
+                    </div>
+                    {filteredPreAssessments.length === 1 && (
+                      <>
+                        <div className="flex items-center text-gray-600 dark:text-gray-400">
+                          <Target className="w-5 h-5 mr-2" />
+                          {assessment.difficulty} Level
+                        </div>
+                        <div className="flex items-center text-gray-600 dark:text-gray-400">
+                          <Users className="w-5 h-5 mr-2" />
+                          {assessment.program}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <Button 
+                    onClick={() => handleStartAssessment(assessment)}
+                    disabled={isCompleted}
+                    className={`w-full ${
+                      filteredPreAssessments.length === 1 ? 'h-12 text-lg' : ''
+                    }`}
+                    variant={isCompleted ? "secondary" : "default"}
+                  >
+                    {isCompleted ? (
+                      <>
+                        <Trophy className={`mr-2 ${
+                          filteredPreAssessments.length === 1 ? 'w-5 h-5' : 'w-4 h-4'
+                        }`} />
+                        Completed
+                      </>
+                    ) : (
+                      <>
+                        <Play className={`mr-2 ${
+                          filteredPreAssessments.length === 1 ? 'w-5 h-5' : 'w-4 h-4'
+                        }`} />
+                        {isRequired ? 'Start Required Assessment' : 'Take Assessment'}
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        {/* Empty State for Students */}
+        {filteredPreAssessments.length === 0 && (
+          <div className="text-center py-12">
+            <Target className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-muted-foreground mb-2">
+              {searchQuery ? "No assessments found" : "No assessments available"}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              {searchQuery 
+                ? "Try adjusting your search terms."
+                : "No pre-assessments are currently available for your program and year level."
+              }
+            </p>
+            {isRequired && (
+              <Button onClick={() => router.push('/dashboard')} variant="outline">
+                Skip for Now
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Start Assessment Dialog */}
+        <AlertDialog open={showStartDialog} onOpenChange={setShowStartDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Start Pre-Assessment</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div>
+                  {selectedPreAssessment && (
+                    <div className="space-y-3">
+                      <div>You are about to start: <strong>{selectedPreAssessment.title}</strong></div>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <div>• Duration: {selectedPreAssessment.duration} {selectedPreAssessment.duration_unit}</div>
+                        <div>• Questions: {selectedPreAssessment.question_count || 'Multiple'}</div>
+                        <div>• Difficulty: {selectedPreAssessment.difficulty}</div>
+                      </div>
+                      <div className="text-sm font-medium text-orange-600">
+                        ⚠️ The timer will start immediately and cannot be paused.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmStart} disabled={isLoadingQuestions}>
+                {isLoadingQuestions ? "Loading..." : "Start Assessment"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Assessment Modal */}
+        <Dialog open={showAssessmentModal} onOpenChange={() => {}}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0">
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="bg-white dark:bg-gray-800 p-6 border-b">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {selectedPreAssessment?.title}
+                    </DialogTitle>
+                    <DialogDescription className="text-gray-600 dark:text-gray-400">
+                      Question {currentQuestionIndex + 1} of {questions.length}
+                    </DialogDescription>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                      <Clock className="w-5 h-5 mr-2" />
+                      {formatTime(timeLeft)}
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {getAnsweredCount()} / {questions.length} answered
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Progress Bar */}
+                <Progress value={((currentQuestionIndex + 1) / questions.length) * 100} className="h-2" />
+              </div>
+
+              {/* Question Content */}
+              {questions.length > 0 && (
+                <div className="flex-1 overflow-y-auto p-6">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-xl">
+                          Question {currentQuestionIndex + 1}
+                        </CardTitle>
+                        <div className="flex items-center space-x-2">
+                          {questions[currentQuestionIndex]?.subject_code && (
+                            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 text-xs rounded">
+                              {questions[currentQuestionIndex].subject_code}
+                            </span>
+                          )}
+                          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs rounded">
+                            {questions[currentQuestionIndex]?.points} point{questions[currentQuestionIndex]?.points !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <CardDescription className="text-base mt-2">
+                        {questions[currentQuestionIndex]?.question}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {/* Multiple Choice */}
+                      {questions[currentQuestionIndex]?.type === "multiple-choice" && questions[currentQuestionIndex]?.options && (
+                        <RadioGroup 
+                          value={answers[currentQuestionIndex]?.answer || ""} 
+                          onValueChange={(value) => handleAnswerChange(questions[currentQuestionIndex].id, value)}
+                        >
+                          {questions[currentQuestionIndex].options!.map((option, index) => (
+                            <div key={index} className="flex items-center space-x-2 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <RadioGroupItem value={option} id={`option-${index}`} />
+                              <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
+                                {String.fromCharCode(65 + index)}. {option}
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      )}
+
+                      {/* True/False */}
+                      {questions[currentQuestionIndex]?.type === "true-false" && (
+                        <RadioGroup 
+                          value={answers[currentQuestionIndex]?.answer || ""} 
+                          onValueChange={(value) => handleAnswerChange(questions[currentQuestionIndex].id, value)}
+                        >
+                          <div className="flex items-center space-x-2 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <RadioGroupItem value="True" id="true" />
+                            <Label htmlFor="true" className="flex-1 cursor-pointer">True</Label>
+                          </div>
+                          <div className="flex items-center space-x-2 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <RadioGroupItem value="False" id="false" />
+                            <Label htmlFor="false" className="flex-1 cursor-pointer">False</Label>
+                          </div>
+                        </RadioGroup>
+                      )}
+
+                      {/* Essay or Enumeration */}
+                      {(questions[currentQuestionIndex]?.type === "essay" || questions[currentQuestionIndex]?.type === "enumeration") && (
+                        <Textarea
+                          value={answers[currentQuestionIndex]?.answer || ""}
+                          onChange={(e) => handleAnswerChange(questions[currentQuestionIndex].id, e.target.value)}
+                          placeholder={questions[currentQuestionIndex]?.type === "enumeration" 
+                            ? "Enter your answers separated by commas..."
+                            : "Enter your answer here..."
+                          }
+                          rows={questions[currentQuestionIndex]?.type === "essay" ? 6 : 3}
+                          className="w-full"
+                        />
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="bg-white dark:bg-gray-800 p-6 border-t">
+                <div className="flex items-center justify-between">
+                  <Button 
+                    variant="outline" 
+                    onClick={handlePreviousQuestion}
+                    disabled={currentQuestionIndex === 0}
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Previous
+                  </Button>
+
+                  <div className="flex space-x-2">
+                    {currentQuestionIndex === questions.length - 1 ? (
+                      <Button 
+                        onClick={handleSubmitStudentAssessment}
+                        disabled={isSubmitting}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Submit Assessment
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button onClick={handleNextQuestion}>
+                        Next
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    )
+  }
+
+  // Admin View (existing code)
+
+  // Admin View (existing code)
   return (
     <div className="space-y-6">
       {/* Header */}
