@@ -62,7 +62,12 @@ async function getAllPostTests(pool, filters = {}) {
     query += ' ORDER BY pt.created_at DESC'
     
     const [rows] = await pool.query(query, params)
-    return rows
+    
+    // Map post_test_id to id for frontend compatibility
+    return rows.map(row => ({
+      ...row,
+      id: row.post_test_id
+    }))
   } catch (err) {
     console.error('Error fetching post-tests:', err)
     throw err
@@ -86,7 +91,12 @@ async function getPostTestById(pool, post_test_id) {
        WHERE pt.post_test_id = ?`,
       [post_test_id]
     )
-    return rows[0] || null
+    
+    const result = rows[0] || null
+    if (result) {
+      result.id = result.post_test_id // Map post_test_id to id for frontend compatibility
+    }
+    return result
   } catch (err) {
     console.error('Error fetching post-test by ID:', err)
     throw err

@@ -55,6 +55,7 @@ async function getQuestionsByPostTestId(pool, post_test_id) {
     // Parse JSON options for each question
     return rows.map(row => ({
       ...row,
+      id: row.question_id, // Map question_id to id for frontend compatibility
       options: row.options ? JSON.parse(row.options) : null
     }))
   } catch (err) {
@@ -71,8 +72,11 @@ async function getPostTestQuestionById(pool, question_id) {
       [question_id]
     )
     
-    if (rows[0] && rows[0].options) {
-      rows[0].options = JSON.parse(rows[0].options)
+    if (rows[0]) {
+      if (rows[0].options) {
+        rows[0].options = JSON.parse(rows[0].options)
+      }
+      rows[0].id = rows[0].question_id // Map question_id to id for frontend compatibility
     }
     
     return rows[0] || null

@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
-import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2 } from "lucide-react"
+import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2, BookOpen } from "lucide-react"
 import Layout from "@/components/dashboard/layout"
 import { useUser } from "@/contexts/UserContext"
 import ChatModal from "@/components/modals/ChatModal"
 import PostTestModal from "@/components/modals/PostTestModal"
+import TakePostTestModal from "@/components/modals/TakePostTestModal"
 
 // Updated booking data structure
 interface Booking {
@@ -43,6 +44,13 @@ export default function TutorSessionPage() {
 
   // State for post-test modal
   const [showPostTestModal, setShowPostTestModal] = useState<{open: boolean, bookingId?: number, bookingDetails?: Booking}>({open: false})
+  
+  // State for take post-test modal  
+  const [showTakePostTestModal, setShowTakePostTestModal] = useState<{open: boolean, postTestId?: number, bookingDetails?: Booking}>({open: false})
+  
+  // State for available post-tests
+  const [availablePostTests, setAvailablePostTests] = useState<{[bookingId: number]: any[]}>({})
+  const [postTestsLoading, setPostTestsLoading] = useState<{[bookingId: number]: boolean}>({})
 
   // Mark session as complete handler for student
   const handleStudentComplete = async (booking_id: number) => {
@@ -227,6 +235,33 @@ export default function TutorSessionPage() {
     }
   }
 
+  // Fetch available post-tests for a booking
+  const fetchPostTestsForBooking = async (bookingId: number) => {
+    console.log('Fetching post-tests for booking:', bookingId);
+    setPostTestsLoading(prev => ({...prev, [bookingId]: true}))
+    try {
+      const response = await fetch(`http://localhost:4000/api/post-tests?booking_id=${bookingId}&status=published`)
+      const data = await response.json()
+      console.log('Post-tests response for booking', bookingId, ':', data);
+      if (data.success) {
+        // Map post_test_id to id for compatibility
+        const mappedPostTests = (data.postTests || []).map((postTest: any) => ({
+          ...postTest,
+          id: postTest.post_test_id || postTest.id
+        }));
+        setAvailablePostTests(prev => ({...prev, [bookingId]: mappedPostTests}))
+        console.log('Set available post-tests for booking', bookingId, ':', mappedPostTests);
+      } else {
+        setAvailablePostTests(prev => ({...prev, [bookingId]: []}))
+        console.log('No post-tests found for booking', bookingId);
+      }
+    } catch (error) {
+      console.error('Error fetching post-tests:', error)
+      setAvailablePostTests(prev => ({...prev, [bookingId]: []}))
+    }
+    setPostTestsLoading(prev => ({...prev, [bookingId]: false}))
+  }
+
   // Refetch bookings helper
   const fetchBookings = async () => {
     if (!currentUser) return
@@ -244,6 +279,16 @@ export default function TutorSessionPage() {
         // Auto-expire sessions that have passed their scheduled time before setting the state
         await autoCompleteExpiredSessions(data.sessions)
         setBookings(data.sessions)
+        
+        // Fetch post-tests for each booking for students
+        if (currentUser?.role?.toLowerCase() === 'student') {
+          data.sessions.forEach((booking: Booking) => {
+            if ((booking.status === 'Accepted' || booking.status === 'accepted') && 
+                currentUser.user_id === booking.student_id) {
+              fetchPostTestsForBooking(booking.booking_id)
+            }
+          })
+        }
       } else {
         setBookings([])
       }
@@ -437,6 +482,34 @@ export default function TutorSessionPage() {
                         </Button>
                       )}
 
+                      {/* Take Post-test Button - Only for students in accepted sessions with available post-tests */}
+                      {currentUser?.user_id === booking.student_id && 
+                       (booking.status === "Accepted" || booking.status === "accepted") && 
+                       !isSessionExpired(booking) && 
+                       availablePostTests[booking.booking_id] && 
+                       availablePostTests[booking.booking_id].length > 0 && (
+                        <Button 
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            console.log('Take Post-test clicked', {
+                              bookingId: booking.booking_id,
+                              postTest: availablePostTests[booking.booking_id][0],
+                              booking: booking
+                            });
+                            setShowTakePostTestModal({
+                              open: true, 
+                              postTestId: availablePostTests[booking.booking_id][0].id, 
+                              bookingDetails: booking
+                            });
+                          }}
+                          disabled={postTestsLoading[booking.booking_id]}
+                        >
+                          <BookOpen className="w-4 h-4 mr-2" />
+                          {postTestsLoading[booking.booking_id] ? 'Loading...' : 'Take Post-test'}
+                        </Button>
+                      )}
+
                       {/* Tutor Accept/Reject Buttons - Only for pending sessions */}
                       {currentUser?.user_id === booking.tutor_id && 
                        (booking.status === "Pending" || booking.status === "pending") && 
@@ -572,6 +645,14 @@ export default function TutorSessionPage() {
           isOpen={showPostTestModal.open}
           onClose={() => setShowPostTestModal({open: false})}
           booking={showPostTestModal.bookingDetails!}
+        />
+
+        {/* Take Post-Test Modal */}
+        <TakePostTestModal
+          isOpen={showTakePostTestModal.open}
+          onClose={() => setShowTakePostTestModal({open: false})}
+          postTestId={showTakePostTestModal.postTestId || 0}
+          booking={showTakePostTestModal.bookingDetails || { booking_id: 0, tutor_id: 0, tutor_name: '', student_id: 0, student_name: '' }}
         />
       </div>
     </Layout>
