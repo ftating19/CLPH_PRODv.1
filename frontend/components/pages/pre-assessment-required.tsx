@@ -47,6 +47,7 @@ interface Question {
   type: "multiple-choice" | "true-false" | "enumeration" | "essay"
   question: string
   options?: string[]
+  correctAnswer?: string
   points: number
   subject_name?: string
   subject_code?: string
@@ -106,9 +107,6 @@ export default function PreAssessmentRequired({
       const questionsResponse = await fetch(`http://localhost:4000/api/pre-assessment-questions/pre-assessment/${selectedAssessment.id}`)
       if (!questionsResponse.ok) throw new Error('Failed to fetch questions')
       const questionsData = await questionsResponse.json()
-
-      console.log('Fetched questions data:', questionsData)
-      console.log('Questions array:', questionsData.questions)
       
       // Transform questions data to ensure options are properly parsed
       const transformedQuestions = (questionsData.questions || []).map((q: any) => ({
@@ -116,6 +114,7 @@ export default function PreAssessmentRequired({
         type: q.question_type || q.type,
         question: q.question,
         options: typeof q.options === 'string' ? JSON.parse(q.options || '[]') : q.options,
+        correctAnswer: q.correct_answer,
         points: q.points,
         subject_id: q.subject_id,
         subject_name: q.subject_name,
@@ -174,12 +173,42 @@ export default function PreAssessmentRequired({
   const handleSubmitAssessment = async () => {
     setIsSubmitting(true)
     try {
+      // Calculate score and statistics
+      let score = 0
+      let correctAnswers = 0
+      let totalPoints = 0
+      
+      questions.forEach((question, index) => {
+        const userAnswer = answers[index]?.answer || ""
+        totalPoints += question.points || 1
+        
+        if (question.type === "multiple-choice" || question.type === "true-false") {
+          if (userAnswer === question.correctAnswer) {
+            score += question.points || 1
+            correctAnswers++
+          }
+        }
+        // For essay and enumeration, we'll assume they need manual grading
+        // So we don't add to score automatically
+      })
+      
+      const timeTakenSeconds = timeLeft > 0 
+        ? (selectedAssessment!.duration * (selectedAssessment!.duration_unit === 'hours' ? 3600 : 60)) - timeLeft 
+        : selectedAssessment!.duration * (selectedAssessment!.duration_unit === 'hours' ? 3600 : 60)
+
       const submissionData = {
-        pre_assessment_id: selectedAssessment!.id,
         user_id: currentUser?.user_id,
-        answers: answers,
-        time_taken: timeLeft > 0 ? (selectedAssessment!.duration * (selectedAssessment!.duration_unit === 'hours' ? 3600 : 60)) - timeLeft : selectedAssessment!.duration * (selectedAssessment!.duration_unit === 'hours' ? 3600 : 60)
+        pre_assessment_id: selectedAssessment!.id,
+        score: score,
+        total_points: totalPoints,
+        correct_answers: correctAnswers,
+        total_questions: questions.length,
+        time_taken_seconds: timeTakenSeconds,
+        started_at: new Date().toISOString(),
+        answers: JSON.stringify(answers) // Convert answers to JSON string
       }
+
+      console.log('Submitting assessment data:', submissionData)
 
       const response = await fetch('http://localhost:4000/api/pre-assessment-results', {
         method: 'POST',
@@ -189,7 +218,11 @@ export default function PreAssessmentRequired({
         body: JSON.stringify(submissionData)
       })
 
-      if (!response.ok) throw new Error('Failed to submit assessment')
+      if (!response.ok) {
+        const errorData = await response.text()
+        console.error('Server response:', response.status, errorData)
+        throw new Error(`Failed to submit assessment: ${response.status} ${errorData}`)
+      }
 
       toast({
         title: "Assessment Completed!",
@@ -508,15 +541,6 @@ export default function PreAssessmentRequired({
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {/* Debug information */}
-                    {process.env.NODE_ENV === 'development' && (
-                      <div className="mb-4 p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded text-xs">
-                        <strong>Debug:</strong> Question type: {questions[currentQuestionIndex]?.type}, 
-                        Options: {JSON.stringify(questions[currentQuestionIndex]?.options)}, 
-                        Options length: {questions[currentQuestionIndex]?.options?.length || 0}
-                      </div>
-                    )}
-                    
                     {/* Multiple Choice */}
                     {questions[currentQuestionIndex]?.type === "multiple-choice" && questions[currentQuestionIndex]?.options && (
                       <RadioGroup 
