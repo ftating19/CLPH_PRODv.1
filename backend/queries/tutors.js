@@ -14,6 +14,7 @@ const getAllTutors = async (pool) => {
   validated_by,
   tutor_information,
   program,
+  year_level,
   specialties,
   ratings
     FROM tutors
@@ -38,6 +39,7 @@ const getTutorsByStatus = async (pool, status) => {
   validated_by,
   tutor_information,
   program,
+  year_level,
   specialties,
   ratings
     FROM tutors
@@ -63,6 +65,7 @@ const getTutorsBySubject = async (pool, subjectId) => {
   validated_by,
   tutor_information,
   program,
+  year_level,
   specialties,
   ratings
     FROM tutors
@@ -88,6 +91,7 @@ const getApprovedTutors = async (pool) => {
   validated_by,
   tutor_information,
   program,
+  year_level,
   specialties,
   ratings
     FROM tutors
@@ -113,6 +117,7 @@ const getTutorById = async (pool, applicationId) => {
   validated_by,
   tutor_information,
   program,
+  year_level,
   specialties,
   ratings
     FROM tutors
@@ -135,6 +140,7 @@ const createTutor = async (pool, tutorData) => {
     validated_by,
     tutor_information,
     program,
+    year_level,
     specialties
   } = tutorData;
 
@@ -149,8 +155,9 @@ const createTutor = async (pool, tutorData) => {
       validated_by,
       tutor_information,
       program,
+      year_level,
       specialties
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const [result] = await pool.query(query, [
@@ -163,6 +170,7 @@ const createTutor = async (pool, tutorData) => {
     validated_by || '1', // Use provided validator or default
     tutor_information || '',
     program || '',
+    year_level || '',
     specialties || ''
   ]);
 

@@ -7,6 +7,8 @@ export interface Subject {
   subject_name: string
   description: string
   subject_code: string
+  program?: string | string[]
+  year_level?: string
 }
 
 export function useSubjects() {

@@ -1025,7 +1025,7 @@ app.put('/api/tutor-applications/:id/approve', async (req, res) => {
         await pool.query(
           `UPDATE tutors SET 
            name = ?, subject_name = ?, application_date = ?, status = ?, 
-           validated_by = ?, tutor_information = ?, program = ?, specialties = ?
+           validated_by = ?, tutor_information = ?, program = ?, year_level = ?, specialties = ?
            WHERE user_id = ? AND subject_id = ?`,
           [
             application.name,
@@ -1035,6 +1035,7 @@ app.put('/api/tutor-applications/:id/approve', async (req, res) => {
             validatedby || '1',
             application.tutor_information,
             application.program,
+            application.year_level,
             application.specialties,
             application.user_id,
             application.subject_id
@@ -1052,6 +1053,7 @@ app.put('/api/tutor-applications/:id/approve', async (req, res) => {
           validated_by: validatedby || '1',
           tutor_information: application.tutor_information,
           program: application.program,
+          year_level: application.year_level,
           specialties: application.specialties
         });
       }

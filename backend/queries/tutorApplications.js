@@ -14,6 +14,7 @@ const getAllTutorApplications = async (pool) => {
       validated_by,
       tutor_information,
       program,
+      year_level,
       specialties
     FROM tutorapplications
     ORDER BY application_date DESC
@@ -37,6 +38,7 @@ const getTutorApplicationsByStatus = async (pool, status) => {
       validated_by,
       tutor_information,
       program,
+      year_level,
       specialties
     FROM tutorapplications
     WHERE status = ?
@@ -61,6 +63,7 @@ const getTutorApplicationById = async (pool, applicationId) => {
       validated_by,
       tutor_information,
       program,
+      year_level,
       specialties
     FROM tutorapplications
     WHERE application_id = ?
@@ -79,6 +82,7 @@ const createTutorApplication = async (pool, applicationData) => {
     subject_name,
     tutor_information,
     program,
+    year_level,
     specialties
   } = applicationData;
 
@@ -93,8 +97,9 @@ const createTutorApplication = async (pool, applicationData) => {
       validated_by,
       tutor_information,
       program,
+      year_level,
       specialties
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -108,6 +113,7 @@ const createTutorApplication = async (pool, applicationData) => {
     '0', // No validator initially
     tutor_information || '',
     program || '',
+    year_level || '',
     specialties || ''
   ]);
 

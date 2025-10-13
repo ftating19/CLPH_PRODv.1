@@ -30,12 +30,35 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
   const [email, setEmail] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [program, setProgram] = useState("");
+  const [yearLevel, setYearLevel] = useState("");
   const [specialties, setSpecialties] = useState("");
   const [tutorInformation, setTutorInformation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Available programs
+  // Available programs and year levels
   const programs = CICT_PROGRAMS;
+  const yearLevels = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+
+  // Filter subjects based on user's program and year level
+  const filteredSubjects = subjects.filter(subject => {
+    // Check if subject program matches user's program
+    let programMatch = false;
+    if (Array.isArray(subject.program)) {
+      programMatch = subject.program.includes(program);
+    } else if (typeof subject.program === 'string') {
+      try {
+        const programArray = JSON.parse(subject.program);
+        programMatch = Array.isArray(programArray) && programArray.includes(program);
+      } catch {
+        programMatch = subject.program === program;
+      }
+    }
+
+    // Check if subject year level matches user's year level
+    const yearLevelMatch = !subject.year_level || subject.year_level === yearLevel;
+
+    return programMatch && yearLevelMatch;
+  });
 
   useEffect(() => {
     if (open && currentUser) {
@@ -43,8 +66,14 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
       setFullName(`${currentUser.first_name} ${currentUser.middle_name ? currentUser.middle_name + ' ' : ''}${currentUser.last_name}`);
       setEmail(currentUser.email);
       setProgram(currentUser.program || '');
+      setYearLevel(currentUser.year_level || '');
     }
   }, [open, currentUser]);
+
+  // Clear subject selection when program or year level changes
+  useEffect(() => {
+    setSubjectId("");
+  }, [program, yearLevel]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +81,7 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
 
     try {
       // Validate required fields
-      if (!fullName || !email || !subjectId || !program || !specialties || !tutorInformation) {
+      if (!fullName || !email || !subjectId || !program || !yearLevel || !specialties || !tutorInformation) {
         toast({
           title: 'Missing Information',
           description: 'Please fill in all required fields.',
@@ -81,6 +110,7 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
         subject_name: selectedSubject?.subject_name || "",
         tutor_information: tutorInformation,
         program: program,
+        year_level: yearLevel,
         specialties: specialties
       };
 
@@ -134,7 +164,6 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
   const handleClose = () => {
     // Reset only the form fields, not the auto-populated ones
     setSubjectId("");
-    setProgram("");
     setSpecialties("");
     setTutorInformation("");
     onClose();
@@ -185,37 +214,76 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
               <Select 
                 value={subjectId} 
                 onValueChange={setSubjectId}
-                disabled={subjectsLoading || !!subjectsError}
+                disabled={subjectsLoading || !!subjectsError || !program || !yearLevel}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : subjectsError ? "Error loading subjects" : "Select the subject you want to tutor"} />
+                  <SelectValue placeholder={
+                    subjectsLoading 
+                      ? "Loading subjects..." 
+                      : subjectsError 
+                        ? "Error loading subjects" 
+                        : !program || !yearLevel
+                          ? "Please select program and year level first"
+                          : filteredSubjects.length === 0
+                            ? "No subjects available for your program and year level"
+                            : "Select the subject you want to tutor"
+                  } />
                 </SelectTrigger>
                 <SelectContent>
-                  {!subjectsLoading && !subjectsError && subjects.map((subject) => (
-                    <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                      {subject.subject_code} - {subject.subject_name}
-                    </SelectItem>
-                  ))}
+                  {!subjectsLoading && !subjectsError && filteredSubjects
+                    .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
+                    .map((subject) => (
+                      <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                        {subject.subject_code} - {subject.subject_name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
+              {program && yearLevel && filteredSubjects.length === 0 && (
+                <p className="text-xs text-amber-600">No subjects found for {program} - {yearLevel}. Please contact admin if this seems incorrect.</p>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="program">Program *</Label>
-              <Select 
-                value={program} 
-                onValueChange={setProgram}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select your program" />
-                </SelectTrigger>
-                <SelectContent>
-                  {programs.map((prog) => (
-                    <SelectItem key={prog} value={prog}>
-                      {prog}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="program">Program *</Label>
+                <Select 
+                  value={program} 
+                  onValueChange={setProgram}
+                  disabled
+                >
+                  <SelectTrigger className="bg-gray-100 dark:bg-gray-800 cursor-not-allowed">
+                    <SelectValue placeholder="Select your program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {programs.map((prog) => (
+                      <SelectItem key={prog} value={prog}>
+                        {prog}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">Auto-populated from your profile</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="yearLevel">Year Level *</Label>
+                <Select 
+                  value={yearLevel} 
+                  onValueChange={setYearLevel}
+                  disabled
+                >
+                  <SelectTrigger className="bg-gray-100 dark:bg-gray-800 cursor-not-allowed">
+                    <SelectValue placeholder="Select your year level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearLevels.map((level) => (
+                      <SelectItem key={level} value={level}>
+                        {level}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">Auto-populated from your profile</p>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="specialties">Specialties *</Label>

@@ -86,6 +86,31 @@ export default function TutorMatching() {
     tutor_information: ""
   })
 
+  // Filter subjects based on user's program and year level
+  const filteredSubjects = subjects.filter(subject => {
+    if (!currentUser?.program || !currentUser?.year_level) {
+      return false; // Don't show any subjects if user info is incomplete
+    }
+
+    // Check if subject program matches user's program
+    let programMatch = false;
+    if (Array.isArray(subject.program)) {
+      programMatch = subject.program.includes(currentUser.program);
+    } else if (typeof subject.program === 'string') {
+      try {
+        const programArray = JSON.parse(subject.program);
+        programMatch = Array.isArray(programArray) && programArray.includes(currentUser.program);
+      } catch {
+        programMatch = subject.program === currentUser.program;
+      }
+    }
+
+    // Check if subject year level matches user's year level
+    const yearLevelMatch = !subject.year_level || subject.year_level === currentUser.year_level;
+
+    return programMatch && yearLevelMatch;
+  });
+
   // Fetch tutors from API
   const fetchTutors = async () => {
     try {
@@ -141,7 +166,7 @@ export default function TutorMatching() {
       return
     }
 
-    const selectedSubject = subjects.find(s => s.subject_id.toString() === applicationForm.subject_id)
+    const selectedSubject = filteredSubjects.find(s => s.subject_id.toString() === applicationForm.subject_id)
     
     const applicationData = {
       user_id: currentUser.user_id,
@@ -150,6 +175,7 @@ export default function TutorMatching() {
       subject_name: selectedSubject?.subject_name || "",
       tutor_information: applicationForm.tutor_information,
       program: currentUser.program,
+      year_level: currentUser.year_level,
       specialties: applicationForm.specialties
     }
 
@@ -409,8 +435,8 @@ export default function TutorMatching() {
                     <p className="font-medium">{currentUser?.program || 'Not specified'}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Application Date</Label>
-                    <p className="font-medium">{new Date().toLocaleDateString()}</p>
+                    <Label className="text-muted-foreground">Year Level</Label>
+                    <p className="font-medium">{currentUser?.year_level || 'Not specified'}</p>
                   </div>
                 </div>
               </div>
@@ -422,19 +448,41 @@ export default function TutorMatching() {
                   <Select 
                     value={applicationForm.subject_id} 
                     onValueChange={(value) => setApplicationForm(prev => ({...prev, subject_id: value}))}
-                    disabled={subjectsLoading || !!subjectsError}
+                    disabled={subjectsLoading || !!subjectsError || !currentUser?.program || !currentUser?.year_level}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : subjectsError ? "Error loading subjects" : "Select the subject you want to tutor"} />
+                      <SelectValue placeholder={
+                        subjectsLoading 
+                          ? "Loading subjects..." 
+                          : subjectsError 
+                            ? "Error loading subjects" 
+                            : !currentUser?.program || !currentUser?.year_level
+                              ? "Please ensure your profile has program and year level information"
+                              : filteredSubjects.length === 0
+                                ? "No subjects available for your program and year level"
+                                : "Select the subject you want to tutor"
+                      } />
                     </SelectTrigger>
                     <SelectContent>
-                      {!subjectsLoading && !subjectsError && subjects.map((subject) => (
-                        <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                          {subject.subject_code} - {subject.subject_name}
-                        </SelectItem>
-                      ))}
+                      {!subjectsLoading && !subjectsError && filteredSubjects
+                        .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
+                        .map((subject) => (
+                          <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                            {subject.subject_code} - {subject.subject_name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
+                  {currentUser?.program && currentUser?.year_level && filteredSubjects.length === 0 && (
+                    <p className="text-xs text-amber-600">
+                      No subjects found for {currentUser.program} - {currentUser.year_level}. Please contact admin if this seems incorrect.
+                    </p>
+                  )}
+                  {(!currentUser?.program || !currentUser?.year_level) && (
+                    <p className="text-xs text-red-600">
+                      Please update your profile with program and year level information to see available subjects.
+                    </p>
+                  )}
                 </div>
                 {/* Program selection hidden. Program is auto-filled from user profile and not shown in the modal. */}
 
@@ -528,11 +576,13 @@ export default function TutorMatching() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Subjects</SelectItem>
-              {subjects.map((subject) => (
-                <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                  {subject.subject_code} - {subject.subject_name}
-                </SelectItem>
-              ))}
+              {subjects
+                .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
+                .map((subject) => (
+                  <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                    {subject.subject_code} - {subject.subject_name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
