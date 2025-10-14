@@ -179,21 +179,16 @@ export default function TutorSessionPage() {
 
   // Check if session time has passed and should be marked as expired
   const isSessionExpired = (booking: Booking): boolean => {
-    if (!booking.start_date || !booking.preferred_time) return false
+    if (!booking.start_date) return false
     
     try {
       const sessionDate = new Date(booking.start_date)
-      const [timeRange] = booking.preferred_time.split(' - ')
-      const [hours, minutes] = timeRange.split(':').map(Number)
       
-      // Set the session time
-      sessionDate.setHours(hours, minutes, 0, 0)
+      // Set to end of the session date (11:59:59 PM)
+      sessionDate.setHours(23, 59, 59, 999)
       
-      // Add 1 hour for session duration
-      const sessionEndTime = new Date(sessionDate.getTime() + (60 * 60 * 1000))
-      
-      // Check if current time is past session end time
-      return new Date() > sessionEndTime
+      // Check if current time is past the end of the session date (after a full day)
+      return new Date() > sessionDate
     } catch (error) {
       console.error('Error parsing session time:', error)
       return false
@@ -434,7 +429,7 @@ export default function TutorSessionPage() {
                         <span className="font-medium">Session automatically marked as expired</span>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        This session has passed its scheduled time and was marked as expired.
+                        This session has passed its scheduled date and was marked as expired.
                       </p>
                     </div>
                   )}
