@@ -27,6 +27,9 @@ interface Booking {
   remarks: string | null
   preferred_time?: string
   status?: string
+  subject_id?: number
+  subject_name?: string
+  subject_code?: string
 }
 
 export default function TutorSessionPage() {

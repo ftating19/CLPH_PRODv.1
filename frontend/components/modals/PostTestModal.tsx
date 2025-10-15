@@ -26,6 +26,9 @@ interface Booking {
   student_id: number
   student_name: string
   status?: string
+  subject_id?: number
+  subject_name?: string
+  subject_code?: string
 }
 
 interface PostTestModalProps {
@@ -67,10 +70,10 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
   useEffect(() => {
     if (isOpen) {
       fetchSubjects()
-      // Reset form when modal opens
+      // Reset form when modal opens and pre-fill subject from booking
       resetForm()
     }
-  }, [isOpen])
+  }, [isOpen, booking])
 
   const resetForm = () => {
     setStep(1)
@@ -78,8 +81,14 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
     setDescription("")
     setTimeLimit(30)
     setPassingScore(70)
-    setSubjectId(null)
-    setSubjectName("")
+    // Pre-fill subject from booking if available
+    if (booking.subject_id) {
+      setSubjectId(booking.subject_id)
+      setSubjectName(booking.subject_name || "")
+    } else {
+      setSubjectId(null)
+      setSubjectName("")
+    }
     setQuestions([{
       question_text: "",
       question_type: "multiple_choice",
@@ -286,15 +295,19 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
                   </div>
 
                   <div>
-                    <Label htmlFor="subject">Subject (Optional)</Label>
-                    <Select value={subjectId?.toString() || ""} onValueChange={(value) => {
-                      const id = value ? parseInt(value) : null
-                      setSubjectId(id)
-                      const subject = subjects.find(s => s.subject_id === id)
-                      setSubjectName(subject?.subject_name || "")
-                    }}>
+                    <Label htmlFor="subject">Subject {booking.subject_id ? "" : "(Optional)"}</Label>
+                    <Select 
+                      value={subjectId?.toString() || ""} 
+                      onValueChange={(value) => {
+                        const id = value ? parseInt(value) : null
+                        setSubjectId(id)
+                        const subject = subjects.find(s => s.subject_id === id)
+                        setSubjectName(subject?.subject_name || "")
+                      }}
+                      disabled={!!booking.subject_id}
+                    >
                       <SelectTrigger className="mt-2">
-                        <SelectValue placeholder="Select subject" />
+                        <SelectValue placeholder={booking.subject_id ? `${booking.subject_code || ''} - ${booking.subject_name || 'Subject'}` : "Select subject"} />
                       </SelectTrigger>
                       <SelectContent>
                         {subjects.map((subject) => (
@@ -304,6 +317,11 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
                         ))}
                       </SelectContent>
                     </Select>
+                    {booking.subject_id && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Subject is pre-filled based on your tutoring application
+                      </p>
+                    )}
                   </div>
 
                   <div>

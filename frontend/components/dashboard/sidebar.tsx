@@ -387,6 +387,11 @@ export default function Sidebar() {
                       <TutorSessionNavItem href="/sessions/tutor-session" icon={UserCheck}>
                         Tutor Session
                       </TutorSessionNavItem>
+                      {userRole === "tutor" && (
+                        <NavItem href="/sessions/manage-post-test" icon={FileText}>
+                          Manage Post-Test
+                        </NavItem>
+                      )}
                     </div>
                   </div>
                   {(userRole === "student" || userRole === "tutor") && (
