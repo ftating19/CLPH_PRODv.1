@@ -152,15 +152,30 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
   // Validate form
   const validateStep = () => {
     if (step === 1) {
-      return title.trim() !== "" && timeLimit > 0 && passingScore > 0 && passingScore <= 100
+      return title.trim() !== "" && timeLimit >= 5 && timeLimit <= 180 && passingScore >= 1 && passingScore <= 100
     }
     
     if (step === 2) {
-      return questions.every(q => 
-        q.question_text.trim() !== "" && 
-        q.correct_answer.trim() !== "" &&
-        (q.question_type !== 'multiple_choice' || (q.options && q.options.every(opt => opt.trim() !== "")))
-      )
+      return questions.every(q => {
+        // Check if question text is filled
+        if (q.question_text.trim() === "") return false
+        
+        // For essay questions, require both question text and answer
+        if (q.question_type === 'short_answer') {
+          return q.explanation && q.explanation.trim() !== "" // Answer is required for essays
+        }
+        
+        // For multiple choice and true/false, check if correct answer is filled
+        if (q.correct_answer.trim() === "") return false
+        
+        // For multiple choice, check if all options are filled
+        if (q.question_type === 'multiple_choice') {
+          return q.options && q.options.every(opt => opt.trim() !== "")
+        }
+        
+        // For true/false, basic validation is enough
+        return true
+      })
     }
     
     return true
@@ -335,11 +350,28 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
                     <Input
                       id="timeLimit"
                       type="number"
-                      value={timeLimit}
-                      onChange={(e) => setTimeLimit(parseInt(e.target.value) || 30)}
+                      value={timeLimit === 0 ? "" : timeLimit}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        if (value === "") {
+                          setTimeLimit(0) // Internal representation of empty
+                        } else {
+                          const numValue = parseInt(value)
+                          if (!isNaN(numValue) && numValue > 0) {
+                            setTimeLimit(numValue)
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // Set default if field is empty on blur
+                        if (timeLimit === 0) {
+                          setTimeLimit(30)
+                        }
+                      }}
                       min="5"
                       max="180"
                       className="mt-2"
+                      placeholder="30"
                     />
                   </div>
 
@@ -351,11 +383,30 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
                     <Input
                       id="passingScore"
                       type="number"
-                      value={passingScore}
-                      onChange={(e) => setPassingScore(parseInt(e.target.value) || 70)}
+                      value={passingScore === 0 ? "" : passingScore}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        if (value === "") {
+                          setPassingScore(0) // Internal representation of empty
+                        } else {
+                          const numValue = parseInt(value)
+                          if (!isNaN(numValue) && numValue > 0) {
+                            setPassingScore(numValue)
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // Set default if field is empty on blur
+                        if (passingScore === 0) {
+                          setPassingScore(70)
+                        } else if (passingScore > 100) {
+                          setPassingScore(100)
+                        }
+                      }}
                       min="1"
                       max="100"
                       className="mt-2"
+                      placeholder="70"
                     />
                   </div>
                 </div>
@@ -395,6 +446,43 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {/* Question Type */}
+                      <div>
+                        <Label>Question Type</Label>
+                        <Select
+                          key={`question-type-${index}-${question.question_type}`}
+                          value={question.question_type}
+                          onValueChange={(value: 'multiple_choice' | 'true_false' | 'short_answer') => {
+                            const updated = [...questions]
+                            updated[index] = { 
+                              ...updated[index], 
+                              question_type: value,
+                              correct_answer: '' // Reset correct answer when changing types
+                            }
+                            
+                            // Set appropriate options based on question type
+                            if (value === 'short_answer') {
+                              updated[index].options = undefined
+                            } else if (value === 'true_false') {
+                              updated[index].options = ['True', 'False']
+                            } else if (value === 'multiple_choice') {
+                              updated[index].options = ['', '', '', '']
+                            }
+                            
+                            setQuestions(updated)
+                          }}
+                        >
+                          <SelectTrigger className="mt-2">
+                            <SelectValue placeholder="Select question type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                            <SelectItem value="true_false">True/False</SelectItem>
+                            <SelectItem value="short_answer">Essay</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       {/* Question Text */}
                       <div>
                         <Label>Question Text *</Label>
@@ -407,34 +495,7 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
                         />
                       </div>
 
-                      {/* Question Type */}
-                      <div>
-                        <Label>Question Type</Label>
-                        <Select
-                          value={question.question_type}
-                          onValueChange={(value: 'multiple_choice' | 'true_false' | 'short_answer') => {
-                            updateQuestion(index, 'question_type', value)
-                            if (value === 'true_false') {
-                              updateQuestion(index, 'options', ['True', 'False'])
-                            } else if (value === 'short_answer') {
-                              updateQuestion(index, 'options', undefined)
-                            } else {
-                              updateQuestion(index, 'options', ['', '', '', ''])
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="mt-2">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                            <SelectItem value="true_false">True/False</SelectItem>
-                            <SelectItem value="short_answer">Short Answer</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Options for Multiple Choice */}
+                      {/* Options for Multiple Choice and True/False display */}
                       {question.question_type === 'multiple_choice' && (
                         <div>
                           <Label>Answer Options *</Label>
@@ -455,59 +516,80 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
                         </div>
                       )}
 
-                      {/* Correct Answer */}
-                      <div>
-                        <Label>Correct Answer *</Label>
-                        {question.question_type === 'multiple_choice' ? (
-                          <Select
-                            value={question.correct_answer}
-                            onValueChange={(value) => updateQuestion(index, 'correct_answer', value)}
-                          >
-                            <SelectTrigger className="mt-2">
-                              <SelectValue placeholder="Select correct answer" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {question.options?.map((option, optIndex) => (
-                                option.trim() && (
-                                  <SelectItem key={optIndex} value={option}>
-                                    {String.fromCharCode(65 + optIndex)} - {option}
-                                  </SelectItem>
-                                )
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : question.question_type === 'true_false' ? (
-                          <Select
-                            value={question.correct_answer}
-                            onValueChange={(value) => updateQuestion(index, 'correct_answer', value)}
-                          >
-                            <SelectTrigger className="mt-2">
-                              <SelectValue placeholder="Select correct answer" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="True">True</SelectItem>
-                              <SelectItem value="False">False</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            value={question.correct_answer}
-                            onChange={(e) => updateQuestion(index, 'correct_answer', e.target.value)}
-                            placeholder="Enter correct answer"
-                            className="mt-2"
-                          />
-                        )}
-                      </div>
+                      {question.question_type === 'true_false' && (
+                        <div>
+                          <Label>Answer Options</Label>
+                          <div className="space-y-2 mt-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-semibold">
+                                A
+                              </span>
+                              <Input value="True" disabled className="bg-gray-50" />
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-semibold">
+                                B
+                              </span>
+                              <Input value="False" disabled className="bg-gray-50" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
-                      {/* Explanation (Optional) */}
+                      {/* Correct Answer - Only for Multiple Choice and True/False */}
+                      {question.question_type !== 'short_answer' && (
+                        <div>
+                          <Label>Correct Answer *</Label>
+                          {question.question_type === 'multiple_choice' ? (
+                            <Select
+                              value={question.correct_answer}
+                              onValueChange={(value) => updateQuestion(index, 'correct_answer', value)}
+                            >
+                              <SelectTrigger className="mt-2">
+                                <SelectValue placeholder="Select correct answer" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {question.options?.map((option, optIndex) => (
+                                  option.trim() && (
+                                    <SelectItem key={optIndex} value={option}>
+                                      {String.fromCharCode(65 + optIndex)} - {option}
+                                    </SelectItem>
+                                  )
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : question.question_type === 'true_false' ? (
+                            <Select
+                              value={question.correct_answer}
+                              onValueChange={(value) => updateQuestion(index, 'correct_answer', value)}
+                            >
+                              <SelectTrigger className="mt-2">
+                                <SelectValue placeholder="Select correct answer" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="True">True</SelectItem>
+                                <SelectItem value="False">False</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : null}
+                        </div>
+                      )}
+
+                      {/* Explanation/Answer */}
                       <div>
-                        <Label>Explanation (Optional)</Label>
+                        <Label>
+                          {question.question_type === 'short_answer' ? 'Answer *' : 'Explanation (Optional)'}
+                        </Label>
                         <Textarea
                           value={question.explanation || ""}
                           onChange={(e) => updateQuestion(index, 'explanation', e.target.value)}
-                          placeholder="Explain why this is the correct answer"
+                          placeholder={
+                            question.question_type === 'short_answer' 
+                              ? "Enter the complete answer to this essay question"
+                              : "Explain why this is the correct answer"
+                          }
                           className="mt-2"
-                          rows={2}
+                          rows={question.question_type === 'short_answer' ? 4 : 2}
                         />
                       </div>
 
@@ -582,7 +664,7 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h4 className="font-semibold text-blue-800 mb-2">Ready to Publish</h4>
                 <p className="text-blue-700 text-sm">
-                  Once published, the student ({booking.student_name}) will be notified and can take the post-test. 
+                  Once approved by faculty, the student ({booking.student_name}) will be notified and can take the post-test. 
                   The test will be available until completed.
                 </p>
               </div>
@@ -626,7 +708,7 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
                   ) : (
                     <>
                       <Send className="w-4 h-4 mr-2" />
-                      Publish Post-Test
+                      Submit for Review
                     </>
                   )}
                 </Button>

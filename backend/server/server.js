@@ -5555,12 +5555,11 @@ app.get('/api/tutors/:tutorId/availability', async (req, res) => {
 
     const pool = await db.getPool();
     
-    // Get all existing bookings for the tutor within the date range
+    // Get all existing bookings for the tutor within the date range (all statuses to prevent rebooking)
     const [existingBookings] = await pool.query(`
       SELECT booking_id, start_date, end_date, preferred_time, status, student_name, created_at
       FROM bookings 
       WHERE tutor_id = ? 
-      AND status IN ('pending', 'confirmed', 'accepted')
       AND (
         (DATE(start_date) <= DATE(?) AND DATE(end_date) >= DATE(?)) OR
         (DATE(start_date) >= DATE(?) AND DATE(start_date) <= DATE(?))
@@ -6670,9 +6669,10 @@ app.post('/api/post-tests/:id/submit', async (req, res) => {
     
     const questions = await getQuestionsByPostTestId(pool, postTestId);
     
-    // Calculate score
+    // Calculate score (exclude essay questions from scoring)
     let correctAnswers = 0;
-    const totalQuestions = questions.length;
+    const scorableQuestions = questions.filter(q => q.question_type !== 'short_answer'); // Exclude essay questions
+    const totalQuestions = scorableQuestions.length;
     
     // Convert answers array to object for easier lookup
     const answersMap = {};
@@ -6685,14 +6685,15 @@ app.post('/api/post-tests/:id/submit', async (req, res) => {
       Object.assign(answersMap, answers);
     }
     
-    console.log('Questions:', questions.map(q => ({ id: q.question_id, correct: q.correct_answer })));
+    console.log('All Questions:', questions.map(q => ({ id: q.question_id, type: q.question_type, correct: q.correct_answer })));
+    console.log('Scorable Questions (excluding essays):', scorableQuestions.map(q => ({ id: q.question_id, type: q.question_type, correct: q.correct_answer })));
     console.log('Student answers:', answersMap);
     
-    questions.forEach(question => {
+    scorableQuestions.forEach(question => {
       const studentAnswer = answersMap[question.question_id];
       const correctAnswer = question.correct_answer;
       
-      console.log(`Question ${question.question_id}: Student="${studentAnswer}", Correct="${correctAnswer}"`);
+      console.log(`Question ${question.question_id} (${question.question_type}): Student="${studentAnswer}", Correct="${correctAnswer}"`);
       
       if (studentAnswer && studentAnswer.toString().toLowerCase().trim() === correctAnswer.toString().toLowerCase().trim()) {
         correctAnswers++;

@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
-import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2, BookOpen } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2, BookOpen, Search, Filter } from "lucide-react"
 import Layout from "@/components/dashboard/layout"
 import { useUser } from "@/contexts/UserContext"
 import ChatModal from "@/components/modals/ChatModal"
@@ -37,6 +39,11 @@ export default function TutorSessionPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const { currentUser } = useUser()
+
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [dateFilter, setDateFilter] = useState<string>("all")
 
   // State for rating modal
   const [showRatingModal, setShowRatingModal] = useState<{open: boolean, bookingId?: number}>({open: false})
@@ -312,6 +319,44 @@ export default function TutorSessionPage() {
     setResultsLoading(prev => ({...prev, [bookingId]: false}))
   }
 
+  // Filter bookings based on search and filter criteria
+  const filteredBookings = bookings.filter((booking) => {
+    // Search filter
+    const searchMatch = searchQuery === "" || 
+      booking.student_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      booking.tutor_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      booking.subject_name?.toLowerCase().includes(searchQuery.toLowerCase())
+
+    // Status filter
+    const statusMatch = statusFilter === "all" || 
+      booking.status?.toLowerCase() === statusFilter.toLowerCase()
+
+    // Date filter
+    let dateMatch = true
+    if (dateFilter !== "all" && booking.start_date) {
+      const bookingDate = new Date(booking.start_date)
+      const today = new Date()
+      const daysDiff = Math.floor((today.getTime() - bookingDate.getTime()) / (1000 * 60 * 60 * 24))
+      
+      switch (dateFilter) {
+        case "today":
+          dateMatch = daysDiff === 0
+          break
+        case "week":
+          dateMatch = daysDiff >= 0 && daysDiff <= 7
+          break
+        case "month":
+          dateMatch = daysDiff >= 0 && daysDiff <= 30
+          break
+        case "upcoming":
+          dateMatch = daysDiff < 0
+          break
+      }
+    }
+
+    return searchMatch && statusMatch && dateMatch
+  })
+
   // Refetch bookings helper
   const fetchBookings = async () => {
     if (!currentUser) return
@@ -398,6 +443,84 @@ export default function TutorSessionPage() {
           <h1 className="text-3xl font-bold">Tutor Sessions</h1>
         </div>
 
+        {/* Filter Section */}
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center text-lg">
+              <Filter className="w-5 h-5 mr-2" />
+              Filter Sessions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Search Input */}
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search by student, tutor, or subject..."
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              {/* Status Filter */}
+              <div className="sm:w-48">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="accepted">Accepted</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date Filter */}
+              <div className="sm:w-48">
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Dates</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="upcoming">Upcoming</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Clear Filters Button */}
+              {(searchQuery || statusFilter !== "all" || dateFilter !== "all") && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchQuery("")
+                    setStatusFilter("all")
+                    setDateFilter("all")
+                  }}
+                  className="sm:w-auto"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+            
+            {/* Results Count */}
+            <div className="mt-3 text-sm text-muted-foreground">
+              Showing {filteredBookings.length} of {bookings.length} sessions
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {loading ? (
             <div className="col-span-full flex items-center justify-center py-12">
@@ -406,14 +529,20 @@ export default function TutorSessionPage() {
                 <span>Loading sessions...</span>
               </div>
             </div>
-          ) : bookings.length === 0 ? (
+          ) : filteredBookings.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <Calendar className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">No Sessions Found</h3>
-              <p className="text-gray-500 dark:text-gray-400">No tutor sessions found. Book a session to get started!</p>
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                {bookings.length === 0 ? "No Sessions Found" : "No Matching Sessions"}
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400">
+                {bookings.length === 0 
+                  ? "No tutor sessions found. Book a session to get started!" 
+                  : "Try adjusting your filters to see more sessions."}
+              </p>
             </div>
           ) : (
-            bookings.map((booking) => {
+            filteredBookings.map((booking) => {
               const isCompleted = booking.status?.toLowerCase() === 'completed' || isSessionExpired(booking)
               const cardClassName = isCompleted 
                 ? "transition-all duration-200 border-2 bg-gray-50 dark:bg-gray-800/50 opacity-75 cursor-not-allowed"

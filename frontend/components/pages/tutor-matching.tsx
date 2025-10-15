@@ -87,7 +87,7 @@ export default function TutorMatching() {
   const [loadingResults, setLoadingResults] = useState(false)
   const [hasSkippedPreAssessment, setHasSkippedPreAssessment] = useState(false)
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
-  const [showSubjectPerformance, setShowSubjectPerformance] = useState<boolean>(true)
+  const [showSubjectPerformance, setShowSubjectPerformance] = useState<boolean>(false) // Changed to false by default
   
   // Tutor statistics state
   const [tutorStats, setTutorStats] = useState<{
