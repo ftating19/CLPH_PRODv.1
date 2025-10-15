@@ -6674,10 +6674,31 @@ app.post('/api/post-tests/:id/submit', async (req, res) => {
     let correctAnswers = 0;
     const totalQuestions = questions.length;
     
+    // Convert answers array to object for easier lookup
+    const answersMap = {};
+    if (Array.isArray(answers)) {
+      answers.forEach(ans => {
+        answersMap[ans.question_id] = ans.answer;
+      });
+    } else {
+      // Handle case where answers is already an object
+      Object.assign(answersMap, answers);
+    }
+    
+    console.log('Questions:', questions.map(q => ({ id: q.question_id, correct: q.correct_answer })));
+    console.log('Student answers:', answersMap);
+    
     questions.forEach(question => {
-      const studentAnswer = answers[question.question_id];
-      if (studentAnswer && studentAnswer.toLowerCase() === question.correct_answer.toLowerCase()) {
+      const studentAnswer = answersMap[question.question_id];
+      const correctAnswer = question.correct_answer;
+      
+      console.log(`Question ${question.question_id}: Student="${studentAnswer}", Correct="${correctAnswer}"`);
+      
+      if (studentAnswer && studentAnswer.toString().toLowerCase().trim() === correctAnswer.toString().toLowerCase().trim()) {
         correctAnswers++;
+        console.log(`✓ Correct answer for question ${question.question_id}`);
+      } else {
+        console.log(`✗ Wrong answer for question ${question.question_id}`);
       }
     });
     
@@ -6703,11 +6724,12 @@ app.post('/api/post-tests/:id/submit', async (req, res) => {
       success: true,
       message: 'Post-test submitted successfully',
       result: {
-        score: parseFloat(score.toFixed(2)),
         correctAnswers,
         totalQuestions,
+        percentage: parseFloat(score.toFixed(2)),
         passed,
-        passingScore: postTest.passing_score
+        passingScore: postTest.passing_score,
+        timeTaken: time_taken || null
       }
     });
   } catch (err) {
@@ -6959,6 +6981,110 @@ app.post('/api/forums/:id/like', async (req, res) => {
     res.json({ success: true, like_count: forum.like_count, liked });
   } catch (err) {
     console.error('Error liking/unliking forum:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ===== TUTOR STATISTICS ENDPOINTS =====
+
+// Get completed sessions count for a tutor
+app.get('/api/tutors/:tutorId/sessions/completed-count', async (req, res) => {
+  try {
+    const tutorId = parseInt(req.params.tutorId);
+    
+    if (!tutorId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid tutor ID is required' 
+      });
+    }
+    
+    console.log(`Fetching completed sessions count for tutor ${tutorId}`);
+    
+    const pool = await db.getPool();
+    
+    // Count completed sessions for this tutor
+    const [countRows] = await pool.query(`
+      SELECT COUNT(*) as completed_count
+      FROM bookings 
+      WHERE tutor_id = ? 
+      AND status = 'completed'
+      AND rating IS NOT NULL
+      AND remarks IS NOT NULL
+      AND remarks != ''
+    `, [tutorId]);
+    
+    const completedCount = countRows[0]?.completed_count || 0;
+    
+    console.log(`✅ Found ${completedCount} completed sessions for tutor ${tutorId}`);
+    
+    res.json({
+      success: true,
+      tutorId: tutorId,
+      completedCount: completedCount
+    });
+  } catch (err) {
+    console.error('Error fetching tutor completed sessions count:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get comments and ratings for a tutor from completed sessions
+app.get('/api/tutors/:tutorId/sessions/comments', async (req, res) => {
+  try {
+    const tutorId = parseInt(req.params.tutorId);
+    const { rating_filter } = req.query;
+    
+    if (!tutorId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid tutor ID is required' 
+      });
+    }
+    
+    console.log(`Fetching session comments for tutor ${tutorId}`, rating_filter ? `with rating filter: ${rating_filter}` : '');
+    
+    const pool = await db.getPool();
+    
+    // Build query with optional rating filter
+    let query = `
+      SELECT 
+        b.booking_id,
+        b.rating,
+        b.remarks as feedback,
+        b.end_date as completed_at,
+        CONCAT(u.first_name, ' ', u.last_name) as student_name
+      FROM bookings b
+      JOIN users u ON b.student_id = u.user_id
+      WHERE b.tutor_id = ? 
+      AND b.status = 'completed'
+      AND b.rating IS NOT NULL
+      AND b.remarks IS NOT NULL
+      AND b.remarks != ''
+    `;
+    
+    const queryParams = [tutorId];
+    
+    // Add rating filter if specified
+    if (rating_filter) {
+      query += ` AND b.rating = ?`;
+      queryParams.push(parseInt(rating_filter));
+    }
+    
+    query += ` ORDER BY b.end_date DESC`;
+    
+    const [comments] = await pool.query(query, queryParams);
+    
+    console.log(`✅ Found ${comments.length} session comments for tutor ${tutorId}`);
+    
+    res.json({
+      success: true,
+      tutorId: tutorId,
+      comments: comments,
+      total: comments.length
+    });
+  } catch (err) {
+    console.error('Error fetching tutor session comments:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });

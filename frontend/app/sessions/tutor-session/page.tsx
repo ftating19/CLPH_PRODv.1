@@ -12,6 +12,7 @@ import { useUser } from "@/contexts/UserContext"
 import ChatModal from "@/components/modals/ChatModal"
 import PostTestModal from "@/components/modals/PostTestModal"
 import TakePostTestModal from "@/components/modals/TakePostTestModal"
+import PostTestResultsModal from "@/components/modals/PostTestResultsModal"
 
 // Updated booking data structure
 interface Booking {
@@ -51,9 +52,14 @@ export default function TutorSessionPage() {
   // State for take post-test modal  
   const [showTakePostTestModal, setShowTakePostTestModal] = useState<{open: boolean, postTestId?: number, bookingDetails?: Booking}>({open: false})
   
+  // State for post-test results modal
+  const [showResultsModal, setShowResultsModal] = useState<{open: boolean, bookingId?: number, bookingDetails?: Booking}>({open: false})
+  
   // State for available post-tests
   const [availablePostTests, setAvailablePostTests] = useState<{[bookingId: number]: any[]}>({})
   const [postTestsLoading, setPostTestsLoading] = useState<{[bookingId: number]: boolean}>({})
+  const [postTestResults, setPostTestResults] = useState<{[bookingId: number]: any[]}>({})
+  const [resultsLoading, setResultsLoading] = useState<{[bookingId: number]: boolean}>({})
 
   // Mark session as complete handler for student
   const handleStudentComplete = async (booking_id: number) => {
@@ -280,6 +286,32 @@ export default function TutorSessionPage() {
     setPostTestsLoading(prev => ({...prev, [bookingId]: false}))
   }
 
+  // Fetch post-test results for a booking
+  const fetchPostTestResults = async (bookingId: number) => {
+    if (!currentUser?.user_id) return
+    
+    console.log('Fetching post-test results for booking:', bookingId);
+    setResultsLoading(prev => ({...prev, [bookingId]: true}))
+    
+    try {
+      const response = await fetch(`http://localhost:4000/api/post-test-results?booking_id=${bookingId}`)
+      const data = await response.json()
+      console.log('Post-test results response for booking', bookingId, ':', data);
+      
+      if (data.success) {
+        setPostTestResults(prev => ({...prev, [bookingId]: data.results || []}))
+        console.log('Set post-test results for booking', bookingId, ':', data.results);
+      } else {
+        setPostTestResults(prev => ({...prev, [bookingId]: []}))
+      }
+    } catch (error) {
+      console.error('Error fetching post-test results:', error)
+      setPostTestResults(prev => ({...prev, [bookingId]: []}))
+    }
+    
+    setResultsLoading(prev => ({...prev, [bookingId]: false}))
+  }
+
   // Refetch bookings helper
   const fetchBookings = async () => {
     if (!currentUser) return
@@ -304,6 +336,16 @@ export default function TutorSessionPage() {
             if ((booking.status === 'Accepted' || booking.status === 'accepted') && 
                 currentUser.user_id === booking.student_id) {
               fetchPostTestsForBooking(booking.booking_id)
+              fetchPostTestResults(booking.booking_id) // Also fetch results for students
+            }
+          })
+        }
+        
+        // Fetch post-test results for tutors
+        if (currentUser?.role?.toLowerCase() === 'tutor') {
+          data.sessions.forEach((booking: Booking) => {
+            if (currentUser.user_id === booking.tutor_id) {
+              fetchPostTestResults(booking.booking_id)
             }
           })
         }
@@ -470,8 +512,8 @@ export default function TutorSessionPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-end pt-4 border-t">
-                    <div className="flex space-x-2">
+                  <div className="flex flex-col items-end pt-4 border-t">
+                    <div className="flex flex-wrap gap-2 justify-end w-full">
                       {/* Chat Button - Only for accepted sessions for tutor and student */}
                       {((currentUser?.user_id === booking.tutor_id) || (currentUser?.user_id === booking.student_id)) && 
                        (booking.status === "Accepted" || booking.status === "accepted") && 
@@ -486,10 +528,11 @@ export default function TutorSessionPage() {
                         </Button>
                       )}
 
-                      {/* Create Post-test Button - Only for tutors in accepted sessions */}
+                      {/* Create Post-test Button - Only for tutors in accepted sessions without completed post-tests */}
                       {currentUser?.user_id === booking.tutor_id && 
                        (booking.status === "Accepted" || booking.status === "accepted") && 
-                       !isSessionExpired(booking) && (
+                       !isSessionExpired(booking) && 
+                       (!postTestResults[booking.booking_id] || postTestResults[booking.booking_id].length === 0) && (
                         <Button 
                           size="sm"
                           variant="default"
@@ -497,6 +540,21 @@ export default function TutorSessionPage() {
                         >
                           <Award className="w-4 h-4 mr-2" />
                           Create Post-test
+                        </Button>
+                      )}
+
+                      {/* Show Results Button - For tutors to view student results */}
+                      {currentUser?.user_id === booking.tutor_id && 
+                       postTestResults[booking.booking_id] && 
+                       postTestResults[booking.booking_id].length > 0 && (
+                        <Button 
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowResultsModal({open: true, bookingId: booking.booking_id, bookingDetails: booking})}
+                          disabled={resultsLoading[booking.booking_id]}
+                        >
+                          <Award className="w-4 h-4 mr-2" />
+                          {resultsLoading[booking.booking_id] ? 'Loading...' : 'Show Results'}
                         </Button>
                       )}
 
@@ -525,6 +583,21 @@ export default function TutorSessionPage() {
                         >
                           <BookOpen className="w-4 h-4 mr-2" />
                           {postTestsLoading[booking.booking_id] ? 'Loading...' : 'Take Post-test'}
+                        </Button>
+                      )}
+
+                      {/* View Results Button - For students to view their completed test results */}
+                      {currentUser?.user_id === booking.student_id && 
+                       postTestResults[booking.booking_id] && 
+                       postTestResults[booking.booking_id].length > 0 && (
+                        <Button 
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowResultsModal({open: true, bookingId: booking.booking_id, bookingDetails: booking})}
+                          disabled={resultsLoading[booking.booking_id]}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          {resultsLoading[booking.booking_id] ? 'Loading...' : 'View Results'}
                         </Button>
                       )}
 
@@ -672,6 +745,17 @@ export default function TutorSessionPage() {
           postTestId={showTakePostTestModal.postTestId || 0}
           booking={showTakePostTestModal.bookingDetails || { booking_id: 0, tutor_id: 0, tutor_name: '', student_id: 0, student_name: '' }}
         />
+
+        {/* Post-Test Results Modal */}
+        {showResultsModal.bookingDetails && (
+          <PostTestResultsModal
+            isOpen={showResultsModal.open}
+            onClose={() => setShowResultsModal({open: false})}
+            bookingId={showResultsModal.bookingId || 0}
+            booking={showResultsModal.bookingDetails}
+            currentUserId={currentUser?.user_id || 0}
+          />
+        )}
       </div>
     </Layout>
   )

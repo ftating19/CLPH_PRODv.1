@@ -88,6 +88,18 @@ export default function TutorMatching() {
   const [hasSkippedPreAssessment, setHasSkippedPreAssessment] = useState(false)
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
   const [showSubjectPerformance, setShowSubjectPerformance] = useState<boolean>(true)
+  
+  // Tutor statistics state
+  const [tutorStats, setTutorStats] = useState<{
+    completedCount: number;
+    comments: any[];
+    loading: boolean;
+  }>({
+    completedCount: 0,
+    comments: [],
+    loading: false
+  })
+  
   const { currentUser } = useUser()
   const { toast } = useToast()
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
@@ -261,6 +273,35 @@ export default function TutorMatching() {
   // Available programs (using constants)
   const programs = CICT_PROGRAMS
 
+  // Fetch tutor statistics when profile modal opens
+  const fetchTutorStatistics = async (tutorUserId: number) => {
+    try {
+      setTutorStats(prev => ({ ...prev, loading: true }))
+      
+      // Fetch completed sessions count
+      const countResponse = await fetch(`http://localhost:4000/api/tutors/${tutorUserId}/sessions/completed-count`)
+      const countData = await countResponse.json()
+      
+      // Fetch all comments (we'll filter in the component for display)
+      const commentsResponse = await fetch(`http://localhost:4000/api/tutors/${tutorUserId}/sessions/comments`)
+      const commentsData = await commentsResponse.json()
+      
+      if (countData.success && commentsData.success) {
+        setTutorStats({
+          completedCount: countData.completedCount,
+          comments: commentsData.comments,
+          loading: false
+        })
+      } else {
+        console.error('Error fetching tutor statistics:', countData, commentsData)
+        setTutorStats({ completedCount: 0, comments: [], loading: false })
+      }
+    } catch (error) {
+      console.error('Error fetching tutor statistics:', error)
+      setTutorStats({ completedCount: 0, comments: [], loading: false })
+    }
+  }
+
   const handleApplicationSubmit = async () => {
     if (!currentUser) {
       toast({
@@ -340,6 +381,38 @@ export default function TutorMatching() {
 
   const TutorCard = ({ tutor }: { tutor: Tutor }) => {
     const isRecommended = recommendedSubjects.includes(tutor.subject_id);
+    const [cardStats, setCardStats] = useState<{
+      comments: any[];
+      loading: boolean;
+    }>({
+      comments: [],
+      loading: false
+    });
+
+    // Fetch tutor reviews for card display
+    useEffect(() => {
+      const fetchCardReviews = async () => {
+        try {
+          setCardStats(prev => ({ ...prev, loading: true }));
+          
+          const commentsResponse = await fetch(`http://localhost:4000/api/tutors/${tutor.user_id}/sessions/comments?rating_filter=5`);
+          const commentsData = await commentsResponse.json();
+          
+          if (commentsData.success) {
+            setCardStats({
+              comments: commentsData.comments.slice(0, 3), // Only get 3 most recent
+              loading: false
+            });
+          } else {
+            setCardStats({ comments: [], loading: false });
+          }
+        } catch (error) {
+          setCardStats({ comments: [], loading: false });
+        }
+      };
+
+      fetchCardReviews();
+    }, [tutor.user_id]);
     
     return (
       <Card className={`hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 ${isRecommended ? 'ring-2 ring-green-400 border-green-300' : ''}`}>
@@ -476,10 +549,40 @@ export default function TutorMatching() {
           </div>
         )}
 
+        {/* Recent 5-Star Reviews */}
+        {!cardStats.loading && cardStats.comments.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Recent 5-Star Reviews</Label>
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {cardStats.comments.map((comment, index) => (
+                <div key={index} className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium text-xs">{comment.student_name}</span>
+                      <div className="flex">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} className="w-2 h-2 text-yellow-500 fill-current" />
+                        ))}
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(comment.completed_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
+                    "{comment.feedback}"
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-end pt-4 border-t">
           <div className="flex space-x-2">
             <Button size="sm" variant="outline" onClick={() => {
               setSelectedTutor(tutor);
+              fetchTutorStatistics(tutor.user_id); // Fetch statistics when opening profile
               setShowProfileModal(true);
             }}>
               View Profile
@@ -1159,7 +1262,7 @@ export default function TutorMatching() {
 
       {/* Profile Modal */}
       <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-3">
               <Avatar className="w-12 h-12">
@@ -1239,6 +1342,30 @@ export default function TutorMatching() {
                 </div>
               </div>
 
+              {/* Sessions Statistics */}
+              <div className="border-t pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Sessions Completed</Label>
+                    <div className="mt-1">
+                      {tutorStats.loading ? (
+                        <div className="flex items-center space-x-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Loading...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="outline" className="text-lg px-3 py-1">
+                            {tutorStats.completedCount}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">completed sessions</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Program */}
               {selectedTutor.program && (
                 <div>
@@ -1267,6 +1394,49 @@ export default function TutorMatching() {
                   <p className="mt-2 text-sm leading-relaxed text-foreground">
                     {selectedTutor.tutor_information}
                   </p>
+                </div>
+              )}
+
+              {/* Student Comments Section */}
+              {!tutorStats.loading && tutorStats.comments.length > 0 && (
+                <div className="border-t pt-6">
+                  <Label className="text-sm font-medium text-muted-foreground">Student Feedback (5-Star Reviews)</Label>
+                  <div className="mt-4 space-y-4 max-h-96 overflow-y-auto">
+                    {tutorStats.comments
+                      .filter(comment => comment.rating === 5) // Only show 5-star ratings
+                      .map((comment, index) => (
+                        <div key={index} className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-medium text-sm">{comment.student_name}</span>
+                              <div className="flex items-center">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star key={i} className="w-4 h-4 text-yellow-500 fill-current" />
+                                ))}
+                              </div>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(comment.completed_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                            "{comment.feedback}"
+                          </p>
+                          {comment.subject_name && (
+                            <div className="mt-2">
+                              <Badge variant="outline" className="text-xs">
+                                {comment.subject_name}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    {tutorStats.comments.filter(comment => comment.rating === 5).length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p className="text-sm">No 5-star reviews available yet.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

@@ -55,6 +55,8 @@ export default function TakePostTestModal({ isOpen, onClose, postTestId, booking
   const [testStarted, setTestStarted] = useState(false)
   const [testCompleted, setTestCompleted] = useState(false)
   const [result, setResult] = useState<any>(null)
+  const [startTime, setStartTime] = useState<number>(0)
+  const [timeTakenSeconds, setTimeTakenSeconds] = useState<number>(0)
   const { currentUser } = useUser()
 
   // Fetch post-test details
@@ -123,6 +125,8 @@ export default function TakePostTestModal({ isOpen, onClose, postTestId, booking
   }
 
   const startTest = () => {
+    const now = Date.now()
+    setStartTime(now)
     setTestStarted(true)
     setCurrentQuestionIndex(0)
   }
@@ -150,6 +154,11 @@ export default function TakePostTestModal({ isOpen, onClose, postTestId, booking
   const handleSubmit = async () => {
     if (submitting) return
     
+    // Calculate time taken
+    const endTime = Date.now()
+    const timeTaken = Math.floor((endTime - startTime) / 1000) // seconds
+    setTimeTakenSeconds(timeTaken)
+    
     setSubmitting(true)
     try {
       const response = await fetch(`http://localhost:4000/api/post-tests/${postTestId}/submit`, {
@@ -160,6 +169,7 @@ export default function TakePostTestModal({ isOpen, onClose, postTestId, booking
         body: JSON.stringify({
           student_id: currentUser?.user_id,
           booking_id: booking.booking_id,
+          time_taken: timeTaken,
           answers: Object.entries(answers).map(([questionId, answer]) => ({
             question_id: parseInt(questionId),
             answer
@@ -224,17 +234,37 @@ export default function TakePostTestModal({ isOpen, onClose, postTestId, booking
               </p>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-4 mb-6">
               <Card>
                 <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{result?.score || 0}</div>
-                  <div className="text-sm text-gray-600">Score</div>
+                  <div className="text-2xl font-bold text-blue-600">{result?.correctAnswers || 0}/{result?.totalQuestions || 0}</div>
+                  <div className="text-sm text-gray-600">Correct Answers</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl font-bold text-green-600">{result?.percentage || 0}%</div>
                   <div className="text-sm text-gray-600">Percentage</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-600">{formatTime(timeTakenSeconds)}</div>
+                  <div className="text-sm text-gray-600">Time Taken</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 mb-6">
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="text-lg font-semibold text-gray-700">
+                    Passing Score: {postTest?.passing_score}% | 
+                    Your Score: {result?.percentage}% | 
+                    Status: <span className={result?.passed ? 'text-green-600' : 'text-red-600'}>
+                      {result?.passed ? 'PASSED' : 'FAILED'}
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
             </div>

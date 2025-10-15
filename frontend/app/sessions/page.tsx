@@ -27,6 +27,14 @@ interface PostTest {
   session_date: string
   question_count: number
   test_status: 'available' | 'completed'
+  result?: {
+    percentage: number
+    passed: boolean
+    time_taken: number
+    correct_answers: number
+    total_questions: number
+    completed_at: string
+  }
 }
 
 export default function StudentSessions() {
@@ -52,7 +60,36 @@ export default function StudentSessions() {
       const data = await response.json()
       
       if (data.success) {
-        setPostTests(data.postTests || [])
+        let tests = data.postTests || []
+        
+        // For completed tests, fetch their results
+        const testsWithResults = await Promise.all(
+          tests.map(async (test: PostTest) => {
+            if (test.test_status === 'completed') {
+              try {
+                const resultResponse = await fetch(`http://localhost:4000/api/post-test-results?student_id=${currentUser.user_id}&post_test_id=${test.id}`)
+                const resultData = await resultResponse.json()
+                
+                if (resultData.success && resultData.results.length > 0) {
+                  const result = resultData.results[0]
+                  test.result = {
+                    percentage: result.score,
+                    passed: result.passed,
+                    time_taken: result.time_taken,
+                    correct_answers: result.correct_answers,
+                    total_questions: result.total_questions,
+                    completed_at: result.completed_at
+                  }
+                }
+              } catch (error) {
+                console.error('Error fetching result for test', test.id, error)
+              }
+            }
+            return test
+          })
+        )
+        
+        setPostTests(testsWithResults)
       }
     } catch (error) {
       console.error('Error fetching post-tests:', error)
@@ -237,6 +274,32 @@ export default function StudentSessions() {
                       <Calendar className="w-4 h-4" />
                       <span>Session: {formatDate(test.session_date)}</span>
                     </div>
+                    
+                    {/* Results section for completed tests */}
+                    {test.result && (
+                      <div className="pt-3 border-t">
+                        <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                          <div className="text-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                            <div className={`text-lg font-bold ${test.result.passed ? 'text-green-600' : 'text-red-600'}`}>
+                              {test.result.percentage}%
+                            </div>
+                            <div className="text-xs text-gray-500">Score</div>
+                          </div>
+                          <div className="text-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                            <div className="text-lg font-bold text-blue-600">
+                              {test.result.correct_answers}/{test.result.total_questions}
+                            </div>
+                            <div className="text-xs text-gray-500">Correct</div>
+                          </div>
+                        </div>
+                        <div className="text-center text-xs text-gray-500">
+                          Time: {test.result.time_taken ? `${Math.floor(test.result.time_taken / 60)}:${(test.result.time_taken % 60).toString().padStart(2, '0')}` : 'N/A'} | 
+                          Status: <span className={test.result.passed ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                            {test.result.passed ? 'PASSED' : 'FAILED'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     
                     <div className="pt-3 border-t">
                       <Button 
