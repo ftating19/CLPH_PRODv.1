@@ -6,7 +6,7 @@ require('dotenv').config({ path: '../.env' })
 
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
-const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, testEmailConnection } = require('../services/emailService')
+const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, testEmailConnection } = require('../services/emailService')
 const { 
   getAllSubjects, 
   getSubjectById, 
@@ -3651,7 +3651,7 @@ app.put('/api/pending-post-tests/:id/approve', async (req, res) => {
     
     const pool = await db.getPool();
     
-    // Get pending post-test details
+    // Get pending post-test details with user information
     const pendingPostTest = await getPendingPostTestById(pool, pendingPostTestId);
     
     if (!pendingPostTest) {
@@ -3660,6 +3660,38 @@ app.put('/api/pending-post-tests/:id/approve', async (req, res) => {
         error: 'Pending post-test not found' 
       });
     }
+
+    // Get tutor and student information
+    const [tutorRows] = await pool.query(`
+      SELECT user_id, first_name, last_name, email 
+      FROM users 
+      WHERE user_id = ?
+    `, [pendingPostTest.tutor_id]);
+
+    const [studentRows] = await pool.query(`
+      SELECT user_id, first_name, last_name, email 
+      FROM users 
+      WHERE user_id = ?
+    `, [pendingPostTest.student_id]);
+
+    const tutor = tutorRows[0];
+    const student = studentRows[0];
+
+    if (!tutor || !student) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Tutor or student not found' 
+      });
+    }
+
+    // Get session information if available
+    const [sessionRows] = await pool.query(`
+      SELECT DATE_FORMAT(start_date, '%M %d, %Y at %h:%i %p') as formatted_date
+      FROM bookings 
+      WHERE booking_id = ?
+    `, [pendingPostTest.booking_id]);
+
+    const sessionDate = sessionRows[0]?.formatted_date || null;
     
     // Update status to approved
     await updatePendingPostTestStatus(pool, pendingPostTestId, 'approved', approved_by, null);
@@ -3669,8 +3701,37 @@ app.put('/api/pending-post-tests/:id/approve', async (req, res) => {
     
     // Delete from pending_post_tests (cascade will delete questions)
     await deletePendingPostTest(pool, pendingPostTestId);
-    
+
     console.log(`✅ Post-test approved and transferred: ${newPostTest.post_test_id}`);
+
+    // Send email notifications
+    try {
+      // Send email to tutor
+      const tutorEmailResult = await sendPostTestApprovalEmailToTutor(
+        tutor.email,
+        `${tutor.first_name} ${tutor.last_name}`,
+        pendingPostTest.title,
+        `${student.first_name} ${student.last_name}`,
+        sessionDate
+      );
+
+      // Send email to student
+      const studentEmailResult = await sendPostTestApprovalEmailToStudent(
+        student.email,
+        `${student.first_name} ${student.last_name}`,
+        pendingPostTest.title,
+        `${tutor.first_name} ${tutor.last_name}`,
+        sessionDate
+      );
+
+      console.log('Email notifications sent:', {
+        tutor: tutorEmailResult.success,
+        student: studentEmailResult.success
+      });
+    } catch (emailError) {
+      console.error('Error sending email notifications:', emailError);
+      // Don't fail the approval if email fails
+    }
     
     res.json({
       success: true,
@@ -6123,12 +6184,26 @@ app.get('/api/post-tests/tutor/:tutorId', async (req, res) => {
     // Get post-tests created by this tutor with additional details
     const [postTests] = await pool.query(`
       SELECT 
-        pt.*,
+        pt.post_test_id as id,
+        pt.booking_id,
+        pt.tutor_id,
+        pt.student_id,
+        pt.title,
+        pt.description,
+        pt.subject_id,
+        pt.subject_name,
+        pt.total_questions,
+        pt.time_limit,
+        pt.passing_score,
+        pt.status,
+        pt.created_at,
+        pt.published_at,
+        pt.completed_at,
         s.subject_name,
         s.subject_code,
         CONCAT(u.first_name, ' ', u.last_name) as student_name,
-        b.session_date,
-        (SELECT COUNT(*) FROM post_test_questions WHERE post_test_id = pt.id) as question_count
+        DATE_FORMAT(b.start_date, '%Y-%m-%d %H:%i') as session_date,
+        (SELECT COUNT(*) FROM post_test_questions WHERE post_test_id = pt.post_test_id) as question_count
       FROM post_tests pt
       LEFT JOIN subjects s ON pt.subject_id = s.subject_id
       LEFT JOIN users u ON pt.student_id = u.user_id
@@ -6146,6 +6221,72 @@ app.get('/api/post-tests/tutor/:tutorId', async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching tutor post-tests:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get post-tests by student ID (available for student to take)
+app.get('/api/post-tests/student/:studentId', async (req, res) => {
+  try {
+    const studentId = parseInt(req.params.studentId);
+    
+    if (!studentId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid student ID is required' 
+      });
+    }
+    
+    console.log(`Fetching available post-tests for student ${studentId}`);
+    
+    const pool = await db.getPool();
+    
+    // Get post-tests available for this student (approved and not completed)
+    const [postTests] = await pool.query(`
+      SELECT 
+        pt.post_test_id as id,
+        pt.booking_id,
+        pt.tutor_id,
+        pt.student_id,
+        pt.title,
+        pt.description,
+        pt.subject_id,
+        pt.subject_name,
+        pt.total_questions,
+        pt.time_limit,
+        pt.passing_score,
+        pt.status,
+        pt.created_at,
+        pt.published_at,
+        pt.completed_at,
+        s.subject_name,
+        s.subject_code,
+        CONCAT(tu.first_name, ' ', tu.last_name) as tutor_name,
+        DATE_FORMAT(b.start_date, '%Y-%m-%d %H:%i') as session_date,
+        (SELECT COUNT(*) FROM post_test_questions WHERE post_test_id = pt.post_test_id) as question_count,
+        CASE 
+          WHEN pt.completed_at IS NULL THEN 'available'
+          ELSE 'completed'
+        END as test_status
+      FROM post_tests pt
+      LEFT JOIN subjects s ON pt.subject_id = s.subject_id
+      LEFT JOIN users tu ON pt.tutor_id = tu.user_id
+      LEFT JOIN bookings b ON pt.booking_id = b.booking_id
+      WHERE pt.student_id = ? AND pt.status = 'published'
+      ORDER BY 
+        CASE WHEN pt.completed_at IS NULL THEN 0 ELSE 1 END,
+        pt.created_at DESC
+    `, [studentId]);
+    
+    console.log(`✅ Found ${postTests.length} post-tests for student ${studentId}`);
+    
+    res.json({
+      success: true,
+      postTests: postTests,
+      total: postTests.length
+    });
+  } catch (err) {
+    console.error('Error fetching student post-tests:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });

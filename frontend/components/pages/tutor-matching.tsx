@@ -87,6 +87,7 @@ export default function TutorMatching() {
   const [loadingResults, setLoadingResults] = useState(false)
   const [hasSkippedPreAssessment, setHasSkippedPreAssessment] = useState(false)
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
+  const [showSubjectPerformance, setShowSubjectPerformance] = useState<boolean>(true)
   const { currentUser } = useUser()
   const { toast } = useToast()
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
@@ -813,16 +814,28 @@ export default function TutorMatching() {
       ) : null}
 
       {/* Subject Scores Visualization */}
-      {preAssessmentResults.length > 0 && !loadingResults && (
+      {preAssessmentResults.length > 0 && !loadingResults && showSubjectPerformance && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5" />
-              Your Pre-Assessment Performance by Subject
-            </CardTitle>
-            <CardDescription>
-              Detailed breakdown of your scores for each subject
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5" />
+                  Your Pre-Assessment Performance by Subject
+                </CardTitle>
+                <CardDescription>
+                  Detailed breakdown of your scores for each subject
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSubjectPerformance(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Hide Results
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -1023,6 +1036,24 @@ export default function TutorMatching() {
                   );
                 });
               })()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Show Subject Performance Button (when hidden) */}
+      {preAssessmentResults.length > 0 && !loadingResults && !showSubjectPerformance && (
+        <Card className="border-dashed">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <Button
+                variant="outline"
+                onClick={() => setShowSubjectPerformance(true)}
+                className="flex items-center gap-2"
+              >
+                <BookOpen className="w-4 h-4" />
+                Show Pre-Assessment Performance by Subject
+              </Button>
             </div>
           </CardContent>
         </Card>

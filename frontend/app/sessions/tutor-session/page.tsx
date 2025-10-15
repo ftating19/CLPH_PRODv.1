@@ -238,20 +238,40 @@ export default function TutorSessionPage() {
     console.log('Fetching post-tests for booking:', bookingId);
     setPostTestsLoading(prev => ({...prev, [bookingId]: true}))
     try {
-      const response = await fetch(`http://localhost:4000/api/post-tests?booking_id=${bookingId}&status=published`)
-      const data = await response.json()
-      console.log('Post-tests response for booking', bookingId, ':', data);
-      if (data.success) {
-        // Map post_test_id to id for compatibility
-        const mappedPostTests = (data.postTests || []).map((postTest: any) => ({
-          ...postTest,
-          id: postTest.post_test_id || postTest.id
-        }));
-        setAvailablePostTests(prev => ({...prev, [bookingId]: mappedPostTests}))
-        console.log('Set available post-tests for booking', bookingId, ':', mappedPostTests);
-      } else {
-        setAvailablePostTests(prev => ({...prev, [bookingId]: []}))
-        console.log('No post-tests found for booking', bookingId);
+      // First try to get post-tests by student ID if current user is student
+      if (currentUser?.user_id) {
+        let response;
+        if (currentUser.role?.toLowerCase() === 'student') {
+          // Use student-specific endpoint for students
+          response = await fetch(`http://localhost:4000/api/post-tests/student/${currentUser.user_id}`)
+        } else {
+          // Use booking-based query for tutors or other roles
+          response = await fetch(`http://localhost:4000/api/post-tests?booking_id=${bookingId}&status=published`)
+        }
+        
+        const data = await response.json()
+        console.log('Post-tests response for booking', bookingId, ':', data);
+        
+        if (data.success) {
+          let postTests = data.postTests || [];
+          
+          // Filter by booking_id if using student endpoint
+          if (currentUser.role?.toLowerCase() === 'student') {
+            postTests = postTests.filter((pt: any) => pt.booking_id === bookingId && pt.test_status === 'available');
+          }
+          
+          // Map post_test_id to id for compatibility
+          const mappedPostTests = postTests.map((postTest: any) => ({
+            ...postTest,
+            id: postTest.post_test_id || postTest.id
+          }));
+          
+          setAvailablePostTests(prev => ({...prev, [bookingId]: mappedPostTests}))
+          console.log('Set available post-tests for booking', bookingId, ':', mappedPostTests);
+        } else {
+          setAvailablePostTests(prev => ({...prev, [bookingId]: []}))
+          console.log('No post-tests found for booking', bookingId);
+        }
       }
     } catch (error) {
       console.error('Error fetching post-tests:', error)

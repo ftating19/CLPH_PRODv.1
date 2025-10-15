@@ -655,6 +655,157 @@ The CPLH Platform Team
   }
 };
 
+// Send post-test approval email to tutor
+const sendPostTestApprovalEmailToTutor = async (tutorEmail, tutorName, postTestTitle, studentName, sessionDate) => {
+  try {
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: `"CPLH Platform" <${process.env.SMTP_USER}>`,
+      to: tutorEmail,
+      subject: 'Post-Test Approved - Ready for Student Assessment',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Post-Test Approved</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+            .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+            .success-badge { background: #28a745; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; display: inline-block; margin: 10px 0; }
+            .info-box { background: white; padding: 20px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #28a745; }
+            .footer { text-align: center; margin-top: 30px; color: #6c757d; font-size: 14px; }
+            .btn { background: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 15px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>🎉 Post-Test Approved!</h1>
+          </div>
+          <div class="content">
+            <p>Dear <strong>${tutorName}</strong>,</p>
+            
+            <div class="success-badge">✅ APPROVED</div>
+            
+            <p>Great news! Your post-test has been reviewed and approved by the faculty.</p>
+            
+            <div class="info-box">
+              <h3>📋 Post-Test Details:</h3>
+              <p><strong>Title:</strong> ${postTestTitle}</p>
+              <p><strong>Student:</strong> ${studentName}</p>
+              <p><strong>Session Date:</strong> ${sessionDate || 'To be scheduled'}</p>
+            </div>
+            
+            <p><strong>What happens next?</strong></p>
+            <ul>
+              <li>The student will now see a "Take Post-Test" button in their session interface</li>
+              <li>They can complete the assessment at their convenience</li>
+              <li>You'll receive the results once they finish the test</li>
+            </ul>
+            
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/sessions/manage-post-test" class="btn">View Post-Test</a>
+            
+            <p>Thank you for your contribution to student assessment!</p>
+            
+            <div class="footer">
+              <p>This is an automated message from the CPLH Platform</p>
+              <p>If you have any questions, please contact the administrator</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Post-test approval email sent to tutor:', result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Error sending post-test approval email to tutor:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Send post-test approval email to student
+const sendPostTestApprovalEmailToStudent = async (studentEmail, studentName, postTestTitle, tutorName, sessionDate) => {
+  try {
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: `"CPLH Platform" <${process.env.SMTP_USER}>`,
+      to: studentEmail,
+      subject: 'New Post-Test Available - Assessment Ready',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Post-Test Available</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+            .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+            .info-badge { background: #17a2b8; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; display: inline-block; margin: 10px 0; }
+            .info-box { background: white; padding: 20px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #17a2b8; }
+            .footer { text-align: center; margin-top: 30px; color: #6c757d; font-size: 14px; }
+            .btn { background: #17a2b8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 15px 0; }
+            .highlight { background: #fff3cd; padding: 15px; border-radius: 5px; border: 1px solid #ffeaa7; margin: 15px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>📝 New Assessment Available!</h1>
+          </div>
+          <div class="content">
+            <p>Dear <strong>${studentName}</strong>,</p>
+            
+            <div class="info-badge">📋 POST-TEST READY</div>
+            
+            <p>A new post-test has been approved and is now available for you to take.</p>
+            
+            <div class="info-box">
+              <h3>📋 Assessment Details:</h3>
+              <p><strong>Title:</strong> ${postTestTitle}</p>
+              <p><strong>Tutor:</strong> ${tutorName}</p>
+              <p><strong>Session Date:</strong> ${sessionDate || 'Scheduled session'}</p>
+            </div>
+            
+            <div class="highlight">
+              <p><strong>🎯 How to take the test:</strong></p>
+              <ol>
+                <li>Go to your Sessions page</li>
+                <li>Look for the "Take Post-Test" button</li>
+                <li>Complete the assessment when you're ready</li>
+              </ol>
+            </div>
+            
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/sessions" class="btn">Go to Sessions</a>
+            
+            <p>Good luck with your assessment!</p>
+            
+            <div class="footer">
+              <p>This is an automated message from the CPLH Platform</p>
+              <p>If you need help, please contact your tutor or administrator</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Post-test approval email sent to student:', result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Error sending post-test approval email to student:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   generateTemporaryPassword,
   sendWelcomeEmail,
@@ -662,5 +813,7 @@ module.exports = {
   sendTutorRejectionEmail,
   sendMaterialApprovalEmail,
   sendMaterialRejectionEmail,
+  sendPostTestApprovalEmailToTutor,
+  sendPostTestApprovalEmailToStudent,
   testEmailConnection
 };

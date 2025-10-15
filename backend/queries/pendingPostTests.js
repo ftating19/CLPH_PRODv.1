@@ -262,8 +262,8 @@ const transferToPostTests = async (pool, pendingPostTest) => {
       INSERT INTO post_tests (
         booking_id, tutor_id, student_id, title, description, 
         subject_id, subject_name, time_limit, passing_score, 
-        total_questions, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', NOW())
+        total_questions, status, created_at, published_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', NOW(), NOW())
     `, [
       booking_id,
       tutor_id,

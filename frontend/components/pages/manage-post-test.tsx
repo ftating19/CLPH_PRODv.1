@@ -95,22 +95,33 @@ export default function ManagePostTest() {
     
     try {
       setLoading(true)
+      console.log('Fetching post-tests for tutor:', currentUser.user_id)
+      
       const response = await fetch(`http://localhost:4000/api/post-tests/tutor/${currentUser.user_id}`)
       
+      console.log('Response status:', response.status)
+      console.log('Response ok:', response.ok)
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch post-tests')
+        const errorText = await response.text()
+        console.error('Response error:', errorText)
+        throw new Error(`Failed to fetch post-tests: ${response.status} ${response.statusText}`)
       }
       
       const data = await response.json()
+      console.log('Received data:', data)
       
       if (data.success) {
         setPostTests(data.postTests || [])
+        console.log('Set post-tests:', data.postTests?.length || 0, 'items')
+      } else {
+        throw new Error(data.error || 'Unknown error occurred')
       }
     } catch (error) {
       console.error('Error fetching post-tests:', error)
       toast({
         title: "Error",
-        description: "Failed to load post-tests",
+        description: error instanceof Error ? error.message : "Failed to load post-tests",
         variant: "destructive"
       })
     } finally {
