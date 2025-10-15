@@ -53,8 +53,11 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
       const resultsData = await resultsResponse.json()
       const results = resultsData.results || []
       
-      // If user has completed at least one pre-assessment, they can access dashboard
-      if (results.length > 0) {
+      // Check if user has skipped the pre-assessment
+      const hasSkipped = localStorage.getItem(`preAssessmentSkipped_${currentUser.user_id}`) === 'true'
+      
+      // If user has completed at least one pre-assessment OR has skipped, they can access dashboard
+      if (results.length > 0 || hasSkipped) {
         setHasCompleted(true)
         setAvailablePreAssessments([])
       } else {
@@ -110,6 +113,20 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
 
   useEffect(() => {
     checkPreAssessmentStatus()
+  }, [currentUser])
+
+  // Listen for pre-assessment skip events
+  useEffect(() => {
+    const handleSkipEvent = () => {
+      // Re-check status when user skips
+      checkPreAssessmentStatus()
+    }
+
+    window.addEventListener('preAssessmentSkipped', handleSkipEvent)
+    
+    return () => {
+      window.removeEventListener('preAssessmentSkipped', handleSkipEvent)
+    }
   }, [currentUser])
 
   return {

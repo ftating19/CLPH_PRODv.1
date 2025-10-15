@@ -345,6 +345,27 @@ export default function PreAssessmentTestModal({ open, onOpenChange, currentUser
     }
   }
 
+  const handleSkipPreAssessment = () => {
+    if (!currentUser) return
+    
+    // Store skip status in localStorage
+    localStorage.setItem(`preAssessmentSkipped_${currentUser.user_id}`, 'true')
+    localStorage.setItem(`preAssessmentSkippedDate_${currentUser.user_id}`, new Date().toISOString())
+    
+    toast({
+      title: "Pre-Assessment Skipped",
+      description: "You can access the system, but tutor matching will not be available. You can take the assessment later to unlock tutor matching.",
+    })
+    
+    // Close the modal
+    onOpenChange(false)
+    
+    // Trigger an event to notify other components
+    window.dispatchEvent(new CustomEvent('preAssessmentSkipped', { 
+      detail: { userId: currentUser.user_id } 
+    }))
+  }
+
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
@@ -488,46 +509,62 @@ export default function PreAssessmentTestModal({ open, onOpenChange, currentUser
                                 </p>
                               </div>
                             )}
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="w-4 h-4" />
-                                  {assessment.duration} {assessment.duration_unit}
-                                </div>
-                                {assessment.question_count && (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                   <div className="flex items-center gap-1">
-                                    <BookOpen className="w-4 h-4" />
-                                    {assessment.question_count} questions
+                                    <Clock className="w-4 h-4" />
+                                    {assessment.duration} {assessment.duration_unit}
                                   </div>
-                                )}
+                                  {assessment.question_count && (
+                                    <div className="flex items-center gap-1">
+                                      <BookOpen className="w-4 h-4" />
+                                      {assessment.question_count} questions
+                                    </div>
+                                  )}
+                                </div>
+                                <Button 
+                                  onClick={() => {
+                                    if (alreadyTaken) {
+                                      toast({
+                                        title: "Already Completed",
+                                        description: "You have already taken this pre-assessment. You cannot retake it.",
+                                        variant: "destructive"
+                                      })
+                                    } else {
+                                      handleStartTest(assessment)
+                                    }
+                                  }}
+                                  className={alreadyTaken ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
+                                  disabled={alreadyTaken}
+                                >
+                                  {alreadyTaken ? (
+                                    <>
+                                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                                      Completed
+                                    </>
+                                  ) : (
+                                    <>
+                                      Start Test
+                                      <ArrowRight className="w-4 h-4 ml-2" />
+                                    </>
+                                  )}
+                                </Button>
                               </div>
-                              <Button 
-                                onClick={() => {
-                                  if (alreadyTaken) {
-                                    toast({
-                                      title: "Already Completed",
-                                      description: "You have already taken this pre-assessment. You cannot retake it.",
-                                      variant: "destructive"
-                                    })
-                                  } else {
-                                    handleStartTest(assessment)
-                                  }
-                                }}
-                                className={alreadyTaken ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}
-                                disabled={alreadyTaken}
-                              >
-                                {alreadyTaken ? (
-                                  <>
-                                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                                    Completed
-                                  </>
-                                ) : (
-                                  <>
-                                    Start Test
-                                    <ArrowRight className="w-4 h-4 ml-2" />
-                                  </>
-                                )}
-                              </Button>
+                              
+                              {/* Skip Button below Start Test button */}
+                              {!alreadyTaken && (
+                                <div className="flex justify-end">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleSkipPreAssessment}
+                                    className="text-amber-700 hover:text-amber-800 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/30"
+                                  >
+                                    Skip Pre-Assessment
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>

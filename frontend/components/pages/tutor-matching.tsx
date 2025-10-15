@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Loader2 } from "lucide-react"
+import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Loader2, AlertCircle } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSubjects } from "@/hooks/use-subjects"
@@ -81,6 +81,7 @@ export default function TutorMatching() {
   const [recommendedSubjects, setRecommendedSubjects] = useState<number[]>([])
   const [avgLowScore, setAvgLowScore] = useState<string>('70')
   const [loadingResults, setLoadingResults] = useState(false)
+  const [hasSkippedPreAssessment, setHasSkippedPreAssessment] = useState(false)
   const { currentUser } = useUser()
   const { toast } = useToast()
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
@@ -219,6 +220,29 @@ export default function TutorMatching() {
   useEffect(() => {
     fetchTutors()
     fetchPreAssessmentResults()
+  }, [currentUser?.user_id])
+
+  // Check if user has skipped pre-assessment
+  useEffect(() => {
+    if (currentUser?.user_id) {
+      const skipped = localStorage.getItem(`preAssessmentSkipped_${currentUser.user_id}`)
+      setHasSkippedPreAssessment(skipped === 'true')
+    }
+  }, [currentUser?.user_id])
+
+  // Listen for skip events
+  useEffect(() => {
+    const handleSkipEvent = (event: CustomEvent) => {
+      if (event.detail.userId === currentUser?.user_id) {
+        setHasSkippedPreAssessment(true)
+      }
+    }
+
+    window.addEventListener('preAssessmentSkipped', handleSkipEvent as EventListener)
+    
+    return () => {
+      window.removeEventListener('preAssessmentSkipped', handleSkipEvent as EventListener)
+    }
   }, [currentUser?.user_id])
 
   // Available programs (using constants)
@@ -676,8 +700,53 @@ export default function TutorMatching() {
         </div>
       </div>
 
-      {/* Recommendations Info */}
-      {loadingResults ? (
+      {/* Check if user has skipped pre-assessment */}
+      {hasSkippedPreAssessment ? (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg p-6">
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0">
+              <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-100 mb-2">
+                Pre-Assessment Required for Tutor Matching
+              </h3>
+              <p className="text-amber-800 dark:text-amber-200 mb-4">
+                You have skipped the pre-assessment. To access tutor matching and get personalized tutor recommendations, 
+                you need to complete the pre-assessment test.
+              </p>
+              <div className="flex gap-3">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700" 
+                  onClick={() => setShowTestModal(true)}
+                >
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  Take Pre-Assessment Now
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    if (currentUser?.user_id) {
+                      localStorage.removeItem(`preAssessmentSkipped_${currentUser.user_id}`)
+                      localStorage.removeItem(`preAssessmentSkippedDate_${currentUser.user_id}`)
+                      setHasSkippedPreAssessment(false)
+                      toast({
+                        title: "Preference Updated",
+                        description: "You can now access tutor matching. We recommend taking the pre-assessment for personalized recommendations.",
+                      })
+                    }
+                  }}
+                >
+                  Continue Without Assessment
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Recommendations Info */}
+          {loadingResults ? (
         <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
           <div className="flex items-center space-x-3">
             <Loader2 className="w-5 h-5 text-yellow-500 animate-spin" />
@@ -697,7 +766,7 @@ export default function TutorMatching() {
             <div>
               <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">Personalized Tutor Recommendations</h3>
               <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                Based on your pre-assessment results (average score: {avgLowScore}%), we recommend tutors for the following subjects. 
+                Based on your pre-assessment results (average: {avgLowScore}%), we recommend tutors for the following subjects. 
                 Recommended tutors are highlighted with a green badge and appear first, sorted by their ratings (5 stars to lowest).
               </p>
               <div className="mt-2 flex flex-wrap gap-1">
@@ -807,6 +876,8 @@ export default function TutorMatching() {
             ))
         )}
       </div>
+        </>
+      )}
 
       {/* Booking Modal */}
       <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>

@@ -96,6 +96,33 @@ export default function PreAssessmentRequired({
     setShowStartDialog(true)
   }
 
+  const handleSkipPreAssessment = () => {
+    if (!currentUser) return
+    
+    // Store skip status in localStorage
+    localStorage.setItem(`preAssessmentSkipped_${currentUser.user_id}`, 'true')
+    localStorage.setItem(`preAssessmentSkippedDate_${currentUser.user_id}`, new Date().toISOString())
+    
+    // Trigger an event to notify other components
+    window.dispatchEvent(new CustomEvent('preAssessmentSkipped', { 
+      detail: { userId: currentUser.user_id } 
+    }))
+    
+    // Show toast notification
+    toast({
+      title: "Pre-Assessment Skipped",
+      description: "Redirecting to dashboard. Tutor matching will not be available until you complete the assessment.",
+    })
+    
+    // Redirect to dashboard immediately
+    router.push('/dashboard')
+    
+    // Call the callback after a slight delay to ensure router navigation starts
+    setTimeout(() => {
+      onPreAssessmentComplete()
+    }, 100)
+  }
+
   const handleConfirmStart = async () => {
     if (!selectedAssessment) return
 
@@ -429,6 +456,19 @@ export default function PreAssessmentRequired({
                         Start Assessment
                       </>
                     )}
+                  </Button>
+                  
+                  {/* Skip Button */}
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleSkipPreAssessment()
+                    }}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full mt-2 text-amber-700 hover:text-amber-800 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/30"
+                  >
+                    Skip Pre-Assessment
                   </Button>
                 </div>
               </CardContent>
