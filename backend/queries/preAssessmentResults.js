@@ -115,8 +115,8 @@ const getResultsByUserId = async (pool, userId) => {
     
     const [rows] = await pool.query(query, [userId]);
     
-    // Parse subjects_covered from GROUP_CONCAT to JSON array
-    rows.forEach(row => {
+    // Parse subjects_covered from GROUP_CONCAT to JSON array and enhance answers
+    for (let row of rows) {
       if (row.subjects_covered) {
         try {
           // Format: "id:name:code||id:name:code"
@@ -136,7 +136,57 @@ const getResultsByUserId = async (pool, userId) => {
       } else {
         row.subjects_covered = [];
       }
-    });
+
+      // Parse and enhance answers with question details
+      if (row.answers) {
+        try {
+          const answers = typeof row.answers === 'string' ? JSON.parse(row.answers) : row.answers;
+          
+          // Get question details for each answer
+          const questionIds = answers.map(answer => answer.question_id).filter(id => id);
+          if (questionIds.length > 0) {
+            const questionQuery = `
+              SELECT 
+                paq.id as question_id,
+                paq.question_text,
+                paq.correct_answer,
+                paq.explanation,
+                paq.subject_id,
+                s.subject_name,
+                paq.options
+              FROM pre_assessment_questions paq
+              LEFT JOIN subjects s ON paq.subject_id = s.subject_id
+              WHERE paq.id IN (${questionIds.map(() => '?').join(',')})
+            `;
+            
+            const [questionRows] = await pool.query(questionQuery, questionIds);
+            const questionMap = {};
+            questionRows.forEach(q => {
+              questionMap[q.question_id] = q;
+            });
+
+            // Enhance answers with question details
+            row.answers = answers.map(answer => {
+              const questionDetails = questionMap[answer.question_id];
+              return {
+                ...answer,
+                question_text: questionDetails?.question_text || 'Question not found',
+                correct_answer: questionDetails?.correct_answer || '',
+                explanation: questionDetails?.explanation || '',
+                subject_id: questionDetails?.subject_id || null,
+                subject_name: questionDetails?.subject_name || '',
+                options: questionDetails?.options || null
+              };
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to parse or enhance answers:', e);
+          row.answers = [];
+        }
+      } else {
+        row.answers = [];
+      }
+    }
     
     console.log(`✅ Found ${rows.length} pre-assessment results for user ${userId}`);
     return rows;

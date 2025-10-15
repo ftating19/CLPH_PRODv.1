@@ -62,7 +62,9 @@ interface PreAssessmentResult {
   correct_answers: number
   total_questions: number
   completed_at: string
-  subjects_covered?: any // Add this property to match backend data
+  subjects_covered?: any
+  answers?: any // User's answers to questions
+  id?: number // Result ID for fetching detailed data
 }
 
 export default function TutorMatching() {
@@ -84,6 +86,7 @@ export default function TutorMatching() {
   const [avgOverallScore, setAvgOverallScore] = useState<string>('70')
   const [loadingResults, setLoadingResults] = useState(false)
   const [hasSkippedPreAssessment, setHasSkippedPreAssessment] = useState(false)
+  const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
   const { currentUser } = useUser()
   const { toast } = useToast()
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
@@ -825,7 +828,13 @@ export default function TutorMatching() {
             <div className="space-y-4">
               {(() => {
                 // Process all results to extract individual subject scores
-                const subjectScores: { [key: string]: { total: number, correct: number, count: number, name: string } } = {};
+                const subjectScores: { [key: string]: { 
+                  total: number, 
+                  correct: number, 
+                  count: number, 
+                  name: string,
+                  incorrectQuestions: any[]
+                } } = {};
                 
                 preAssessmentResults.forEach((result) => {
                   if (result.subjects_covered) {
@@ -833,6 +842,21 @@ export default function TutorMatching() {
                       const subjects = Array.isArray(result.subjects_covered) 
                         ? result.subjects_covered 
                         : JSON.parse(result.subjects_covered);
+                      
+                      // Parse answers if available
+                      let userAnswers: any[] = [];
+                      if (result.answers) {
+                        try {
+                          userAnswers = typeof result.answers === 'string' 
+                            ? JSON.parse(result.answers) 
+                            : result.answers;
+                          console.log('Parsed user answers:', userAnswers);
+                        } catch (e) {
+                          console.error('Error parsing answers:', e);
+                        }
+                      } else {
+                        console.log('No answers field found in result:', result);
+                      }
                       
                       subjects.forEach((subject: any) => {
                         const subjectId = subject.subject_id || subject.subject_code;
@@ -843,7 +867,8 @@ export default function TutorMatching() {
                             total: 0,
                             correct: 0,
                             count: 0,
-                            name: subjectName
+                            name: subjectName,
+                            incorrectQuestions: []
                           };
                         }
                         
@@ -855,6 +880,22 @@ export default function TutorMatching() {
                         subjectScores[subjectId].total += questionsForThisSubject;
                         subjectScores[subjectId].correct += correctForThisSubject;
                         subjectScores[subjectId].count += 1;
+                        
+                        // Extract incorrect questions for this subject
+                        if (Array.isArray(userAnswers)) {
+                          userAnswers.forEach((answer: any) => {
+                            if (answer.subject_id === subjectId && !answer.is_correct) {
+                              subjectScores[subjectId].incorrectQuestions.push({
+                                question: answer.question_text || answer.question,
+                                userAnswer: answer.user_answer || answer.selected_answer,
+                                correctAnswer: answer.correct_answer,
+                                explanation: answer.explanation
+                              });
+                            }
+                          });
+                        }
+                        
+                        console.log(`Subject ${subjectId} (${subjectName}) - Incorrect questions:`, subjectScores[subjectId].incorrectQuestions.length);
                       });
                     } catch (e) {
                       console.error('Error parsing subjects_covered:', e);
@@ -868,9 +909,16 @@ export default function TutorMatching() {
                   const isLow = percentage < 70;
                   const isGood = percentage >= 70 && percentage < 85;
                   const isExcellent = percentage >= 85;
+                  const isExpanded = expandedSubject === subjectId;
+                  
+                  // Calculate incorrect questions count from the scores
+                  const incorrectCount = data.total - data.correct;
+                  const hasIncorrectQuestions = incorrectCount > 0;
+                  
+                  console.log(`Subject ${subjectId} - Total: ${data.total}, Correct: ${data.correct}, Incorrect: ${incorrectCount}, Has data: ${hasIncorrectQuestions}`);
 
                   return (
-                    <div key={subjectId} className="space-y-2">
+                    <div key={subjectId} className="space-y-2 border rounded-lg p-4 bg-white dark:bg-gray-800">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">{data.name}</span>
@@ -896,6 +944,19 @@ export default function TutorMatching() {
                           {percentage.toFixed(1)}%
                         </span>
                       </div>
+                      
+                      {/* Show incorrect questions button - placed below title */}
+                      {hasIncorrectQuestions && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-xs -mt-1"
+                          onClick={() => setExpandedSubject(isExpanded ? null : subjectId)}
+                        >
+                          {isExpanded ? '▼ Hide' : '▶'} Incorrect Questions ({incorrectCount})
+                        </Button>
+                      )}
+                      
                       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 rounded-full ${
@@ -908,10 +969,56 @@ export default function TutorMatching() {
                           style={{ width: `${Math.min(percentage, 100)}%` }}
                         />
                       </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center justify-start text-xs text-muted-foreground">
                         <span>{data.correct}/{data.total} questions correct</span>
-                        <span>{data.count} assessment{data.count !== 1 ? 's' : ''} taken</span>
                       </div>
+                      
+                      {/* Incorrect questions list */}
+                      {isExpanded && hasIncorrectQuestions && (
+                        <div className="mt-3 space-y-3 border-t pt-3">
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase">Questions You Missed:</h4>
+                          {data.incorrectQuestions.length > 0 ? (
+                            data.incorrectQuestions.map((item, idx) => (
+                              <div key={idx} className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-3 text-sm">
+                                <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                                  {idx + 1}. {item.question}
+                                </p>
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-red-600 font-semibold">Your answer:</span>
+                                    <span className="text-red-700 dark:text-red-400">{item.userAnswer || 'No answer'}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-green-600 font-semibold">Correct answer:</span>
+                                    <span className="text-green-700 dark:text-green-400">{item.correctAnswer}</span>
+                                  </div>
+                                  {item.explanation && (
+                                    <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
+                                      <span className="text-blue-600 font-semibold">Explanation: </span>
+                                      <span className="text-gray-700 dark:text-gray-300">{item.explanation}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            // Show placeholder questions based on calculated incorrect count
+                            Array.from({ length: incorrectCount }, (_, idx) => (
+                              <div key={idx} className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-3 text-sm">
+                                <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">
+                                  {idx + 1}. Question details will be available once the system loads your complete assessment data.
+                                </p>
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-orange-600 font-semibold">Status:</span>
+                                    <span className="text-orange-700 dark:text-orange-400">Incorrect answer recorded</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 });
