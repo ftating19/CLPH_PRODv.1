@@ -351,6 +351,9 @@ export default function Sidebar() {
                       <NavItem href="/pending-flashcards" icon={Layers}>
                         Pending Flashcards
                       </NavItem>
+                      <NavItem href="/pending-post-tests" icon={FileText}>
+                        Pending Post-Tests
+                      </NavItem>
                     </div>
                   </div>
                   <div>

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Award, Plus, Trash2, XCircle, Clock, Target, BookOpen, Send } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
+import { useToast } from "@/hooks/use-toast"
 
 interface PostTestQuestion {
   question_text: string
@@ -42,6 +43,7 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const { currentUser } = useUser()
+  const { toast } = useToast()
 
   // Basic info state
   const [title, setTitle] = useState("")
@@ -167,7 +169,11 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
   // Save post-test
   const savePostTest = async () => {
     if (!validateStep()) {
-      alert('Please fill in all required fields')
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      })
       return
     }
 
@@ -196,29 +202,26 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
       const data = await response.json()
 
       if (data.success) {
-        // Publish the post-test immediately after creation
-        const publishResponse = await fetch(`http://localhost:4000/api/post-tests/${data.postTest.post_test_id}/publish`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tutor_id: currentUser?.user_id
-          })
+        toast({
+          title: "Success",
+          description: "Post-test submitted for faculty approval. You'll be notified once it's reviewed.",
+          duration: 4000,
         })
-
-        const publishData = await publishResponse.json()
-
-        if (publishData.success) {
-          alert('Post-test created and published successfully! The student can now take the test.')
-          onClose()
-        } else {
-          alert('Post-test created but failed to publish: ' + publishData.error)
-        }
+        onClose()
       } else {
-        alert('Error creating post-test: ' + data.error)
+        toast({
+          title: "Error",
+          description: data.error || "Failed to create post-test",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error('Error saving post-test:', error)
-      alert('Error creating post-test')
+      toast({
+        title: "Error",
+        description: "An error occurred while creating the post-test",
+        variant: "destructive",
+      })
     }
     setSaving(false)
   }

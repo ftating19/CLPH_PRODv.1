@@ -190,6 +190,26 @@ const {
   deletePostTestResult,
   getPostTestStatistics
 } = require('../queries/postTestResults')
+const {
+  getAllPendingPostTests,
+  getPendingPostTestById,
+  createPendingPostTest,
+  updatePendingPostTestStatus,
+  updatePendingPostTestQuestionCount,
+  deletePendingPostTest,
+  getPendingPostTestsByStatus,
+  getPendingPostTestsBySubject,
+  transferToPostTests
+} = require('../queries/pendingPostTests')
+const {
+  createPendingPostTestQuestion,
+  createPendingPostTestQuestions,
+  getQuestionsByPendingPostTestId,
+  getPendingPostTestQuestionById,
+  updatePendingPostTestQuestion,
+  deletePendingPostTestQuestion,
+  deleteQuestionsByPendingPostTestId
+} = require('../queries/pendingPostTestQuestions')
 
 const multer = require('multer')
 const path = require('path')
@@ -3508,6 +3528,240 @@ app.get('/api/pending-quizzes/user/:userId', async (req, res) => {
 
 // ===== PENDING FLASHCARDS API ENDPOINTS =====
 
+// ===== PENDING POST-TESTS API ENDPOINTS =====
+
+// Get all pending post-tests
+app.get('/api/pending-post-tests', async (req, res) => {
+  try {
+    console.log('Fetching all pending post-tests');
+    const pool = await db.getPool();
+    const postTests = await getAllPendingPostTests(pool);
+    
+    console.log(`✅ Found ${postTests.length} pending post-tests`);
+    
+    res.json({
+      success: true,
+      postTests: postTests,
+      total: postTests.length
+    });
+  } catch (err) {
+    console.error('Error fetching pending post-tests:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending post-test by ID
+app.get('/api/pending-post-tests/:id', async (req, res) => {
+  try {
+    const pendingPostTestId = parseInt(req.params.id);
+    console.log(`Fetching pending post-test with ID: ${pendingPostTestId}`);
+    
+    const pool = await db.getPool();
+    const postTest = await getPendingPostTestById(pool, pendingPostTestId);
+    
+    if (!postTest) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending post-test not found' 
+      });
+    }
+    
+    // Get questions for this pending post-test
+    const questions = await getQuestionsByPendingPostTestId(pool, pendingPostTestId);
+    
+    console.log(`✅ Found pending post-test ${pendingPostTestId} with ${questions.length} questions`);
+    
+    res.json({
+      success: true,
+      postTest: {
+        ...postTest,
+        questions: questions
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching pending post-test:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending post-tests by status
+app.get('/api/pending-post-tests/status/:status', async (req, res) => {
+  try {
+    const status = req.params.status;
+    console.log(`Fetching pending post-tests with status: ${status}`);
+    
+    const pool = await db.getPool();
+    const postTests = await getPendingPostTestsByStatus(pool, status);
+    
+    console.log(`✅ Found ${postTests.length} post-tests with status ${status}`);
+    
+    res.json({
+      success: true,
+      postTests: postTests,
+      total: postTests.length,
+      status: status
+    });
+  } catch (err) {
+    console.error('Error fetching pending post-tests by status:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get pending post-tests by subject (for faculty)
+app.get('/api/pending-post-tests/subject/:subjectId', async (req, res) => {
+  try {
+    const subjectId = parseInt(req.params.subjectId);
+    console.log(`Fetching pending post-tests for subject: ${subjectId}`);
+    
+    const pool = await db.getPool();
+    const postTests = await getPendingPostTestsBySubject(pool, subjectId);
+    
+    console.log(`✅ Found ${postTests.length} pending post-tests for subject ${subjectId}`);
+    
+    res.json({
+      success: true,
+      postTests: postTests,
+      total: postTests.length
+    });
+  } catch (err) {
+    console.error('Error fetching pending post-tests by subject:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Approve pending post-test
+app.put('/api/pending-post-tests/:id/approve', async (req, res) => {
+  try {
+    const pendingPostTestId = parseInt(req.params.id);
+    const { approved_by } = req.body;
+    
+    console.log(`Approving pending post-test ID: ${pendingPostTestId}`);
+    
+    const pool = await db.getPool();
+    
+    // Get pending post-test details
+    const pendingPostTest = await getPendingPostTestById(pool, pendingPostTestId);
+    
+    if (!pendingPostTest) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending post-test not found' 
+      });
+    }
+    
+    // Update status to approved
+    await updatePendingPostTestStatus(pool, pendingPostTestId, 'approved', approved_by, null);
+    
+    // Transfer to post_tests table
+    const newPostTest = await transferToPostTests(pool, pendingPostTest);
+    
+    // Delete from pending_post_tests (cascade will delete questions)
+    await deletePendingPostTest(pool, pendingPostTestId);
+    
+    console.log(`✅ Post-test approved and transferred: ${newPostTest.post_test_id}`);
+    
+    res.json({
+      success: true,
+      message: 'Post-test approved successfully',
+      postTest: newPostTest
+    });
+  } catch (err) {
+    console.error('Error approving post-test:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Reject pending post-test
+app.put('/api/pending-post-tests/:id/reject', async (req, res) => {
+  try {
+    const pendingPostTestId = parseInt(req.params.id);
+    const { rejected_by, comment } = req.body;
+    
+    // Validate that comment is provided
+    if (!comment || comment.trim() === '') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Rejection comment is required' 
+      });
+    }
+    
+    console.log(`Rejecting pending post-test ID: ${pendingPostTestId} with comment`);
+    
+    const pool = await db.getPool();
+    
+    // Update status to rejected with comment
+    const updateSuccess = await updatePendingPostTestStatus(pool, pendingPostTestId, 'rejected', rejected_by, comment);
+    
+    if (!updateSuccess) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending post-test not found' 
+      });
+    }
+    
+    console.log(`✅ Post-test rejected: ${pendingPostTestId}`);
+    
+    res.json({
+      success: true,
+      message: 'Post-test rejected successfully'
+    });
+  } catch (err) {
+    console.error('Error rejecting post-test:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete pending post-test
+app.delete('/api/pending-post-tests/:id', async (req, res) => {
+  try {
+    const pendingPostTestId = parseInt(req.params.id);
+    console.log(`Deleting pending post-test with ID: ${pendingPostTestId}`);
+    
+    const pool = await db.getPool();
+    const deleteSuccess = await deletePendingPostTest(pool, pendingPostTestId);
+    
+    if (!deleteSuccess) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pending post-test not found' 
+      });
+    }
+    
+    console.log(`✅ Pending post-test deleted: ${pendingPostTestId}`);
+    
+    res.json({
+      success: true,
+      message: 'Pending post-test deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting pending post-test:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ===== PENDING FLASHCARDS API ENDPOINTS =====
+
 // Get all pending flashcards
 app.get('/api/pending-flashcards', async (req, res) => {
   try {
@@ -5941,7 +6195,7 @@ app.post('/api/post-tests', async (req, res) => {
   try {
     const { booking_id, tutor_id, student_id, title, description, subject_id, subject_name, time_limit, passing_score, questions } = req.body;
     
-    console.log('Creating new post-test:', req.body);
+    console.log('Creating new pending post-test:', req.body);
     
     // Validate required fields
     if (!booking_id || !tutor_id || !student_id || !title) {
@@ -5968,17 +6222,20 @@ app.post('/api/post-tests', async (req, res) => {
       return res.status(403).json({ success: false, error: 'Only the session tutor can create post-tests' });
     }
     
-    // Check if post-test already exists for this booking
+    // Check if post-test already exists for this booking (check both pending and approved)
     const existingPostTests = await getAllPostTests(pool, { booking_id });
-    if (existingPostTests.length > 0) {
+    const existingPendingPostTests = await getAllPendingPostTests(pool);
+    const hasPendingForBooking = existingPendingPostTests.some(pt => pt.booking_id === booking_id);
+    
+    if (existingPostTests.length > 0 || hasPendingForBooking) {
       return res.status(409).json({ 
         success: false, 
-        error: 'A post-test already exists for this session' 
+        error: 'A post-test already exists or is pending approval for this session' 
       });
     }
     
-    // Create the post-test
-    const postTest = await createPostTest(pool, {
+    // Create the pending post-test (requires faculty approval)
+    const pendingPostTest = await createPendingPostTest(pool, {
       booking_id: parseInt(booking_id),
       tutor_id: parseInt(tutor_id),
       student_id: parseInt(student_id),
@@ -5992,19 +6249,22 @@ app.post('/api/post-tests', async (req, res) => {
     
     // Add questions if provided
     if (questions && Array.isArray(questions) && questions.length > 0) {
-      const createdQuestions = await createPostTestQuestions(pool, postTest.post_test_id, questions);
-      console.log(`✅ Created ${createdQuestions.length} questions for post-test ${postTest.post_test_id}`);
+      const createdQuestions = await createPendingPostTestQuestions(pool, pendingPostTest.pending_post_test_id, questions);
+      console.log(`✅ Created ${createdQuestions.length} questions for pending post-test ${pendingPostTest.pending_post_test_id}`);
+      
+      // Update question count
+      await updatePendingPostTestQuestionCount(pool, pendingPostTest.pending_post_test_id);
     }
     
-    console.log(`✅ Post-test created with ID: ${postTest.post_test_id}`);
+    console.log(`✅ Pending post-test created with ID: ${pendingPostTest.pending_post_test_id}`);
     
     res.status(201).json({
       success: true,
-      message: 'Post-test created successfully',
-      postTest: postTest
+      message: 'Post-test submitted for faculty review',
+      postTest: pendingPostTest
     });
   } catch (err) {
-    console.error('Error creating post-test:', err);
+    console.error('Error creating pending post-test:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
