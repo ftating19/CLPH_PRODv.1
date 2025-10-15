@@ -1400,19 +1400,27 @@ export default function TutorMatching() {
               {/* Student Comments Section */}
               {!tutorStats.loading && tutorStats.comments.length > 0 && (
                 <div className="border-t pt-6">
-                  <Label className="text-sm font-medium text-muted-foreground">Student Feedback (5-Star Reviews)</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Student Feedback (All Reviews)</Label>
                   <div className="mt-4 space-y-4 max-h-96 overflow-y-auto">
                     {tutorStats.comments
-                      .filter(comment => comment.rating === 5) // Only show 5-star ratings
+                      .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()) // Sort by most recent first
                       .map((comment, index) => (
-                        <div key={index} className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                        <div key={index} className={`border rounded-lg p-4 ${
+                          comment.rating === 5 ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' :
+                          comment.rating >= 4 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' :
+                          comment.rating >= 3 ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800' :
+                          'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+                        }`}>
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center space-x-2">
                               <span className="font-medium text-sm">{comment.student_name}</span>
                               <div className="flex items-center">
                                 {Array.from({ length: 5 }).map((_, i) => (
-                                  <Star key={i} className="w-4 h-4 text-yellow-500 fill-current" />
+                                  <Star key={i} className={`w-4 h-4 ${
+                                    i < comment.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'
+                                  }`} />
                                 ))}
+                                <span className="ml-1 text-xs text-muted-foreground">({comment.rating}/5)</span>
                               </div>
                             </div>
                             <span className="text-xs text-muted-foreground">
@@ -1431,11 +1439,6 @@ export default function TutorMatching() {
                           )}
                         </div>
                       ))}
-                    {tutorStats.comments.filter(comment => comment.rating === 5).length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <p className="text-sm">No 5-star reviews available yet.</p>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
