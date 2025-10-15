@@ -62,6 +62,7 @@ interface PreAssessmentResult {
   correct_answers: number
   total_questions: number
   completed_at: string
+  subjects_covered?: any // Add this property to match backend data
 }
 
 export default function TutorMatching() {
@@ -80,6 +81,7 @@ export default function TutorMatching() {
   const [preAssessmentResults, setPreAssessmentResults] = useState<PreAssessmentResult[]>([])
   const [recommendedSubjects, setRecommendedSubjects] = useState<number[]>([])
   const [avgLowScore, setAvgLowScore] = useState<string>('70')
+  const [avgOverallScore, setAvgOverallScore] = useState<string>('70')
   const [loadingResults, setLoadingResults] = useState(false)
   const [hasSkippedPreAssessment, setHasSkippedPreAssessment] = useState(false)
   const { currentUser } = useUser()
@@ -152,8 +154,12 @@ export default function TutorMatching() {
         // Determine subjects where student needs help (scored below 70%)
         const needHelpSubjects: number[] = []
         const lowScores: number[] = []
+        const allScores: number[] = []
         
         data.results.forEach((result: any) => {
+          // Track all scores for overall average
+          allScores.push(result.percentage)
+          
           if (result.percentage < 70 && result.subjects_covered) {
             lowScores.push(result.percentage)
             try {
@@ -175,8 +181,11 @@ export default function TutorMatching() {
         
         // Calculate the average of low scores for display
         const calculatedAvgScore = lowScores.length > 0 ? (lowScores.reduce((a, b) => a + b, 0) / lowScores.length).toFixed(1) : '70'
+        // Calculate overall average score
+        const calculatedOverallAvg = allScores.length > 0 ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1) : '70'
         setRecommendedSubjects(needHelpSubjects)
         setAvgLowScore(calculatedAvgScore)
+        setAvgOverallScore(calculatedOverallAvg)
         
         console.log('Pre-assessment results:', data.results)
         console.log('Recommended subjects (scored < 70%):', needHelpSubjects)
@@ -793,12 +802,124 @@ export default function TutorMatching() {
             <div>
               <h3 className="text-sm font-medium text-green-800 dark:text-green-200">Great Job!</h3>
               <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                You scored 70% or above on all your pre-assessments. All tutors are available to help you excel even further!
+                You scored an average of {avgOverallScore}% on your pre-assessments. All tutors are available to help you excel even further!
               </p>
             </div>
           </div>
         </div>
       ) : null}
+
+      {/* Subject Scores Visualization */}
+      {preAssessmentResults.length > 0 && !loadingResults && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5" />
+              Your Pre-Assessment Performance by Subject
+            </CardTitle>
+            <CardDescription>
+              Detailed breakdown of your scores for each subject
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {(() => {
+                // Process all results to extract individual subject scores
+                const subjectScores: { [key: string]: { total: number, correct: number, count: number, name: string } } = {};
+                
+                preAssessmentResults.forEach((result) => {
+                  if (result.subjects_covered) {
+                    try {
+                      const subjects = Array.isArray(result.subjects_covered) 
+                        ? result.subjects_covered 
+                        : JSON.parse(result.subjects_covered);
+                      
+                      subjects.forEach((subject: any) => {
+                        const subjectId = subject.subject_id || subject.subject_code;
+                        const subjectName = subject.subject_name || subject.subject_code || 'Unknown Subject';
+                        
+                        if (!subjectScores[subjectId]) {
+                          subjectScores[subjectId] = {
+                            total: 0,
+                            correct: 0,
+                            count: 0,
+                            name: subjectName
+                          };
+                        }
+                        
+                        // Calculate based on the overall result percentage
+                        // Distribute the questions proportionally
+                        const questionsForThisSubject = Math.floor(result.total_questions / subjects.length);
+                        const correctForThisSubject = Math.floor((result.correct_answers / subjects.length));
+                        
+                        subjectScores[subjectId].total += questionsForThisSubject;
+                        subjectScores[subjectId].correct += correctForThisSubject;
+                        subjectScores[subjectId].count += 1;
+                      });
+                    } catch (e) {
+                      console.error('Error parsing subjects_covered:', e);
+                    }
+                  }
+                });
+
+                // Convert to array and calculate percentages
+                return Object.entries(subjectScores).map(([subjectId, data]) => {
+                  const percentage = data.total > 0 ? (data.correct / data.total) * 100 : 0;
+                  const isLow = percentage < 70;
+                  const isGood = percentage >= 70 && percentage < 85;
+                  const isExcellent = percentage >= 85;
+
+                  return (
+                    <div key={subjectId} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{data.name}</span>
+                          {isLow && (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300">
+                              Needs Improvement
+                            </Badge>
+                          )}
+                          {isGood && (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300">
+                              Good
+                            </Badge>
+                          )}
+                          {isExcellent && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300">
+                              Excellent
+                            </Badge>
+                          )}
+                        </div>
+                        <span className={`text-sm font-bold ${
+                          isLow ? 'text-red-600' : isGood ? 'text-blue-600' : 'text-green-600'
+                        }`}>
+                          {percentage.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-500 rounded-full ${
+                            isLow 
+                              ? 'bg-gradient-to-r from-red-400 to-red-600' 
+                              : isGood 
+                              ? 'bg-gradient-to-r from-blue-400 to-blue-600' 
+                              : 'bg-gradient-to-r from-green-400 to-green-600'
+                          }`}
+                          style={{ width: `${Math.min(percentage, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{data.correct}/{data.total} questions correct</span>
+                        <span>{data.count} assessment{data.count !== 1 ? 's' : ''} taken</span>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
