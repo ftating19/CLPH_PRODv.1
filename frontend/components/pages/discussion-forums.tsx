@@ -58,10 +58,21 @@ export default function DiscussionForums() {
   const [deletingForum, setDeletingForum] = useState<any | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   
+  // Program options for filtering
+  const programOptionsRaw = [
+    "Bachelor of Science in Computer Science",
+    "Bachelor of Science in Information Technology",
+    "Bachelor of Science in Information Systems",
+    "Bachelor of Library and Information Science",
+    "Bachelor of Science in Entertainment and Multimedia Computing"
+  ];
+  const programOptions = Array.from(new Set(programOptionsRaw));
+  
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects();
   const [selectedForumId, setSelectedForumId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("all");
+  const [selectedProgramFilter, setSelectedProgramFilter] = useState("all");
   const [forums, setForums] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [loadingForums, setLoadingForums] = useState(true);
@@ -278,17 +289,72 @@ export default function DiscussionForums() {
         </div>
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
-          <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={subjectsLoading || !!subjectsError}>
+          {/* Program Filter */}
+          <Select 
+            value={selectedProgramFilter} 
+            onValueChange={(value) => {
+              setSelectedProgramFilter(value)
+              setSelectedSubject('all') // Reset subject when program changes
+            }}
+          >
             <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by program" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Programs</SelectItem>
+              {programOptions.map((program) => (
+                <SelectItem key={program} value={program}>
+                  {program}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Subject Filter */}
+          <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={subjectsLoading || !!subjectsError}>
+            <SelectTrigger className="w-[280px]">
               <SelectValue placeholder={subjectsLoading ? "Loading..." : subjectsError ? "Error loading subjects" : "Filter by subject"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Subjects</SelectItem>
-              {!subjectsLoading && !subjectsError && subjects.map((subject) => (
-                <SelectItem key={subject.subject_id} value={String(subject.subject_id)}>
-                  {subject.subject_name}
-                </SelectItem>
-              ))}
+              <SelectItem value="all">
+                All Subjects
+                {selectedProgramFilter !== 'all' && (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    ({subjects.filter((subject) => {
+                      if (Array.isArray(subject.program)) {
+                        return subject.program.includes(selectedProgramFilter)
+                      } else if (typeof subject.program === 'string') {
+                        try {
+                          const programArray = JSON.parse(subject.program)
+                          return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                        } catch {
+                          return subject.program === selectedProgramFilter
+                        }
+                      }
+                      return false
+                    }).length} available)
+                  </span>
+                )}
+              </SelectItem>
+              {!subjectsLoading && !subjectsError && subjects
+                .filter((subject) => {
+                  if (selectedProgramFilter === 'all') return true
+                  if (Array.isArray(subject.program)) {
+                    return subject.program.includes(selectedProgramFilter)
+                  } else if (typeof subject.program === 'string') {
+                    try {
+                      const programArray = JSON.parse(subject.program)
+                      return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                    } catch {
+                      return subject.program === selectedProgramFilter
+                    }
+                  }
+                  return false
+                })
+                .map((subject) => (
+                  <SelectItem key={subject.subject_id} value={String(subject.subject_id)}>
+                    {subject.subject_name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>

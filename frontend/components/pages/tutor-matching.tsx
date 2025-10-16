@@ -796,29 +796,71 @@ export default function TutorMatching() {
         </div>
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
-          {/* Program Filter - Only show for admins */}
-          {userRole === "admin" && (
-            <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filter by program" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Programs</SelectItem>
-                {programs.map((program) => (
-                  <SelectItem key={program} value={program}>
-                    {program}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
+          {/* Program Filter - Available for all users */}
+          <Select 
+            value={selectedProgramFilter} 
+            onValueChange={(value) => {
+              setSelectedProgramFilter(value)
+              // Reset subject filter when program changes
+              setSelectedSubjectFilter('all')
+            }}
+          >
             <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by program" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Programs</SelectItem>
+              {programs.map((program) => (
+                <SelectItem key={program} value={program}>
+                  {program}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Subject Filter - Shows subjects for selected program */}
+          <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
+            <SelectTrigger className="w-[280px]">
               <SelectValue placeholder="Filter by subject" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Subjects</SelectItem>
+              <SelectItem value="all">
+                All Subjects
+                {selectedProgramFilter !== 'all' && (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    ({subjects.filter((subject) => {
+                      if (Array.isArray(subject.program)) {
+                        return subject.program.includes(selectedProgramFilter)
+                      } else if (typeof subject.program === 'string') {
+                        try {
+                          const programArray = JSON.parse(subject.program)
+                          return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                        } catch {
+                          return subject.program === selectedProgramFilter
+                        }
+                      }
+                      return false
+                    }).length} available)
+                  </span>
+                )}
+              </SelectItem>
               {subjects
+                .filter((subject) => {
+                  // Filter subjects by selected program
+                  if (selectedProgramFilter === 'all') return true
+                  
+                  // Check if subject's program matches selected program
+                  if (Array.isArray(subject.program)) {
+                    return subject.program.includes(selectedProgramFilter)
+                  } else if (typeof subject.program === 'string') {
+                    try {
+                      const programArray = JSON.parse(subject.program)
+                      return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                    } catch {
+                      return subject.program === selectedProgramFilter
+                    }
+                  }
+                  return false
+                })
                 .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
                 .map((subject) => (
                   <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
@@ -1283,20 +1325,21 @@ export default function TutorMatching() {
               // Subject filter
               const subjectMatch = selectedSubjectFilter === 'all' || tutor.subject_id.toString() === selectedSubjectFilter;
               
-              // Program filter - for students, automatically filter by their program
+              // Program filter - applies to all users
               let programMatch = true
-              if (userRole === "student") {
-                // For students, only show tutors that exactly match their program
+              if (selectedProgramFilter !== "all") {
+                // Apply the selected program filter from the dropdown
+                programMatch = tutor.program === selectedProgramFilter
+              } else if (userRole === "student") {
+                // For students with "all" selected, still only show their program
                 programMatch = !!(tutor.program && tutor.program === userProgram)
                 
                 // Debug logging for program filtering
                 if (process.env.NODE_ENV === 'development') {
-                  console.log(`Tutor "${tutor.name}": program="${tutor.program}", userProgram="${userProgram}", matches=${programMatch}`)
+                  console.log(`Student view - Tutor "${tutor.name}": program="${tutor.program}", userProgram="${userProgram}", matches=${programMatch}`)
                 }
-              } else if (userRole === "admin" && selectedProgramFilter !== "all") {
-                // For admins, apply the selected program filter
-                programMatch = tutor.program === selectedProgramFilter
               }
+              // For admins/tutors with "all" selected, show all programs
               
               // Search filter
               const term = searchTerm.trim().toLowerCase();

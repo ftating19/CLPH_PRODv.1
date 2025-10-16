@@ -80,10 +80,21 @@ export default function PendingPostTests() {
   const { toast } = useToast()
   const { subjects, loading: subjectsLoading } = useSubjects()
   
+  // Program options for filtering
+  const programOptionsRaw = [
+    "Bachelor of Science in Computer Science",
+    "Bachelor of Science in Information Technology",
+    "Bachelor of Science in Information Systems",
+    "Bachelor of Library and Information Science",
+    "Bachelor of Science in Entertainment and Multimedia Computing"
+  ];
+  const programOptions = Array.from(new Set(programOptionsRaw));
+  
   const [postTests, setPostTests] = useState<PendingPostTest[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all")
+  const [selectedProgramFilter, setSelectedProgramFilter] = useState("all")
   const [activeTab, setActiveTab] = useState<string>("pending")
   
   // Dialog states
@@ -391,17 +402,53 @@ export default function PendingPostTests() {
                   </div>
                 </div>
                 <div className="w-full md:w-64">
+                  <Select 
+                    value={selectedProgramFilter} 
+                    onValueChange={(value) => {
+                      setSelectedProgramFilter(value)
+                      setSelectedSubjectFilter('all') // Reset subject when program changes
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by program" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Programs</SelectItem>
+                      {programOptions.map((program) => (
+                        <SelectItem key={program} value={program}>
+                          {program}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-full md:w-64">
                   <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
                     <SelectTrigger>
                       <SelectValue placeholder="Filter by subject" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Subjects</SelectItem>
-                      {subjects.map((subject) => (
-                        <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                          {subject.subject_code} - {subject.subject_name}
-                        </SelectItem>
-                      ))}
+                      {subjects
+                        .filter((subject) => {
+                          if (selectedProgramFilter === 'all') return true
+                          if (Array.isArray(subject.program)) {
+                            return subject.program.includes(selectedProgramFilter)
+                          } else if (typeof subject.program === 'string') {
+                            try {
+                              const programArray = JSON.parse(subject.program)
+                              return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                            } catch {
+                              return subject.program === selectedProgramFilter
+                            }
+                          }
+                          return false
+                        })
+                        .map((subject) => (
+                          <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                            {subject.subject_code} - {subject.subject_name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>

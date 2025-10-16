@@ -235,33 +235,72 @@ export default function LearningResources() {
         
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
-          {/* Program Filter - Only show for admins */}
-          {userRole === "admin" && (
-            <Select value={selectedProgramFilter} onValueChange={setSelectedProgramFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filter by program" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Programs</SelectItem>
-                {programOptions.map((program) => (
-                  <SelectItem key={program} value={program}>
-                    {program}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={subjectsLoading || !!subjectsError}>
+          {/* Program Filter - Available for all users */}
+          <Select 
+            value={selectedProgramFilter} 
+            onValueChange={(value) => {
+              setSelectedProgramFilter(value)
+              setSelectedSubject('all') // Reset subject when program changes
+            }}
+          >
             <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by program" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Programs</SelectItem>
+              {programOptions.map((program) => (
+                <SelectItem key={program} value={program}>
+                  {program}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Subject Filter - Shows subjects for selected program */}
+          <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={subjectsLoading || !!subjectsError}>
+            <SelectTrigger className="w-[280px]">
               <SelectValue placeholder={subjectsLoading ? "Loading..." : subjectsError ? "Error loading subjects" : "Filter by subject"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Subjects</SelectItem>
-              {!subjectsLoading && !subjectsError && subjects.map((subject) => (
-                <SelectItem key={subject.subject_id} value={subject.subject_name}>
-                  {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
-                </SelectItem>
-              ))}
+              <SelectItem value="all">
+                All Subjects
+                {selectedProgramFilter !== 'all' && (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    ({subjects.filter((subject) => {
+                      if (Array.isArray(subject.program)) {
+                        return subject.program.includes(selectedProgramFilter)
+                      } else if (typeof subject.program === 'string') {
+                        try {
+                          const programArray = JSON.parse(subject.program)
+                          return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                        } catch {
+                          return subject.program === selectedProgramFilter
+                        }
+                      }
+                      return false
+                    }).length} available)
+                  </span>
+                )}
+              </SelectItem>
+              {!subjectsLoading && !subjectsError && subjects
+                .filter((subject) => {
+                  if (selectedProgramFilter === 'all') return true
+                  if (Array.isArray(subject.program)) {
+                    return subject.program.includes(selectedProgramFilter)
+                  } else if (typeof subject.program === 'string') {
+                    try {
+                      const programArray = JSON.parse(subject.program)
+                      return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                    } catch {
+                      return subject.program === selectedProgramFilter
+                    }
+                  }
+                  return false
+                })
+                .map((subject) => (
+                  <SelectItem key={subject.subject_id} value={subject.subject_name}>
+                    {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
