@@ -86,19 +86,39 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
       })
       .catch(() => setRecentForums([]));
 
-    // Fetch recommended tutors (5 stars)
+    // Fetch recommended tutors (5 stars or high ratings)
+    console.log('🔍 Dashboard: Fetching tutors...');
     fetch("http://localhost:4000/api/tutors")
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data.tutors)) {
-          // Filter tutors with ratings === 5
-          const recommended = data.tutors.filter((t: any) => Number(t.ratings) === 5).slice(0, 5);
+        console.log('👨‍🏫 Dashboard: Tutors data received:', data);
+        
+        if (data.success && Array.isArray(data.tutors)) {
+          console.log('👨‍🏫 Dashboard: Total tutors:', data.tutors.length);
+          console.log('👨‍🏫 Dashboard: Sample tutor:', data.tutors[0]);
+          
+          // Filter tutors with ratings >= 4 (since 5-star might be too restrictive)
+          // and sort by ratings descending
+          const recommended = data.tutors
+            .filter((t: any) => {
+              const rating = Number(t.ratings);
+              console.log(`Tutor ${t.name}: rating = ${rating}, type = ${typeof t.ratings}`);
+              return !isNaN(rating) && rating >= 4;
+            })
+            .sort((a: any, b: any) => Number(b.ratings) - Number(a.ratings))
+            .slice(0, 5);
+            
+          console.log('👨‍🏫 Dashboard: Recommended tutors:', recommended);
           setRecommendedTutors(recommended);
         } else {
+          console.log('👨‍🏫 Dashboard: No tutors data or invalid format');
           setRecommendedTutors([]);
         }
       })
-      .catch(() => setRecommendedTutors([]));
+      .catch((error) => {
+        console.error('❌ Dashboard: Error fetching tutors:', error);
+        setRecommendedTutors([]);
+      });
   }, []);
 
   // Fetch pre-assessment data
@@ -387,14 +407,43 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
             ) : (
               <ul className="space-y-3">
                 {recommendedTutors.map((tutor, idx) => (
-                  <li key={tutor.tutor_id ? `tutor-${tutor.tutor_id}` : `tutor-idx-${idx}`} className="border-b pb-2 flex items-center gap-2">
-                    <span className="font-semibold text-green-700">{tutor.name || tutor.tutor_name}</span>
-                    <span className="text-xs text-muted-foreground">{tutor.specialization || tutor.subjects}</span>
-                    <span className="flex items-center gap-1 ml-auto">
-                      {[...Array(5)].map((_, i) => (
-                        <span key={`star-${tutor.tutor_id || idx}-${i}`} className="text-yellow-500">★</span>
-                      ))}
-                    </span>
+                  <li key={tutor.user_id || tutor.application_id || idx} className="border-b pb-3 last:border-0">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="font-semibold text-green-700 dark:text-green-400">
+                          {tutor.name}
+                        </div>
+                        {tutor.subject_name && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            📚 {tutor.subject_name}
+                          </div>
+                        )}
+                        {tutor.specialties && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            🎯 {tutor.specialties}
+                          </div>
+                        )}
+                        {tutor.program && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            🎓 {tutor.program}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end ml-3">
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          <span className="font-semibold text-sm">{Number(tutor.ratings).toFixed(1)}</span>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={() => window.location.href = '/tutor-matching'}
+                        >
+                          Book
+                        </Button>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
