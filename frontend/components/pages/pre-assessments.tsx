@@ -826,11 +826,68 @@ export default function PreAssessments() {
   const handleSubmitStudentAssessment = async () => {
     setIsSubmitting(true)
     try {
+      // Calculate score
+      let correctAnswers = 0
+      let totalScore = 0
+      
+      // Format answers with detailed information including is_correct and subject_id
+      const formattedAnswers = answers.map(answer => {
+        const question = questions.find(q => q.id === answer.questionId)
+        if (!question) return null
+        
+        const correctAnswer = Array.isArray(question.correctAnswer) 
+          ? question.correctAnswer[0] 
+          : question.correctAnswer
+        
+        const isCorrect = answer.answer && 
+          answer.answer.toLowerCase().trim() === correctAnswer.toLowerCase().trim()
+        
+        if (isCorrect) {
+          correctAnswers++
+          totalScore += question.points || 1
+        }
+        
+        return {
+          question_id: answer.questionId,
+          question_text: question.question,
+          question: question.question,
+          user_answer: answer.answer,
+          selected_answer: answer.answer,
+          correct_answer: correctAnswer,
+          is_correct: isCorrect,
+          subject_id: question.subject_id || null,
+          subject_name: question.subject_name || '',
+          explanation: question.explanation || '',
+          points: question.points || 1
+        }
+      }).filter(Boolean)
+      
+      const totalPoints = questions.reduce((sum, q) => sum + (q.points || 1), 0)
+      const percentage = totalPoints > 0 ? (totalScore / totalPoints) * 100 : 0
+      const timeTaken = timeLeft > 0 
+        ? (selectedPreAssessment!.duration * (selectedPreAssessment!.duration_unit === 'hours' ? 3600 : 60)) - timeLeft 
+        : selectedPreAssessment!.duration * (selectedPreAssessment!.duration_unit === 'hours' ? 3600 : 60)
+
+      console.log('📊 Submitting Pre-Assessment from pre-assessments page:', {
+        totalQuestions: questions.length,
+        correctAnswers: correctAnswers,
+        totalScore: totalScore,
+        totalPoints: totalPoints,
+        percentage: percentage,
+        answersCount: formattedAnswers.length
+      })
+      console.log('📝 Sample formatted answer:', formattedAnswers[0])
+
       const submissionData = {
         pre_assessment_id: selectedPreAssessment!.id,
         user_id: currentUser?.user_id,
-        answers: answers,
-        time_taken: timeLeft > 0 ? (selectedPreAssessment!.duration * (selectedPreAssessment!.duration_unit === 'hours' ? 3600 : 60)) - timeLeft : selectedPreAssessment!.duration * (selectedPreAssessment!.duration_unit === 'hours' ? 3600 : 60)
+        score: totalScore,
+        total_points: totalPoints,
+        correct_answers: correctAnswers,
+        total_questions: questions.length,
+        time_taken_seconds: timeTaken,
+        started_at: new Date(Date.now() - (timeTaken * 1000)).toISOString(),
+        answers: formattedAnswers
       }
 
       const response = await fetch('http://localhost:4000/api/pre-assessment-results', {

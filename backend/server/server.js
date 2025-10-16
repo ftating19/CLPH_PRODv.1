@@ -2802,9 +2802,18 @@ app.get('/api/pre-assessment-results/user/:userId', async (req, res) => {
 
     console.log(`✅ Found ${results.length} pre-assessment results for user ${userId}`);
 
+    // Add no-cache headers to prevent browser caching
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+
     res.json({
       success: true,
-      results: results || []
+      results: results || [],
+      timestamp: Date.now() // Add timestamp to ensure fresh data
     });
   } catch (err) {
     console.error('Error fetching results by user ID:', err);

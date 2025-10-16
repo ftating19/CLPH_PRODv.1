@@ -52,8 +52,10 @@ interface Question {
   options?: string[]
   correct_answer: string
   points: number
+  subject_id?: number
   subject_name?: string
   subject_code?: string
+  explanation?: string
 }
 
 interface PreAssessmentTestModalProps {
@@ -296,6 +298,40 @@ export default function PreAssessmentTestModal({ open, onOpenChange, currentUser
         const timeTakenSeconds = Math.floor((Date.now() - testStartTime.getTime()) / 1000)
         const percentage = totalPoints > 0 ? (totalScore / totalPoints) * 100 : 0
 
+        // Format answers with detailed information
+        const formattedAnswers = questions.map(question => {
+          const userAnswer = answers[question.id] || ''
+          const isCorrect = userAnswer && userAnswer.toLowerCase().trim() === question.correct_answer.toLowerCase().trim()
+          
+          return {
+            question_id: question.id,
+            question_text: question.question,
+            question: question.question,
+            user_answer: userAnswer,
+            selected_answer: userAnswer,
+            correct_answer: question.correct_answer,
+            is_correct: isCorrect,
+            subject_id: question.subject_id || null,
+            subject_name: question.subject_name || '',
+            explanation: question.explanation || '',
+            points: question.points || 1
+          }
+        })
+
+        console.log('📊 Submitting Pre-Assessment Results:', {
+          totalQuestions: questions.length,
+          correctAnswers: correctAnswers,
+          totalScore: totalScore,
+          totalPoints: totalPoints,
+          percentage: percentage,
+          answersCount: formattedAnswers.length,
+          correctInAnswers: formattedAnswers.filter(a => a.is_correct).length,
+          incorrectInAnswers: formattedAnswers.filter(a => !a.is_correct).length
+        })
+        console.log('📝 Sample formatted answers:', formattedAnswers.slice(0, 3))
+        console.log('🔍 Checking first answer has subject_id:', formattedAnswers[0]?.subject_id ? 'YES ✅' : 'NO ❌')
+        console.log('🔍 Checking first answer has is_correct:', formattedAnswers[0]?.hasOwnProperty('is_correct') ? 'YES ✅' : 'NO ❌')
+
         const resultData = {
           user_id: currentUser.user_id,
           pre_assessment_id: selectedAssessment.id,
@@ -305,7 +341,7 @@ export default function PreAssessmentTestModal({ open, onOpenChange, currentUser
           total_questions: questions.length,
           time_taken_seconds: timeTakenSeconds,
           started_at: testStartTime.toISOString(),
-          answers: answers
+          answers: formattedAnswers
         }
 
         const response = await fetch('http://localhost:4000/api/pre-assessment-results', {

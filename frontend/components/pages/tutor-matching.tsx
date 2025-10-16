@@ -82,8 +82,8 @@ export default function TutorMatching() {
   const [searchTerm, setSearchTerm] = useState("");
   const [preAssessmentResults, setPreAssessmentResults] = useState<PreAssessmentResult[]>([])
   const [recommendedSubjects, setRecommendedSubjects] = useState<number[]>([])
-  const [avgLowScore, setAvgLowScore] = useState<string>('70')
-  const [avgOverallScore, setAvgOverallScore] = useState<string>('70')
+  const [avgLowScore, setAvgLowScore] = useState<string>('82.5')
+  const [avgOverallScore, setAvgOverallScore] = useState<string>('82.5')
   const [loadingResults, setLoadingResults] = useState(false)
   const [hasSkippedPreAssessment, setHasSkippedPreAssessment] = useState(false)
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
@@ -156,7 +156,19 @@ export default function TutorMatching() {
     try {
       setLoadingResults(true)
       
-      const response = await fetch(`http://localhost:4000/api/pre-assessment-results/user/${currentUser.user_id}`)
+      // Add cache busting to force fresh data from database
+      const timestamp = Date.now()
+      const response = await fetch(
+        `http://localhost:4000/api/pre-assessment-results/user/${currentUser.user_id}?_t=${timestamp}`,
+        {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
+      )
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -164,10 +176,12 @@ export default function TutorMatching() {
       
       const data = await response.json()
       
+      console.log('🔄 Fetched fresh pre-assessment data from database at', new Date(data.timestamp || timestamp).toLocaleTimeString())
+      
       if (data.success && data.results) {
         setPreAssessmentResults(data.results)
         
-        // Determine subjects where student needs help (scored below 70%)
+        // Determine subjects where student needs help (scored below 82.5%)
         const needHelpSubjects: number[] = []
         const lowScores: number[] = []
         const allScores: number[] = []
@@ -176,7 +190,7 @@ export default function TutorMatching() {
           // Track all scores for overall average
           allScores.push(result.percentage)
           
-          if (result.percentage < 70 && result.subjects_covered) {
+          if (result.percentage < 82.5 && result.subjects_covered) {
             lowScores.push(result.percentage)
             try {
               // subjects_covered is already an array from the backend
@@ -196,15 +210,15 @@ export default function TutorMatching() {
         })
         
         // Calculate the average of low scores for display
-        const calculatedAvgScore = lowScores.length > 0 ? (lowScores.reduce((a, b) => a + b, 0) / lowScores.length).toFixed(1) : '70'
+        const calculatedAvgScore = lowScores.length > 0 ? (lowScores.reduce((a, b) => a + b, 0) / lowScores.length).toFixed(1) : '82.5'
         // Calculate overall average score
-        const calculatedOverallAvg = allScores.length > 0 ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1) : '70'
+        const calculatedOverallAvg = allScores.length > 0 ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1) : '82.5'
         setRecommendedSubjects(needHelpSubjects)
         setAvgLowScore(calculatedAvgScore)
         setAvgOverallScore(calculatedOverallAvg)
         
         console.log('Pre-assessment results:', data.results)
-        console.log('Recommended subjects (scored < 70%):', needHelpSubjects)
+        console.log('Recommended subjects (scored < 82.5%):', needHelpSubjects)
       }
     } catch (err) {
       console.error('Error fetching pre-assessment results:', err)
@@ -930,14 +944,37 @@ export default function TutorMatching() {
                   Detailed breakdown of your scores for each subject
                 </CardDescription>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSubjectPerformance(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Hide Results
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchPreAssessmentResults}
+                  className="text-blue-600 hover:text-blue-700"
+                  disabled={loadingResults}
+                >
+                  {loadingResults ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Refresh Data
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSubjectPerformance(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Hide Results
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -966,7 +1003,14 @@ export default function TutorMatching() {
                           userAnswers = typeof result.answers === 'string' 
                             ? JSON.parse(result.answers) 
                             : result.answers;
-                          console.log('Parsed user answers:', userAnswers);
+                          console.log('📊 Assessment Result Data:', {
+                            totalQuestions: result.total_questions,
+                            correctAnswers: result.correct_answers,
+                            answersArrayLength: userAnswers.length,
+                            percentage: result.percentage
+                          });
+                          console.log('📝 Full user answers array:', userAnswers);
+                          console.log('🎯 Sample answer structure:', userAnswers[0]);
                         } catch (e) {
                           console.error('Error parsing answers:', e);
                         }
@@ -987,31 +1031,77 @@ export default function TutorMatching() {
                             incorrectQuestions: []
                           };
                         }
+                      });
+                      
+                      // Count actual questions per subject from answers
+                      if (Array.isArray(userAnswers) && userAnswers.length > 0) {
+                        console.log('🔍 Processing answers to count per subject...');
+                        console.log('📦 Total answers to process:', userAnswers.length);
                         
-                        // Calculate based on the overall result percentage
-                        // Distribute the questions proportionally
-                        const questionsForThisSubject = Math.floor(result.total_questions / subjects.length);
-                        const correctForThisSubject = Math.floor((result.correct_answers / subjects.length));
+                        // Debug: Show unique subjects in answers
+                        const uniqueSubjects = [...new Set(userAnswers.map(a => `${a.subject_id}:${a.subject_name}`))];
+                        console.log('🎓 Unique subjects in answers:', uniqueSubjects);
                         
-                        subjectScores[subjectId].total += questionsForThisSubject;
-                        subjectScores[subjectId].correct += correctForThisSubject;
-                        subjectScores[subjectId].count += 1;
+                        userAnswers.forEach((answer: any, index: number) => {
+                          const subjectId = answer.subject_id;
+                          const subjectName = answer.subject_name || 'Unknown Subject';
+                          
+                          if (index < 3 || !answer.is_correct) {
+                            console.log(`[${index}] Q${answer.question_id} - Subject ${subjectId} (${subjectName}): is_correct=${answer.is_correct}, answer="${answer.user_answer?.substring(0, 30)}..."`);
+                          }
+                          
+                          // Initialize subject if not already done
+                          if (!subjectScores[subjectId]) {
+                            subjectScores[subjectId] = {
+                              total: 0,
+                              correct: 0,
+                              count: 0,
+                              name: subjectName,
+                              incorrectQuestions: []
+                            };
+                          }
+                          
+                          // Count total questions
+                          subjectScores[subjectId].total += 1;
+                          
+                          // Count correct answers
+                          if (answer.is_correct) {
+                            subjectScores[subjectId].correct += 1;
+                          } else {
+                            // Store incorrect questions
+                            subjectScores[subjectId].incorrectQuestions.push({
+                              question: answer.question_text || answer.question,
+                              userAnswer: answer.user_answer || answer.selected_answer,
+                              correctAnswer: answer.correct_answer,
+                              explanation: answer.explanation
+                            });
+                          }
+                        });
                         
-                        // Extract incorrect questions for this subject
-                        if (Array.isArray(userAnswers)) {
-                          userAnswers.forEach((answer: any) => {
-                            if (answer.subject_id === subjectId && !answer.is_correct) {
-                              subjectScores[subjectId].incorrectQuestions.push({
-                                question: answer.question_text || answer.question,
-                                userAnswer: answer.user_answer || answer.selected_answer,
-                                correctAnswer: answer.correct_answer,
-                                explanation: answer.explanation
-                              });
-                            }
-                          });
+                        console.log('📈 Final subject scores calculated:', JSON.stringify(subjectScores, null, 2));
+                        console.log('✅ Processing complete. About to display results.');
+                      } else {
+                        console.warn('⚠️ No userAnswers array found or empty! Using fallback calculation...');
+                        // Fallback: If no answers array, distribute proportionally
+                        subjects.forEach((subject: any) => {
+                          const subjectId = subject.subject_id || subject.subject_code;
+                          const questionsForThisSubject = Math.floor(result.total_questions / subjects.length);
+                          const correctForThisSubject = Math.floor((result.correct_answers / subjects.length));
+                          
+                          if (subjectScores[subjectId]) {
+                            subjectScores[subjectId].total += questionsForThisSubject;
+                            subjectScores[subjectId].correct += correctForThisSubject;
+                          }
+                        });
+                      }
+                      
+                      // Log the results for debugging
+                      subjects.forEach((subject: any) => {
+                        const subjectId = subject.subject_id || subject.subject_code;
+                        const subjectName = subject.subject_name || 'Unknown Subject';
+                        if (subjectScores[subjectId]) {
+                          console.log(`Subject ${subjectId} (${subjectName}) - Total: ${subjectScores[subjectId].total}, Correct: ${subjectScores[subjectId].correct}, Incorrect: ${subjectScores[subjectId].incorrectQuestions.length}`);
                         }
-                        
-                        console.log(`Subject ${subjectId} (${subjectName}) - Incorrect questions:`, subjectScores[subjectId].incorrectQuestions.length);
                       });
                     } catch (e) {
                       console.error('Error parsing subjects_covered:', e);
@@ -1022,8 +1112,8 @@ export default function TutorMatching() {
                 // Convert to array and calculate percentages
                 return Object.entries(subjectScores).map(([subjectId, data]) => {
                   const percentage = data.total > 0 ? (data.correct / data.total) * 100 : 0;
-                  const isLow = percentage < 70;
-                  const isGood = percentage >= 70 && percentage < 85;
+                  const isLow = percentage < 82.5;
+                  const isGood = percentage >= 82.5 && percentage < 85;
                   const isExcellent = percentage >= 85;
                   const isExpanded = expandedSubject === subjectId;
                   

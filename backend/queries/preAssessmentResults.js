@@ -43,7 +43,7 @@ const createPreAssessmentResult = async (pool, resultData) => {
       total_questions, 
       time_taken_seconds,
       started_at,
-      JSON.stringify(answers)
+      JSON.stringify(answers) // MySQL JSON column will handle this properly
     ];
     
     const [result] = await pool.query(query, values);
@@ -142,45 +142,61 @@ const getResultsByUserId = async (pool, userId) => {
         try {
           const answers = typeof row.answers === 'string' ? JSON.parse(row.answers) : row.answers;
           
-          // Get question details for each answer
-          const questionIds = answers.map(answer => answer.question_id).filter(id => id);
-          if (questionIds.length > 0) {
-            const questionQuery = `
-              SELECT 
-                paq.id as question_id,
-                paq.question_text,
-                paq.correct_answer,
-                paq.explanation,
-                paq.subject_id,
-                s.subject_name,
-                paq.options
-              FROM pre_assessment_questions paq
-              LEFT JOIN subjects s ON paq.subject_id = s.subject_id
-              WHERE paq.id IN (${questionIds.map(() => '?').join(',')})
-            `;
-            
-            const [questionRows] = await pool.query(questionQuery, questionIds);
-            const questionMap = {};
-            questionRows.forEach(q => {
-              questionMap[q.question_id] = q;
-            });
+          // Check if answers already have the required fields (new format)
+          const hasNewFormat = answers.length > 0 && 
+            answers[0].hasOwnProperty('subject_id') && 
+            answers[0].hasOwnProperty('is_correct');
+          
+          if (hasNewFormat) {
+            // Answers already have all the data we need, use them as-is
+            console.log(`✓ Using new answer format (${answers.length} answers with subject_id and is_correct)`);
+            row.answers = answers;
+          } else {
+            // Old format - need to enhance with question details
+            console.log(`⚠ Using old answer format, enhancing with question details...`);
+            const questionIds = answers.map(answer => answer.question_id || answer.questionId).filter(id => id);
+            if (questionIds.length > 0) {
+              const questionQuery = `
+                SELECT 
+                  paq.id as question_id,
+                  paq.question_text,
+                  paq.correct_answer,
+                  paq.explanation,
+                  paq.subject_id,
+                  s.subject_name,
+                  paq.options
+                FROM pre_assessment_questions paq
+                LEFT JOIN subjects s ON paq.subject_id = s.subject_id
+                WHERE paq.id IN (${questionIds.map(() => '?').join(',')})
+              `;
+              
+              const [questionRows] = await pool.query(questionQuery, questionIds);
+              const questionMap = {};
+              questionRows.forEach(q => {
+                questionMap[q.question_id] = q;
+              });
 
-            // Enhance answers with question details
-            row.answers = answers.map(answer => {
-              const questionDetails = questionMap[answer.question_id];
-              return {
-                ...answer,
-                question_text: questionDetails?.question_text || 'Question not found',
-                correct_answer: questionDetails?.correct_answer || '',
-                explanation: questionDetails?.explanation || '',
-                subject_id: questionDetails?.subject_id || null,
-                subject_name: questionDetails?.subject_name || '',
-                options: questionDetails?.options || null
-              };
-            });
+              // Enhance answers with question details
+              row.answers = answers.map(answer => {
+                const questionDetails = questionMap[answer.question_id || answer.questionId];
+                return {
+                  ...answer,
+                  question_id: answer.question_id || answer.questionId,
+                  question_text: questionDetails?.question_text || 'Question not found',
+                  correct_answer: questionDetails?.correct_answer || '',
+                  explanation: questionDetails?.explanation || '',
+                  subject_id: questionDetails?.subject_id || null,
+                  subject_name: questionDetails?.subject_name || '',
+                  options: questionDetails?.options || null,
+                  is_correct: answer.answer === questionDetails?.correct_answer
+                };
+              });
+            } else {
+              row.answers = [];
+            }
           }
         } catch (e) {
-          console.warn('Failed to parse or enhance answers:', e);
+          console.error('Failed to parse or enhance answers:', e, 'User ID:', userId);
           row.answers = [];
         }
       } else {

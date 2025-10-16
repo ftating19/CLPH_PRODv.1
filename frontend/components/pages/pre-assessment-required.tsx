@@ -49,8 +49,10 @@ interface Question {
   options?: string[]
   correctAnswer?: string
   points: number
+  subject_id?: number
   subject_name?: string
   subject_code?: string
+  explanation?: string
 }
 
 interface Answer {
@@ -212,28 +214,49 @@ export default function PreAssessmentRequired({
   const handleSubmitAssessment = async () => {
     setIsSubmitting(true)
     try {
-      // Calculate score and statistics
+      // Format answers with detailed information including is_correct and subject_id
       let score = 0
       let correctAnswers = 0
       let totalPoints = 0
       
-      questions.forEach((question, index) => {
+      const formattedAnswers = questions.map((question, index) => {
         const userAnswer = answers[index]?.answer || ""
         totalPoints += question.points || 1
         
+        let isCorrect = false
         if (question.type === "multiple-choice" || question.type === "true-false") {
-          if (userAnswer === question.correctAnswer) {
+          isCorrect = userAnswer === question.correctAnswer
+          if (isCorrect) {
             score += question.points || 1
             correctAnswers++
           }
         }
-        // For essay and enumeration, we'll assume they need manual grading
-        // So we don't add to score automatically
+        
+        return {
+          question_id: question.id,
+          question_text: question.question,
+          question: question.question,
+          user_answer: userAnswer,
+          selected_answer: userAnswer,
+          correct_answer: question.correctAnswer,
+          is_correct: isCorrect,
+          subject_id: question.subject_id || null,
+          subject_name: question.subject_name || '',
+          explanation: question.explanation || '',
+          points: question.points || 1
+        }
       })
       
       const timeTakenSeconds = timeLeft > 0 
         ? (selectedAssessment!.duration * (selectedAssessment!.duration_unit === 'hours' ? 3600 : 60)) - timeLeft 
         : selectedAssessment!.duration * (selectedAssessment!.duration_unit === 'hours' ? 3600 : 60)
+
+      console.log('📊 Submitting from pre-assessment-required page:', {
+        totalQuestions: questions.length,
+        correctAnswers: correctAnswers,
+        totalScore: score,
+        totalPoints: totalPoints
+      })
 
       const submissionData = {
         user_id: currentUser?.user_id,
@@ -243,8 +266,8 @@ export default function PreAssessmentRequired({
         correct_answers: correctAnswers,
         total_questions: questions.length,
         time_taken_seconds: timeTakenSeconds,
-        started_at: new Date().toISOString(),
-        answers: JSON.stringify(answers) // Convert answers to JSON string
+        started_at: new Date(Date.now() - (timeTakenSeconds * 1000)).toISOString(),
+        answers: formattedAnswers  // Send formatted answers, not double-stringified
       }
 
       console.log('Submitting assessment data:', submissionData)
