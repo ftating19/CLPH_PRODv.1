@@ -974,8 +974,11 @@ export default function Quizzes() {
         setShowCreateDialog(false)
         
         toast({
-          title: "Success",
-          description: currentQuiz ? "Quiz updated successfully" : `Quiz created successfully with ${quizQuestions.length} questions`
+          title: currentQuiz ? "Success" : "Submitted for Review",
+          description: currentQuiz
+            ? "Quiz updated successfully"
+            : "Your study material has been submitted and is currently under review by the faculty. It will be published once approved.",
+          duration: currentQuiz ? 3000 : 5000,
         })
       } else {
         throw new Error(result.error || 'Failed to save quiz')

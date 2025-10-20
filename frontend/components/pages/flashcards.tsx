@@ -479,9 +479,9 @@ export default function Flashcards() {
       await createFlashcard(flashcardData)
 
       toast({
-        title: "Success",
-        description: "Flashcard created successfully!",
-        duration: 3000,
+        title: "Submitted for Review",
+        description: "Your study material has been submitted and is currently under review by the faculty. It will be published once approved.",
+        duration: 5000,
       })
 
       // Reset form
@@ -690,8 +690,9 @@ export default function Flashcards() {
         }
 
         toast({
-          title: "Success",
-          description: `Updated flashcard set with ${flashcardsList.length} flashcards successfully!`
+          title: "Submitted for Review",
+          description: "Your study material has been submitted and is currently under review by the faculty. It will be published once approved.",
+          duration: 5000,
         })
       } else {
         // Create new flashcard set with new sub_id
@@ -713,8 +714,9 @@ export default function Flashcards() {
         }
 
         toast({
-          title: "Success",
-          description: `Created ${flashcardsList.length} flashcards successfully!`
+          title: "Submitted for Review",
+          description: "Your study material has been submitted and is currently under review by the faculty. It will be published once approved.",
+          duration: 5000,
         })
       }
       
