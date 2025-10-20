@@ -33,11 +33,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit, X, ChevronLeft, ChevronRight, Layers, List, User, Check, AlertCircle, Target, XCircle } from "lucide-react"
+import { BookOpen, Brain, Clock, Trophy, Plus, Search, Filter, Star, Play, CheckCircle, Trash2, Edit, X, ChevronLeft, ChevronRight, Layers, List, User, Check, AlertCircle, Target, XCircle, ChevronsUpDown } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 import { useQuizzes, useQuizQuestions, useQuizAttempts, useQuizzesWithPending } from "@/hooks/use-quizzes"
 import { useSubjects } from "@/hooks/use-subjects"
 import { useSearchParams } from "next/navigation"
@@ -139,6 +142,14 @@ export default function Quizzes() {
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all")
   const [selectedDifficultyFilter, setSelectedDifficultyFilter] = useState<string>("all")
   const [selectedProgramFilter, setSelectedProgramFilter] = useState<string>("all")
+  
+  // Subject combobox state
+  const [subjectFilterComboboxOpen, setSubjectFilterComboboxOpen] = useState(false)
+  const [subjectFilterSearchValue, setSubjectFilterSearchValue] = useState("")
+  
+  // Create quiz subject combobox state  
+  const [createQuizSubjectComboboxOpen, setCreateQuizSubjectComboboxOpen] = useState(false)
+  const [createQuizSubjectSearchValue, setCreateQuizSubjectSearchValue] = useState("")
   
   // Confirmation and time-up dialogs
   const [showStartConfirmation, setShowStartConfirmation] = useState(false)
@@ -1437,18 +1448,64 @@ export default function Quizzes() {
                       </div>
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject</Label>
-                      <Select value={quizSubject} onValueChange={setQuizSubject}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select subject" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {subjects.map((subject) => (
-                            <SelectItem key={subject.subject_id} value={subject.subject_name}>
-                              {subject.subject_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Popover open={createQuizSubjectComboboxOpen} onOpenChange={setCreateQuizSubjectComboboxOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={createQuizSubjectComboboxOpen}
+                            className="w-full justify-between"
+                          >
+                            {quizSubject ? (
+                              (() => {
+                                const subject = subjects.find(s => s.subject_name === quizSubject);
+                                return subject ? `${subject.subject_code ? `${subject.subject_code} - ` : ""}${subject.subject_name}` : quizSubject;
+                              })()
+                            ) : (
+                              "Select subject"
+                            )}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput 
+                              placeholder="Search subjects..." 
+                              value={createQuizSubjectSearchValue}
+                              onValueChange={setCreateQuizSubjectSearchValue}
+                            />
+                            <CommandList>
+                              {subjects
+                                .filter((subject) => {
+                                  const searchTerm = createQuizSubjectSearchValue.toLowerCase();
+                                  return (
+                                    subject.subject_name.toLowerCase().includes(searchTerm) ||
+                                    (subject.subject_code && subject.subject_code.toLowerCase().includes(searchTerm))
+                                  );
+                                })
+                                .map((subject) => (
+                                  <CommandItem
+                                    key={subject.subject_id}
+                                    value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()}
+                                    onSelect={() => {
+                                      setQuizSubject(subject.subject_name)
+                                      setCreateQuizSubjectComboboxOpen(false)
+                                      setCreateQuizSubjectSearchValue("")
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        quizSubject === subject.subject_name ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
+                                  </CommandItem>
+                                ))}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="description">Description</Label>
@@ -1784,19 +1841,80 @@ export default function Quizzes() {
 
               <div className="space-y-2">
                 <Label>Subject</Label>
-                <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All subjects" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Subjects</SelectItem>
-                    {subjects.map((subject) => (
-                      <SelectItem key={subject.subject_id} value={subject.subject_name}>
-                        {subject.subject_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={subjectFilterComboboxOpen} onOpenChange={setSubjectFilterComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={subjectFilterComboboxOpen}
+                      className="w-full justify-between"
+                    >
+                      {selectedSubjectFilter === "all" ? (
+                        "All Subjects"
+                      ) : (
+                        (() => {
+                          const subject = subjects.find(s => s.subject_name === selectedSubjectFilter);
+                          return subject ? `${subject.subject_code ? `${subject.subject_code} - ` : ""}${subject.subject_name}` : selectedSubjectFilter;
+                        })()
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Search subjects..." 
+                        value={subjectFilterSearchValue}
+                        onValueChange={setSubjectFilterSearchValue}
+                      />
+                      <CommandList>
+                        <CommandItem
+                          value="all"
+                          onSelect={() => {
+                            setSelectedSubjectFilter("all")
+                            setSubjectFilterComboboxOpen(false)
+                            setSubjectFilterSearchValue("")
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedSubjectFilter === "all" ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          All Subjects
+                        </CommandItem>
+                        {subjects
+                          .filter((subject) => {
+                            const searchTerm = subjectFilterSearchValue.toLowerCase();
+                            return (
+                              subject.subject_name.toLowerCase().includes(searchTerm) ||
+                              (subject.subject_code && subject.subject_code.toLowerCase().includes(searchTerm))
+                            );
+                          })
+                          .map((subject) => (
+                            <CommandItem
+                              key={subject.subject_id}
+                              value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()}
+                              onSelect={() => {
+                                setSelectedSubjectFilter(subject.subject_name)
+                                setSubjectFilterComboboxOpen(false)
+                                setSubjectFilterSearchValue("")
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedSubjectFilter === subject.subject_name ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
+                            </CommandItem>
+                          ))}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">

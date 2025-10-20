@@ -39,15 +39,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { BookOpen, Brain, Clock, Trophy, Plus, Search, Edit, Trash2, Eye, Target, FileText, Users, ChevronDown, ArrowLeft, ArrowRight, Play, CheckCircle } from "lucide-react"
+import { BookOpen, Brain, Clock, Trophy, Plus, Search, Edit, Trash2, Eye, Target, FileText, Users, ChevronDown, ArrowLeft, ArrowRight, Play, CheckCircle, Check, ChevronsUpDown } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { usePreAssessments } from "@/hooks/use-pre-assessments"
 import { usePreAssessmentGuard } from "@/hooks/use-pre-assessment-guard"
 import { CICT_PROGRAMS } from "@/lib/constants"
+import { cn } from "@/lib/utils"
 
 // Custom multi-select component for subjects
 const SubjectMultiSelect = ({ 
@@ -216,6 +218,10 @@ export default function PreAssessments() {
     points: 1,
     subjectId: ""
   })
+
+  // Question subject combobox state
+  const [questionSubjectComboboxOpen, setQuestionSubjectComboboxOpen] = useState(false)
+  const [questionSubjectSearchValue, setQuestionSubjectSearchValue] = useState("")
 
   // Check if user is admin
   const isAdmin = userRole === "admin"
