@@ -13,6 +13,8 @@ import UserAccountModal from "@/components/modals/useraccount_modal"
 import UserDetailsModal, { UserActionsDropdown } from "@/components/modals/user-details-modal"
 import EditUserModal from "@/components/modals/admin-edituser-modal"
 import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@/contexts/UserContext"
+import { useRouter } from "next/navigation"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +42,8 @@ interface User {
 
 export default function UserManagement() {
   const { toast } = useToast();
+  const { currentUser } = useUser();
+  const router = useRouter();
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +56,18 @@ export default function UserManagement() {
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
+
+  // Additional security check within the component
+  useEffect(() => {
+    if (currentUser && currentUser.role?.toLowerCase() !== 'admin') {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to access User Management.",
+        variant: "destructive",
+      });
+      router.push("/dashboard");
+    }
+  }, [currentUser, router, toast]);
 
   // Fetch users on component mount
   useEffect(() => {
@@ -87,7 +103,12 @@ export default function UserManagement() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('http://localhost:4000/api/users');
+      const response = await fetch('http://localhost:4000/api/users', {
+        headers: {
+          'x-user-id': currentUser?.user_id ? String(currentUser.user_id) : '',
+          'x-user-role': currentUser?.role || '',
+        }
+      });
       const data = await response.json();
 
       if (!response.ok) {

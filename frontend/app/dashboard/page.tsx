@@ -37,8 +37,8 @@ export default function DashboardPage() {
           router.push('/admin-dashboard')
           return
         case 'faculty':
-          router.push('/user-management')
-          return
+          // Faculty now stay on main dashboard like students
+          break
         case 'student':
           // Students stay on main dashboard
           break

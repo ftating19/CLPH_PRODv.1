@@ -336,9 +336,11 @@ export default function Sidebar() {
                           Admin Dashboard
                         </NavItem>
                       )}
-                      <NavItem href="/user-management" icon={Users}>
-                        User Management
-                      </NavItem>
+                      {userRole === "admin" && (
+                        <NavItem href="/user-management" icon={Users}>
+                          User Management
+                        </NavItem>
+                      )}
                       <PendingApplicantsNavItem href="/pending-applicants" icon={Clock}>
                         Pending Applicants
                       </PendingApplicantsNavItem>

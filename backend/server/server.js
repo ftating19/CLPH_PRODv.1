@@ -369,6 +369,15 @@ app.post('/api/admin/create-user', async (req, res) => {
   try {
     console.log('Admin user creation request:', req.body);
 
+    // Check user role authorization - only admins can create users
+    const currentUserRole = req.headers['x-user-role'];
+    if (!currentUserRole || currentUserRole.toLowerCase() !== 'admin') {
+      console.log('Unauthorized access attempt to /api/admin/create-user. Role:', currentUserRole);
+      return res.status(403).json({ 
+        error: 'Access denied. Admin privileges required.' 
+      });
+    }
+
     const { first_name, middle_name, last_name, email, program, role, status, year_level } = req.body;
 
     // Validate required fields
@@ -442,6 +451,15 @@ app.post('/api/admin/create-user', async (req, res) => {
 app.get('/api/users', async (req, res) => {
   try {
     console.log('Fetching all users for admin management');
+
+    // Check user role authorization - only admins can access this endpoint
+    const currentUserRole = req.headers['x-user-role'];
+    if (!currentUserRole || currentUserRole.toLowerCase() !== 'admin') {
+      console.log('Unauthorized access attempt to /api/users. Role:', currentUserRole);
+      return res.status(403).json({ 
+        error: 'Access denied. Admin privileges required.' 
+      });
+    }
 
     // Get a database connection
     const pool = await db.getPool();
@@ -571,6 +589,15 @@ app.put('/api/admin/edit-user/:id', async (req, res) => {
     console.log('=== EDIT USER ENDPOINT HIT ===');
     console.log('Request params:', req.params);
     console.log('Request body:', req.body);
+
+    // Check user role authorization - only admins can edit users
+    const currentUserRole = req.headers['x-user-role'];
+    if (!currentUserRole || currentUserRole.toLowerCase() !== 'admin') {
+      console.log('Unauthorized access attempt to /api/admin/edit-user. Role:', currentUserRole);
+      return res.status(403).json({ 
+        error: 'Access denied. Admin privileges required.' 
+      });
+    }
     
     const userId = parseInt(req.params.id);
     const { first_name, middle_name, last_name, email, program, role, status, year_level } = req.body;
