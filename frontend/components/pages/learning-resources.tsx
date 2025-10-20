@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Download, Eye, Upload, Search, Filter, X } from "lucide-react"
+import { FileText, Download, Eye, Upload, Search, Filter, X, Check, ChevronsUpDown } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,19 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -26,6 +39,7 @@ import {
 import { useSubjects } from "@/hooks/use-subjects"
 import { useStudyMaterials } from "@/hooks/use-study-materials"
 import { useUser } from "@/contexts/UserContext"
+import { cn } from "@/lib/utils"
 
 export default function LearningResources() {
   // Program options
@@ -55,6 +69,14 @@ export default function LearningResources() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedSubject, setSelectedSubject] = useState("all")
   const [selectedProgramFilter, setSelectedProgramFilter] = useState<string>("all")
+  
+  // Subject combobox state
+  const [subjectFilterComboboxOpen, setSubjectFilterComboboxOpen] = useState(false)
+  const [subjectFilterSearchValue, setSubjectFilterSearchValue] = useState("")
+  
+  // Form subject combobox state
+  const [formSubjectComboboxOpen, setFormSubjectComboboxOpen] = useState(false)
+  const [formSubjectSearchValue, setFormSubjectSearchValue] = useState("")
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [uploading, setUploading] = useState(false)
 
@@ -255,17 +277,91 @@ export default function LearningResources() {
               ))}
             </SelectContent>
           </Select>
-          {/* Subject Filter - Shows subjects for selected program */}
-          <Select value={selectedSubject} onValueChange={setSelectedSubject} disabled={subjectsLoading || !!subjectsError}>
-            <SelectTrigger className="w-[280px]">
-              <SelectValue placeholder={subjectsLoading ? "Loading..." : subjectsError ? "Error loading subjects" : "Filter by subject"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                All Subjects
-                {selectedProgramFilter !== 'all' && (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    ({subjects.filter((subject) => {
+          {/* Subject Filter - Searchable combobox */}
+          <Popover open={subjectFilterComboboxOpen} onOpenChange={setSubjectFilterComboboxOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={subjectFilterComboboxOpen}
+                className="w-[280px] justify-between"
+                disabled={subjectsLoading || !!subjectsError}
+              >
+                {selectedSubject === "all" ? (
+                  <>
+                    All Subjects
+                    {selectedProgramFilter !== 'all' && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        ({subjects.filter((subject) => {
+                          if (Array.isArray(subject.program)) {
+                            return subject.program.includes(selectedProgramFilter)
+                          } else if (typeof subject.program === 'string') {
+                            try {
+                              const programArray = JSON.parse(subject.program)
+                              return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                            } catch {
+                              return subject.program === selectedProgramFilter
+                            }
+                          }
+                          return false
+                        }).length} available)
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  (() => {
+                    const subject = subjects.find(s => s.subject_name === selectedSubject);
+                    return subject ? `${subject.subject_code ? `${subject.subject_code} - ` : ""}${subject.subject_name}` : selectedSubject;
+                  })()
+                )}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[280px] p-0">
+              <Command>
+                <CommandInput 
+                  placeholder={subjectsLoading ? "Loading..." : subjectsError ? "Error loading subjects" : "Search subjects..."} 
+                  value={subjectFilterSearchValue}
+                  onValueChange={setSubjectFilterSearchValue}
+                  disabled={subjectsLoading || !!subjectsError}
+                />
+                <CommandList>
+                  <CommandItem
+                    value="all"
+                    onSelect={() => {
+                      setSelectedSubject("all")
+                      setSubjectFilterComboboxOpen(false)
+                      setSubjectFilterSearchValue("")
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedSubject === "all" ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    All Subjects
+                    {selectedProgramFilter !== 'all' && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        ({subjects.filter((subject) => {
+                          if (Array.isArray(subject.program)) {
+                            return subject.program.includes(selectedProgramFilter)
+                          } else if (typeof subject.program === 'string') {
+                            try {
+                              const programArray = JSON.parse(subject.program)
+                              return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                            } catch {
+                              return subject.program === selectedProgramFilter
+                            }
+                          }
+                          return false
+                        }).length} available)
+                      </span>
+                    )}
+                  </CommandItem>
+                  {!subjectsLoading && !subjectsError && subjects
+                    .filter((subject) => {
+                      if (selectedProgramFilter === 'all') return true
                       if (Array.isArray(subject.program)) {
                         return subject.program.includes(selectedProgramFilter)
                       } else if (typeof subject.program === 'string') {
@@ -277,32 +373,37 @@ export default function LearningResources() {
                         }
                       }
                       return false
-                    }).length} available)
-                  </span>
-                )}
-              </SelectItem>
-              {!subjectsLoading && !subjectsError && subjects
-                .filter((subject) => {
-                  if (selectedProgramFilter === 'all') return true
-                  if (Array.isArray(subject.program)) {
-                    return subject.program.includes(selectedProgramFilter)
-                  } else if (typeof subject.program === 'string') {
-                    try {
-                      const programArray = JSON.parse(subject.program)
-                      return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
-                    } catch {
-                      return subject.program === selectedProgramFilter
-                    }
-                  }
-                  return false
-                })
-                .map((subject) => (
-                  <SelectItem key={subject.subject_id} value={subject.subject_name}>
-                    {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+                    })
+                    .filter((subject) => {
+                      const searchTerm = subjectFilterSearchValue.toLowerCase();
+                      return (
+                        subject.subject_name.toLowerCase().includes(searchTerm) ||
+                        (subject.subject_code && subject.subject_code.toLowerCase().includes(searchTerm))
+                      );
+                    })
+                    .map((subject) => (
+                      <CommandItem
+                        key={subject.subject_id}
+                        value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()}
+                        onSelect={() => {
+                          setSelectedSubject(subject.subject_name)
+                          setSubjectFilterComboboxOpen(false)
+                          setSubjectFilterSearchValue("")
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedSubject === subject.subject_name ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
+                      </CommandItem>
+                    ))}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -447,22 +548,66 @@ export default function LearningResources() {
               
               <div className="space-y-2">
                 <Label htmlFor="subject">Subject</Label>
-                <Select 
-                  value={uploadForm.subject} 
-                  onValueChange={(value) => setUploadForm(prev => ({ ...prev, subject: value }))}
-                  disabled={subjectsLoading || !!subjectsError}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={subjectsLoading ? "Loading subjects..." : subjectsError ? "Error loading subjects" : "Select a subject"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {!subjectsLoading && !subjectsError && subjects.map((subject) => (
-                      <SelectItem key={subject.subject_id} value={subject.subject_name}>
-                        {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={formSubjectComboboxOpen} onOpenChange={setFormSubjectComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={formSubjectComboboxOpen}
+                      className="w-full justify-between"
+                      disabled={subjectsLoading || !!subjectsError}
+                    >
+                      {uploadForm.subject ? (
+                        (() => {
+                          const subject = subjects.find(s => s.subject_name === uploadForm.subject);
+                          return subject ? `${subject.subject_code ? `${subject.subject_code} - ` : ""}${subject.subject_name}` : uploadForm.subject;
+                        })()
+                      ) : (
+                        subjectsLoading ? "Loading subjects..." : subjectsError ? "Error loading subjects" : "Select a subject"
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Search subjects..." 
+                        value={formSubjectSearchValue}
+                        onValueChange={setFormSubjectSearchValue}
+                        disabled={subjectsLoading || !!subjectsError}
+                      />
+                      <CommandList>
+                        {!subjectsLoading && !subjectsError && subjects
+                          .filter((subject) => {
+                            const searchTerm = formSubjectSearchValue.toLowerCase();
+                            return (
+                              subject.subject_name.toLowerCase().includes(searchTerm) ||
+                              (subject.subject_code && subject.subject_code.toLowerCase().includes(searchTerm))
+                            );
+                          })
+                          .map((subject) => (
+                            <CommandItem
+                              key={subject.subject_id}
+                              value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()}
+                              onSelect={() => {
+                                setUploadForm(prev => ({ ...prev, subject: subject.subject_name }))
+                                setFormSubjectComboboxOpen(false)
+                                setFormSubjectSearchValue("")
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  uploadForm.subject === subject.subject_name ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
+                            </CommandItem>
+                          ))}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               
               <div className="space-y-2">

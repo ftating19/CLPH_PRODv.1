@@ -32,8 +32,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { BookOpen, Clock, Plus, Search, Edit, Trash2, Eye, FileText, Users, CheckCircle, XCircle } from "lucide-react"
+import { BookOpen, Clock, Plus, Search, Edit, Trash2, Eye, FileText, Users, CheckCircle, XCircle, Check, ChevronsUpDown } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSubjects } from "@/hooks/use-subjects"
@@ -89,6 +102,10 @@ export default function ManagePostTest() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all")
   const [selectedProgramFilter, setSelectedProgramFilter] = useState("all")
+  
+  // Subject combobox state
+  const [subjectFilterComboboxOpen, setSubjectFilterComboboxOpen] = useState(false)
+  const [subjectFilterSearchValue, setSubjectFilterSearchValue] = useState("")
   
   // Dialog states
   const [showViewDialog, setShowViewDialog] = useState(false)
@@ -289,34 +306,104 @@ export default function ManagePostTest() {
               </Select>
             </div>
             <div className="w-full md:w-64">
-              <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Subjects</SelectItem>
-                  {subjects
-                    .filter((subject) => {
-                      if (selectedProgramFilter === 'all') return true
-                      if (Array.isArray(subject.program)) {
-                        return subject.program.includes(selectedProgramFilter)
-                      } else if (typeof subject.program === 'string') {
-                        try {
-                          const programArray = JSON.parse(subject.program)
-                          return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
-                        } catch {
-                          return subject.program === selectedProgramFilter
-                        }
-                      }
-                      return false
-                    })
-                    .map((subject) => (
-                      <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                        {subject.subject_code} - {subject.subject_name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <Popover open={subjectFilterComboboxOpen} onOpenChange={setSubjectFilterComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={subjectFilterComboboxOpen}
+                    className="w-full justify-between"
+                  >
+                    {selectedSubjectFilter === 'all' ? (
+                      "All Subjects"
+                    ) : (
+                      subjects.find((subject) => subject.subject_id.toString() === selectedSubjectFilter)?.subject_code + 
+                      " - " + 
+                      subjects.find((subject) => subject.subject_id.toString() === selectedSubjectFilter)?.subject_name
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search subjects to filter..." 
+                      value={subjectFilterSearchValue}
+                      onValueChange={setSubjectFilterSearchValue}
+                    />
+                    <CommandList>
+                      <CommandEmpty>No subject found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="all"
+                          onSelect={() => {
+                            setSelectedSubjectFilter('all')
+                            setSubjectFilterComboboxOpen(false)
+                            setSubjectFilterSearchValue("")
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              selectedSubjectFilter === 'all' ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-medium">All Subjects</span>
+                            <span className="text-sm text-muted-foreground">Show all available subjects</span>
+                          </div>
+                        </CommandItem>
+                        {subjects
+                          .filter((subject) => {
+                            if (selectedProgramFilter === 'all') return true
+                            if (Array.isArray(subject.program)) {
+                              return subject.program.includes(selectedProgramFilter)
+                            } else if (typeof subject.program === 'string') {
+                              try {
+                                const programArray = JSON.parse(subject.program)
+                                return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                              } catch {
+                                return subject.program === selectedProgramFilter
+                              }
+                            }
+                            return false
+                          })
+                          .filter((subject) => {
+                            const searchTerm = subjectFilterSearchValue.toLowerCase()
+                            const subjectText = `${subject.subject_code} ${subject.subject_name}`.toLowerCase()
+                            return (
+                              subject.subject_name?.toLowerCase().includes(searchTerm) ||
+                              subject.subject_code?.toLowerCase().includes(searchTerm) ||
+                              subjectText.includes(searchTerm)
+                            )
+                          })
+                          .map((subject) => (
+                            <CommandItem
+                              key={subject.subject_id}
+                              value={subject.subject_id.toString()}
+                              onSelect={(currentValue) => {
+                                setSelectedSubjectFilter(currentValue)
+                                setSubjectFilterComboboxOpen(false)
+                                setSubjectFilterSearchValue("")
+                              }}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${
+                                  selectedSubjectFilter === subject.subject_id.toString() 
+                                    ? "opacity-100" 
+                                    : "opacity-0"
+                                }`}
+                              />
+                              <div className="flex flex-col">
+                                <span className="font-medium">{subject.subject_code}</span>
+                                <span className="text-sm text-muted-foreground">{subject.subject_name}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </CardContent>

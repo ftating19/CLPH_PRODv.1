@@ -11,10 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSubjects } from "@/hooks/use-subjects";
 import { useUser } from "@/contexts/UserContext";
 import { CICT_PROGRAMS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 interface ApplyAsTutorModalProps {
   open: boolean;
@@ -34,6 +38,10 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
   const [specialties, setSpecialties] = useState("");
   const [tutorInformation, setTutorInformation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Subject combobox state
+  const [subjectComboboxOpen, setSubjectComboboxOpen] = useState(false);
+  const [subjectSearchValue, setSubjectSearchValue] = useState("");
 
   // Available programs and year levels
   const programs = CICT_PROGRAMS;
@@ -211,34 +219,75 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
             </div>
             <div className="space-y-2">
               <Label htmlFor="subject">Subject Expertise *</Label>
-              <Select 
-                value={subjectId} 
-                onValueChange={setSubjectId}
-                disabled={subjectsLoading || !!subjectsError || !program || !yearLevel}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={
-                    subjectsLoading 
-                      ? "Loading subjects..." 
-                      : subjectsError 
-                        ? "Error loading subjects" 
-                        : !program || !yearLevel
-                          ? "Please select program and year level first"
-                          : filteredSubjects.length === 0
-                            ? "No subjects available for your program and year level"
-                            : "Select the subject you want to tutor"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {!subjectsLoading && !subjectsError && filteredSubjects
-                    .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
-                    .map((subject) => (
-                      <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                        {subject.subject_code} - {subject.subject_name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <Popover open={subjectComboboxOpen} onOpenChange={setSubjectComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={subjectComboboxOpen}
+                    className="w-full justify-between"
+                    disabled={subjectsLoading || !!subjectsError || !program || !yearLevel}
+                  >
+                    {subjectId ? (
+                      (() => {
+                        const subject = filteredSubjects.find(s => s.subject_id.toString() === subjectId);
+                        return subject ? `${subject.subject_code} - ${subject.subject_name}` : subjectId;
+                      })()
+                    ) : (
+                      subjectsLoading 
+                        ? "Loading subjects..." 
+                        : subjectsError 
+                          ? "Error loading subjects" 
+                          : !program || !yearLevel
+                            ? "Please select program and year level first"
+                            : filteredSubjects.length === 0
+                              ? "No subjects available for your program and year level"
+                              : "Select the subject you want to tutor"
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search subjects..." 
+                      value={subjectSearchValue}
+                      onValueChange={setSubjectSearchValue}
+                      disabled={subjectsLoading || !!subjectsError || !program || !yearLevel}
+                    />
+                    <CommandList>
+                      {!subjectsLoading && !subjectsError && filteredSubjects
+                        .filter((subject) => {
+                          const searchTerm = subjectSearchValue.toLowerCase();
+                          return (
+                            subject.subject_name.toLowerCase().includes(searchTerm) ||
+                            (subject.subject_code && subject.subject_code.toLowerCase().includes(searchTerm))
+                          );
+                        })
+                        .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
+                        .map((subject) => (
+                          <CommandItem
+                            key={subject.subject_id}
+                            value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()}
+                            onSelect={() => {
+                              setSubjectId(subject.subject_id.toString())
+                              setSubjectComboboxOpen(false)
+                              setSubjectSearchValue("")
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                subjectId === subject.subject_id.toString() ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {subject.subject_code} - {subject.subject_name}
+                          </CommandItem>
+                        ))}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               {program && yearLevel && filteredSubjects.length === 0 && (
                 <p className="text-xs text-amber-600">No subjects found for {program} - {yearLevel}. Please contact admin if this seems incorrect.</p>
               )}

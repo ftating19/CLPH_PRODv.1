@@ -7,7 +7,20 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Award, Plus, Trash2, XCircle, Clock, Target, BookOpen, Send } from "lucide-react"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Award, Plus, Trash2, XCircle, Clock, Target, BookOpen, Send, Check, ChevronsUpDown } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 
@@ -67,6 +80,10 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
 
   // Subjects list
   const [subjects, setSubjects] = useState<any[]>([])
+  
+  // Subject combobox state
+  const [subjectComboboxOpen, setSubjectComboboxOpen] = useState(false)
+  const [subjectSearchValue, setSubjectSearchValue] = useState("")
 
   // Fetch subjects on mount
   useEffect(() => {
@@ -314,27 +331,74 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
 
                   <div>
                     <Label htmlFor="subject">Subject {booking.subject_id ? "" : "(Optional)"}</Label>
-                    <Select 
-                      value={subjectId?.toString() || ""} 
-                      onValueChange={(value) => {
-                        const id = value ? parseInt(value) : null
-                        setSubjectId(id)
-                        const subject = subjects.find(s => s.subject_id === id)
-                        setSubjectName(subject?.subject_name || "")
-                      }}
-                      disabled={!!booking.subject_id}
-                    >
-                      <SelectTrigger className="mt-2">
-                        <SelectValue placeholder={booking.subject_id ? `${booking.subject_code || ''} - ${booking.subject_name || 'Subject'}` : "Select subject"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {subjects.map((subject) => (
-                          <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                            {subject.subject_code} - {subject.subject_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={subjectComboboxOpen} onOpenChange={setSubjectComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={subjectComboboxOpen}
+                          className="w-full justify-between mt-2"
+                          disabled={!!booking.subject_id}
+                        >
+                          {subjectId ? (
+                            subjects.find((subject) => subject.subject_id === subjectId)?.subject_code + 
+                            " - " + 
+                            subjects.find((subject) => subject.subject_id === subjectId)?.subject_name
+                          ) : (
+                            booking.subject_id ? `${booking.subject_code || ''} - ${booking.subject_name || 'Subject'}` : "Search and select subject..."
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Search subjects..." 
+                            value={subjectSearchValue}
+                            onValueChange={setSubjectSearchValue}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No subject found.</CommandEmpty>
+                            <CommandGroup>
+                              {subjects
+                                .filter((subject) => {
+                                  const searchTerm = subjectSearchValue.toLowerCase()
+                                  const subjectText = `${subject.subject_code} ${subject.subject_name}`.toLowerCase()
+                                  return (
+                                    subject.subject_name?.toLowerCase().includes(searchTerm) ||
+                                    subject.subject_code?.toLowerCase().includes(searchTerm) ||
+                                    subjectText.includes(searchTerm)
+                                  )
+                                })
+                                .map((subject) => (
+                                  <CommandItem
+                                    key={subject.subject_id}
+                                    value={subject.subject_id.toString()}
+                                    onSelect={(currentValue) => {
+                                      const id = parseInt(currentValue)
+                                      setSubjectId(id)
+                                      const selectedSubject = subjects.find(s => s.subject_id === id)
+                                      setSubjectName(selectedSubject?.subject_name || "")
+                                      setSubjectComboboxOpen(false)
+                                      setSubjectSearchValue("")
+                                    }}
+                                  >
+                                    <Check
+                                      className={`mr-2 h-4 w-4 ${
+                                        subjectId === subject.subject_id ? "opacity-100" : "opacity-0"
+                                      }`}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{subject.subject_code}</span>
+                                      <span className="text-sm text-muted-foreground">{subject.subject_name}</span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     {booking.subject_id && (
                       <p className="text-xs text-muted-foreground mt-1">
                         Subject is pre-filled based on your tutoring application

@@ -26,7 +26,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Loader2, AlertCircle } from "lucide-react"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Loader2, AlertCircle, Check, ChevronsUpDown } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSubjects } from "@/hooks/use-subjects"
@@ -88,6 +101,14 @@ export default function TutorMatching() {
   const [hasSkippedPreAssessment, setHasSkippedPreAssessment] = useState(false)
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
   const [showSubjectPerformance, setShowSubjectPerformance] = useState<boolean>(false) // Changed to false by default
+  
+  // Subject combobox state
+  const [subjectComboboxOpen, setSubjectComboboxOpen] = useState(false)
+  const [subjectSearchValue, setSubjectSearchValue] = useState("")
+  
+  // Subject filter combobox state (for main filter)
+  const [subjectFilterComboboxOpen, setSubjectFilterComboboxOpen] = useState(false)
+  const [subjectFilterSearchValue, setSubjectFilterSearchValue] = useState("")
   
   // Tutor statistics state
   const [tutorStats, setTutorStats] = useState<{
@@ -708,34 +729,85 @@ export default function TutorMatching() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="subject">Subject Expertise *</Label>
-                  <Select 
-                    value={applicationForm.subject_id} 
-                    onValueChange={(value) => setApplicationForm(prev => ({...prev, subject_id: value}))}
-                    disabled={subjectsLoading || !!subjectsError || !currentUser?.program || !currentUser?.year_level}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        subjectsLoading 
-                          ? "Loading subjects..." 
-                          : subjectsError 
-                            ? "Error loading subjects" 
-                            : !currentUser?.program || !currentUser?.year_level
-                              ? "Please ensure your profile has program and year level information"
-                              : filteredSubjects.length === 0
-                                ? "No subjects available for your program and year level"
-                                : "Select the subject you want to tutor"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {!subjectsLoading && !subjectsError && filteredSubjects
-                        .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
-                        .map((subject) => (
-                          <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                            {subject.subject_code} - {subject.subject_name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={subjectComboboxOpen} onOpenChange={setSubjectComboboxOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={subjectComboboxOpen}
+                        className="w-full justify-between"
+                        disabled={subjectsLoading || !!subjectsError || !currentUser?.program || !currentUser?.year_level}
+                      >
+                        {applicationForm.subject_id ? (
+                          filteredSubjects.find((subject) => subject.subject_id.toString() === applicationForm.subject_id)?.subject_code + 
+                          " - " + 
+                          filteredSubjects.find((subject) => subject.subject_id.toString() === applicationForm.subject_id)?.subject_name
+                        ) : (
+                          subjectsLoading 
+                            ? "Loading subjects..." 
+                            : subjectsError 
+                              ? "Error loading subjects" 
+                              : !currentUser?.program || !currentUser?.year_level
+                                ? "Please ensure your profile has program and year level information"
+                                : filteredSubjects.length === 0
+                                  ? "No subjects available for your program and year level"
+                                  : "Search and select a subject..."
+                        )}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Search subjects..." 
+                          value={subjectSearchValue}
+                          onValueChange={setSubjectSearchValue}
+                        />
+                        <CommandList>
+                          <CommandEmpty>No subject found.</CommandEmpty>
+                          <CommandGroup>
+                            {!subjectsLoading && !subjectsError && filteredSubjects
+                              .filter((subject) => {
+                                const searchTerm = subjectSearchValue.toLowerCase()
+                                const subjectText = `${subject.subject_code} ${subject.subject_name}`.toLowerCase()
+                                return (
+                                  subject.subject_name?.toLowerCase().includes(searchTerm) ||
+                                  subject.subject_code?.toLowerCase().includes(searchTerm) ||
+                                  subjectText.includes(searchTerm)
+                                )
+                              })
+                              .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
+                              .map((subject) => (
+                                <CommandItem
+                                  key={subject.subject_id}
+                                  value={subject.subject_id.toString()}
+                                  onSelect={(currentValue) => {
+                                    setApplicationForm(prev => ({
+                                      ...prev, 
+                                      subject_id: currentValue === applicationForm.subject_id ? "" : currentValue
+                                    }))
+                                    setSubjectComboboxOpen(false)
+                                    setSubjectSearchValue("")
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${
+                                      applicationForm.subject_id === subject.subject_id.toString() 
+                                        ? "opacity-100" 
+                                        : "opacity-0"
+                                    }`}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{subject.subject_code}</span>
+                                    <span className="text-sm text-muted-foreground">{subject.subject_name}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   {currentUser?.program && currentUser?.year_level && filteredSubjects.length === 0 && (
                     <p className="text-xs text-amber-600">
                       No subjects found for {currentUser.program} - {currentUser.year_level}. Please contact admin if this seems incorrect.
@@ -839,57 +911,127 @@ export default function TutorMatching() {
             </SelectContent>
           </Select>
           {/* Subject Filter - Shows subjects for selected program */}
-          <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
-            <SelectTrigger className="w-[280px]">
-              <SelectValue placeholder="Filter by subject" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                All Subjects
-                {selectedProgramFilter !== 'all' && (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    ({subjects.filter((subject) => {
-                      if (Array.isArray(subject.program)) {
-                        return subject.program.includes(selectedProgramFilter)
-                      } else if (typeof subject.program === 'string') {
-                        try {
-                          const programArray = JSON.parse(subject.program)
-                          return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
-                        } catch {
-                          return subject.program === selectedProgramFilter
-                        }
-                      }
-                      return false
-                    }).length} available)
-                  </span>
+          <Popover open={subjectFilterComboboxOpen} onOpenChange={setSubjectFilterComboboxOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={subjectFilterComboboxOpen}
+                className="w-[280px] justify-between"
+              >
+                {selectedSubjectFilter === 'all' ? (
+                  <>
+                    All Subjects
+                    {selectedProgramFilter !== 'all' && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        ({subjects.filter((subject) => {
+                          if (Array.isArray(subject.program)) {
+                            return subject.program.includes(selectedProgramFilter)
+                          } else if (typeof subject.program === 'string') {
+                            try {
+                              const programArray = JSON.parse(subject.program)
+                              return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                            } catch {
+                              return subject.program === selectedProgramFilter
+                            }
+                          }
+                          return false
+                        }).length} available)
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  subjects.find((subject) => subject.subject_id.toString() === selectedSubjectFilter)?.subject_code + 
+                  " - " + 
+                  subjects.find((subject) => subject.subject_id.toString() === selectedSubjectFilter)?.subject_name
                 )}
-              </SelectItem>
-              {subjects
-                .filter((subject) => {
-                  // Filter subjects by selected program
-                  if (selectedProgramFilter === 'all') return true
-                  
-                  // Check if subject's program matches selected program
-                  if (Array.isArray(subject.program)) {
-                    return subject.program.includes(selectedProgramFilter)
-                  } else if (typeof subject.program === 'string') {
-                    try {
-                      const programArray = JSON.parse(subject.program)
-                      return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
-                    } catch {
-                      return subject.program === selectedProgramFilter
-                    }
-                  }
-                  return false
-                })
-                .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
-                .map((subject) => (
-                  <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
-                    {subject.subject_code} - {subject.subject_name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[400px] p-0">
+              <Command>
+                <CommandInput 
+                  placeholder="Search subjects to filter..." 
+                  value={subjectFilterSearchValue}
+                  onValueChange={setSubjectFilterSearchValue}
+                />
+                <CommandList>
+                  <CommandEmpty>No subject found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="all"
+                      onSelect={() => {
+                        setSelectedSubjectFilter('all')
+                        setSubjectFilterComboboxOpen(false)
+                        setSubjectFilterSearchValue("")
+                      }}
+                    >
+                      <Check
+                        className={`mr-2 h-4 w-4 ${
+                          selectedSubjectFilter === 'all' ? "opacity-100" : "opacity-0"
+                        }`}
+                      />
+                      <div className="flex flex-col">
+                        <span className="font-medium">All Subjects</span>
+                        <span className="text-sm text-muted-foreground">Show all available subjects</span>
+                      </div>
+                    </CommandItem>
+                    {subjects
+                      .filter((subject) => {
+                        // Filter subjects by selected program
+                        if (selectedProgramFilter === 'all') return true
+                        
+                        // Check if subject's program matches selected program
+                        if (Array.isArray(subject.program)) {
+                          return subject.program.includes(selectedProgramFilter)
+                        } else if (typeof subject.program === 'string') {
+                          try {
+                            const programArray = JSON.parse(subject.program)
+                            return Array.isArray(programArray) && programArray.includes(selectedProgramFilter)
+                          } catch {
+                            return subject.program === selectedProgramFilter
+                          }
+                        }
+                        return false
+                      })
+                      .filter((subject) => {
+                        const searchTerm = subjectFilterSearchValue.toLowerCase()
+                        const subjectText = `${subject.subject_code} ${subject.subject_name}`.toLowerCase()
+                        return (
+                          subject.subject_name?.toLowerCase().includes(searchTerm) ||
+                          subject.subject_code?.toLowerCase().includes(searchTerm) ||
+                          subjectText.includes(searchTerm)
+                        )
+                      })
+                      .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
+                      .map((subject) => (
+                        <CommandItem
+                          key={subject.subject_id}
+                          value={subject.subject_id.toString()}
+                          onSelect={(currentValue) => {
+                            setSelectedSubjectFilter(currentValue)
+                            setSubjectFilterComboboxOpen(false)
+                            setSubjectFilterSearchValue("")
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              selectedSubjectFilter === subject.subject_id.toString() 
+                                ? "opacity-100" 
+                                : "opacity-0"
+                            }`}
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-medium">{subject.subject_code}</span>
+                            <span className="text-sm text-muted-foreground">{subject.subject_name}</span>
+                          </div>
+                        </CommandItem>
+                      ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
