@@ -59,6 +59,7 @@ import { useFlashcards, useFlashcardsWithPending, useCreateFlashcard, useUpdateF
 import { useUpdateFlashcardProgress, useFlashcardProgress } from "@/hooks/use-flashcard-progress"
 import { useSubjects } from "@/hooks/use-subjects"
 import { useSearchParams } from "next/navigation"
+import { cn } from "@/lib/utils"
 
 export default function Flashcards() {
   // Program options
@@ -97,6 +98,14 @@ export default function Flashcards() {
   // Subject combobox state
   const [subjectFilterComboboxOpen, setSubjectFilterComboboxOpen] = useState(false)
   const [subjectFilterSearchValue, setSubjectFilterSearchValue] = useState("")
+
+  // Create subject combobox state (for dialog)
+  const [createSubjectComboboxOpen, setCreateSubjectComboboxOpen] = useState(false)
+  const [createSubjectSearchValue, setCreateSubjectSearchValue] = useState("")
+
+  // Set subject combobox state
+  const [setSubjectComboboxOpen, setSetSubjectComboboxOpen] = useState(false)
+  const [setSubjectSearchValue, setSetSubjectSearchValue] = useState("")
 
   const { currentUser } = useUser()
   const { toast } = useToast()
@@ -589,7 +598,8 @@ export default function Flashcards() {
     setQuestion(flashcard.question)
     setAnswer(flashcard.answer)
     setSelectedSubject(flashcard.subject_name)
-    setShowCreateDialog(true)
+    setShowCreateDialog(true
+    )
   }
 
   const closeDialog = () => {
@@ -1613,18 +1623,64 @@ export default function Flashcards() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="subject">Subject</Label>
-                <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subjects.map((subject) => (
-                      <SelectItem key={subject.subject_id} value={subject.subject_name}>
-                        {subject.subject_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={createSubjectComboboxOpen} onOpenChange={setCreateSubjectComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={createSubjectComboboxOpen}
+                      className="w-full justify-between"
+                    >
+                      {selectedSubject ? (
+                        (() => {
+                          const subject = subjects.find(s => s.subject_name === selectedSubject);
+                          return subject ? `${subject.subject_code ? `${subject.subject_code} - ` : ""}${subject.subject_name}` : selectedSubject;
+                        })()
+                      ) : (
+                        "Select subject"
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Search subjects..." 
+                        value={createSubjectSearchValue}
+                        onValueChange={setCreateSubjectSearchValue}
+                      />
+                      <CommandList>
+                        {subjects
+                          .filter((subject) => {
+                            const searchTerm = createSubjectSearchValue.toLowerCase();
+                            return (
+                              subject.subject_name.toLowerCase().includes(searchTerm) ||
+                              (subject.subject_code && subject.subject_code.toLowerCase().includes(searchTerm))
+                            );
+                          })
+                          .map((subject) => (
+                            <CommandItem
+                              key={subject.subject_id}
+                              value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()}
+                              onSelect={() => {
+                                setSelectedSubject(subject.subject_name)
+                                setCreateSubjectComboboxOpen(false)
+                                setCreateSubjectSearchValue("")
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedSubject === subject.subject_name ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
+                            </CommandItem>
+                          ))}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="question">Question</Label>
@@ -1724,18 +1780,64 @@ export default function Flashcards() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="setSubject">Subject</Label>
-                    <Select value={flashcardSetSubject} onValueChange={setFlashcardSetSubject}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select subject" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {subjects.map((subject) => (
-                          <SelectItem key={subject.subject_id} value={subject.subject_name}>
-                            {subject.subject_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={setSubjectComboboxOpen} onOpenChange={setSetSubjectComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={setSubjectComboboxOpen}
+                          className="w-full justify-between"
+                        >
+                          {flashcardSetSubject ? (
+                            (() => {
+                              const subject = subjects.find(s => s.subject_name === flashcardSetSubject);
+                              return subject ? `${subject.subject_code ? `${subject.subject_code} - ` : ""}${subject.subject_name}` : flashcardSetSubject;
+                            })()
+                          ) : (
+                            "Select subject"
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Search subjects..." 
+                            value={setSubjectSearchValue}
+                            onValueChange={setSetSubjectSearchValue}
+                          />
+                          <CommandList>
+                            {subjects
+                              .filter((subject) => {
+                                const searchTerm = setSubjectSearchValue.toLowerCase();
+                                return (
+                                  subject.subject_name.toLowerCase().includes(searchTerm) ||
+                                  (subject.subject_code && subject.subject_code.toLowerCase().includes(searchTerm))
+                                );
+                              })
+                              .map((subject) => (
+                                <CommandItem
+                                  key={subject.subject_id}
+                                  value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()}
+                                  onSelect={() => {
+                                    setFlashcardSetSubject(subject.subject_name)
+                                    setSetSubjectComboboxOpen(false)
+                                    setSetSubjectSearchValue("")
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      flashcardSetSubject === subject.subject_name ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {subject.subject_code ? `${subject.subject_code} - ` : ""}{subject.subject_name}
+                                </CommandItem>
+                              ))}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
               </div>
