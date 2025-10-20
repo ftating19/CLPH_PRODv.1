@@ -104,6 +104,15 @@ export default function TutorMatching() {
   const { toast } = useToast()
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects()
 
+  // Fallback refresh function for user data; triggers a safe reload to refresh context if a dedicated refresh function
+  // is not provided by the UserContext. You can replace this with a context-provided updater if available.
+  const refreshCurrentUser = () => {
+    if (typeof window !== "undefined") {
+      // Simple and reliable way to re-fetch user-related data when a dedicated context method isn't available.
+      window.location.reload()
+    }
+  }
+
   // Get user role from context, default to 'student' if not available
   const userRole = currentUser?.role?.toLowerCase() || 'student'
   const userProgram = currentUser?.program || ""
