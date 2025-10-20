@@ -678,7 +678,19 @@ export default function TutorMatching() {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Year Level</Label>
-                    <p className="font-medium">{currentUser?.year_level || 'Not specified'}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{currentUser?.year_level || 'Not specified'}</p>
+                      {(!currentUser?.year_level) && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={refreshCurrentUser}
+                          className="text-xs"
+                        >
+                          Refresh
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

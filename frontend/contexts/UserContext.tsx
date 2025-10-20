@@ -22,6 +22,7 @@ interface UserContextType {
   setCurrentUser: (user: User | null) => void;
   updateCurrentUser: (userData: Partial<User>) => void;
   refreshCurrentUser: () => Promise<void>;
+  forceRefreshUserData: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -71,18 +72,18 @@ export function UserProvider({ children }: UserProviderProps) {
         
         // Fetch fresh data from API to ensure it's up to date
         try {
-          const response = await fetch(`http://localhost:4000/api/users`);
+          const response = await fetch(`http://localhost:4000/api/users/${userData.user_id}`);
           if (response.ok) {
             const data = await response.json();
-            const updatedUser = data.users.find((user: User) => user.user_id === userData.user_id);
             
-            if (updatedUser) {
-              setCurrentUser(updatedUser);
-              localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+            if (data.success && data.user) {
+              setCurrentUser(data.user);
+              localStorage.setItem('currentUser', JSON.stringify(data.user));
             } else {
               setCurrentUser(userData); // Fallback to stored data
             }
           } else {
+            console.log(`Failed to fetch fresh user data: ${response.status}`);
             setCurrentUser(userData); // Fallback to stored data
           }
         } catch (apiError) {
@@ -133,6 +134,53 @@ export function UserProvider({ children }: UserProviderProps) {
     }
   };
 
+  // Function to force refresh user data from database
+  const forceRefreshUserData = async () => {
+    if (currentUser) {
+      try {
+        console.log('Force refreshing user data from database...');
+        const response = await fetch(`http://localhost:4000/api/users/${currentUser.user_id}`);
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.success && data.user) {
+            setCurrentUser(data.user);
+            localStorage.setItem('currentUser', JSON.stringify(data.user));
+            
+            // Also update the 'user' key for profile component compatibility
+            const userForProfile = {
+              id: data.user.user_id,
+              name: `${data.user.first_name} ${data.user.middle_name ? data.user.middle_name + ' ' : ''}${data.user.last_name}`,
+              email: data.user.email,
+              role: data.user.role,
+              avatar: '',
+              first_name: data.user.first_name,
+              middle_name: data.user.middle_name,
+              last_name: data.user.last_name,
+              program: data.user.program,
+              year_level: data.user.year_level,
+              user_id: data.user.user_id
+            };
+            localStorage.setItem('user', JSON.stringify(userForProfile));
+            
+            console.log('✅ User data refreshed from database:', data.user);
+            
+            // Trigger events to notify other components
+            window.dispatchEvent(new CustomEvent('userDataUpdated', { 
+              detail: data.user 
+            }));
+            
+            window.dispatchEvent(new CustomEvent('userProfileUpdated', { 
+              detail: userForProfile 
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error force refreshing user data:', error);
+      }
+    }
+  };
+
   // Initialize user data on mount
   useEffect(() => {
     refreshCurrentUser();
@@ -158,6 +206,7 @@ export function UserProvider({ children }: UserProviderProps) {
     setCurrentUser,
     updateCurrentUser,
     refreshCurrentUser,
+    forceRefreshUserData,
     isLoading
   };
 
