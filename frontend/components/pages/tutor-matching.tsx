@@ -3,7 +3,7 @@ import BookingForm from "@/components/modals/BookingForm"
 import EnhancedBookingForm from "@/components/modals/EnhancedBookingForm"
 import PreAssessmentTestModal from "@/components/modals/PreAssessmentTestModal"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -659,6 +659,59 @@ export default function TutorMatching() {
     )
   }
 
+  // Memoized filtered and sorted tutors to prevent unnecessary re-renders
+  const filteredTutors = useMemo(() => {
+    return tutors
+      .filter((tutor) => {
+        // Filter out current user from tutor list (users shouldn't see themselves)
+        const isNotCurrentUser = currentUser?.user_id !== tutor.user_id;
+        
+        // Subject filter
+        const subjectMatch = selectedSubjectFilter === 'all' || tutor.subject_id.toString() === selectedSubjectFilter;
+        
+        // Program filter - applies to all users
+        let programMatch = true
+        if (selectedProgramFilter !== "all") {
+          // Apply the selected program filter from the dropdown
+          programMatch = tutor.program === selectedProgramFilter
+        } else if (userRole === "student") {
+          // For students with "all" selected, still only show their program
+          programMatch = !!(tutor.program && tutor.program === userProgram)
+          
+          // Debug logging for program filtering
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`Student view - Tutor "${tutor.name}": program="${tutor.program}", userProgram="${userProgram}", matches=${programMatch}`)
+          }
+        }
+        // For admins/tutors with "all" selected, show all programs
+        
+        // Search filter
+        const term = searchTerm.trim().toLowerCase();
+        let searchMatch = true;
+        if (term) {
+          const nameMatch = tutor.name?.toLowerCase().includes(term);
+          const specialtyMatch = tutor.specialties?.toLowerCase().includes(term);
+          const subjectNameMatch = tutor.subject_name?.toLowerCase().includes(term);
+          searchMatch = nameMatch || specialtyMatch || subjectNameMatch;
+        }
+        
+        return isNotCurrentUser && subjectMatch && programMatch && searchMatch;
+      })
+      .sort((a, b) => {
+        // Priority 1: Recommended tutors first (based on pre-assessment results)
+        const aIsRecommended = recommendedSubjects.includes(a.subject_id);
+        const bIsRecommended = recommendedSubjects.includes(b.subject_id);
+        
+        if (aIsRecommended && !bIsRecommended) return -1;
+        if (!aIsRecommended && bIsRecommended) return 1;
+        
+        // Priority 2: Within same recommendation status, sort by rating (highest first)
+        const ratingA = typeof a.ratings === 'string' ? parseFloat(a.ratings) : a.ratings || 0;
+        const ratingB = typeof b.ratings === 'string' ? parseFloat(b.ratings) : b.ratings || 0;
+        return ratingB - ratingA;
+      });
+  }, [tutors, currentUser?.user_id, selectedSubjectFilter, selectedProgramFilter, userRole, userProgram, searchTerm, recommendedSubjects]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -739,9 +792,10 @@ export default function TutorMatching() {
                         disabled={subjectsLoading || !!subjectsError || !currentUser?.program || !currentUser?.year_level}
                       >
                         {applicationForm.subject_id ? (
-                          filteredSubjects.find((subject) => subject.subject_id.toString() === applicationForm.subject_id)?.subject_code + 
-                          " - " + 
-                          filteredSubjects.find((subject) => subject.subject_id.toString() === applicationForm.subject_id)?.subject_name
+                          (() => {
+                            const selectedSubject = filteredSubjects.find((subject) => subject.subject_id.toString() === applicationForm.subject_id);
+                            return selectedSubject ? `${selectedSubject.subject_code || ''} - ${selectedSubject.subject_name || ''}` : applicationForm.subject_id;
+                          })()
                         ) : (
                           subjectsLoading 
                             ? "Loading subjects..." 
@@ -780,11 +834,11 @@ export default function TutorMatching() {
                               .map((subject) => (
                                 <CommandItem
                                   key={subject.subject_id}
-                                  value={subject.subject_id.toString()}
-                                  onSelect={(currentValue) => {
+                                  value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()}
+                                  onSelect={() => {
                                     setApplicationForm(prev => ({
                                       ...prev, 
-                                      subject_id: currentValue === applicationForm.subject_id ? "" : currentValue
+                                      subject_id: subject.subject_id.toString()
                                     }))
                                     setSubjectComboboxOpen(false)
                                     setSubjectSearchValue("")
@@ -1480,58 +1534,9 @@ export default function TutorMatching() {
             </Button>
           </div>
         ) : (
-          tutors
-            .filter((tutor) => {
-              // Filter out current user from tutor list (users shouldn't see themselves)
-              const isNotCurrentUser = currentUser?.user_id !== tutor.user_id;
-              
-              // Subject filter
-              const subjectMatch = selectedSubjectFilter === 'all' || tutor.subject_id.toString() === selectedSubjectFilter;
-              
-              // Program filter - applies to all users
-              let programMatch = true
-              if (selectedProgramFilter !== "all") {
-                // Apply the selected program filter from the dropdown
-                programMatch = tutor.program === selectedProgramFilter
-              } else if (userRole === "student") {
-                // For students with "all" selected, still only show their program
-                programMatch = !!(tutor.program && tutor.program === userProgram)
-                
-                // Debug logging for program filtering
-                if (process.env.NODE_ENV === 'development') {
-                  console.log(`Student view - Tutor "${tutor.name}": program="${tutor.program}", userProgram="${userProgram}", matches=${programMatch}`)
-                }
-              }
-              // For admins/tutors with "all" selected, show all programs
-              
-              // Search filter
-              const term = searchTerm.trim().toLowerCase();
-              let searchMatch = true;
-              if (term) {
-                const nameMatch = tutor.name?.toLowerCase().includes(term);
-                const specialtyMatch = tutor.specialties?.toLowerCase().includes(term);
-                const subjectNameMatch = tutor.subject_name?.toLowerCase().includes(term);
-                searchMatch = nameMatch || specialtyMatch || subjectNameMatch;
-              }
-              
-              return isNotCurrentUser && subjectMatch && programMatch && searchMatch;
-            })
-            .sort((a, b) => {
-              // Priority 1: Recommended tutors first (based on pre-assessment results)
-              const aIsRecommended = recommendedSubjects.includes(a.subject_id);
-              const bIsRecommended = recommendedSubjects.includes(b.subject_id);
-              
-              if (aIsRecommended && !bIsRecommended) return -1;
-              if (!aIsRecommended && bIsRecommended) return 1;
-              
-              // Priority 2: Within same recommendation status, sort by rating (highest first)
-              const ratingA = typeof a.ratings === 'string' ? parseFloat(a.ratings) : a.ratings || 0;
-              const ratingB = typeof b.ratings === 'string' ? parseFloat(b.ratings) : b.ratings || 0;
-              return ratingB - ratingA;
-            })
-            .map((tutor) => (
-              <TutorCard key={tutor.application_id} tutor={tutor} />
-            ))
+          filteredTutors.map((tutor) => (
+            <TutorCard key={tutor.application_id} tutor={tutor} />
+          ))
         )}
       </div>
         </>
