@@ -22,10 +22,13 @@ import {
 } from "lucide-react"
 
 export default function DashboardContent({ currentUser }: { currentUser: any }) {
-  // Active users count
-  const [activeUserCount, setActiveUserCount] = useState(0);
-  // Forum post count
-  const [forumPostCount, setForumPostCount] = useState(0);
+  // Dashboard stats from centralized endpoint
+  const [dashboardStats, setDashboardStats] = useState({
+    activeUsers: 0,
+    forumPosts: 0,
+    recommendedTutors: 0,
+    learningMaterials: 0
+  });
   // Recent discussions
   const [recentForums, setRecentForums] = useState<any[]>([]);
   // Recommended tutors (5 stars)
@@ -33,8 +36,6 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   // Pre-assessment data
   const [preAssessmentData, setPreAssessmentData] = useState<any>(null);
   const [preAssessmentLoading, setPreAssessmentLoading] = useState(true);
-  // Learning materials count
-  const [materialsCount, setMaterialsCount] = useState(0);
   // Quiz attempts
   const [quizAttempts, setQuizAttempts] = useState<any[]>([]);
   // Post-test data
@@ -42,33 +43,20 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   // Upcoming bookings/sessions
   const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
 
+  // Fetch dashboard stats (single API call for all counts)
   useEffect(() => {
-    fetch("http://localhost:4000/api/users?active=true")
+    console.log('📊 Dashboard: Fetching stats...');
+    fetch("http://localhost:4000/api/stats/dashboard")
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data.users)) {
-          setActiveUserCount(data.users.length);
-        } else if (typeof data.total === "number") {
-          setActiveUserCount(data.total);
-        } else {
-          setActiveUserCount(0);
+        console.log('📊 Dashboard: Stats received:', data);
+        if (data.success && data.stats) {
+          setDashboardStats(data.stats);
         }
       })
-      .catch(() => setActiveUserCount(0));
-  }, []);
-
-  useEffect(() => {
-    // Fetch forums data
-    fetch("http://localhost:4000/api/forums")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.forums)) {
-          setForumPostCount(data.forums.length);
-        } else {
-          setForumPostCount(0);
-        }
-      })
-      .catch(() => setForumPostCount(0));
+      .catch((error) => {
+        console.error('❌ Dashboard: Error fetching stats:', error);
+      });
   }, []);
 
   useEffect(() => {
@@ -200,18 +188,6 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
       });
   }, [currentUser]);
 
-  // Fetch learning materials
-  useEffect(() => {
-    fetch("http://localhost:4000/api/materials")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.materials)) {
-          setMaterialsCount(data.materials.length);
-        }
-      })
-      .catch(() => setMaterialsCount(0));
-  }, []);
-
   // Fetch quiz attempts for current user
   useEffect(() => {
     if (!currentUser?.user_id) return;
@@ -301,8 +277,8 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeUserCount}</div>
-            <p className="text-xs text-muted-foreground">{activeUserCount === 0 ? 'No active users' : 'Currently active users'}</p>
+            <div className="text-2xl font-bold">{dashboardStats.activeUsers}</div>
+            <p className="text-xs text-muted-foreground">{dashboardStats.activeUsers === 0 ? 'No active users' : 'Currently active users'}</p>
           </CardContent>
         </Card>
         <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
@@ -313,8 +289,8 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{forumPostCount}</div>
-            <p className="text-xs text-muted-foreground">{forumPostCount === 0 ? 'No posts yet' : 'Total forum posts'}</p>
+            <div className="text-2xl font-bold">{dashboardStats.forumPosts}</div>
+            <p className="text-xs text-muted-foreground">{dashboardStats.forumPosts === 0 ? 'No posts yet' : 'Total forum posts'}</p>
           </CardContent>
         </Card>
         <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
@@ -325,8 +301,8 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{recommendedTutors.length}</div>
-            <p className="text-xs text-muted-foreground">{recommendedTutors.length === 0 ? 'No tutors available' : 'Top-rated tutors'}</p>
+            <div className="text-2xl font-bold">{dashboardStats.recommendedTutors}</div>
+            <p className="text-xs text-muted-foreground">{dashboardStats.recommendedTutors === 0 ? 'No tutors available' : 'Top-rated tutors'}</p>
           </CardContent>
         </Card>
         <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
@@ -595,7 +571,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold">{materialsCount}</div>
+              <div className="text-2xl font-bold">{dashboardStats.learningMaterials}</div>
               <p className="text-sm text-muted-foreground">Materials available</p>
             </div>
             <Button variant="outline" onClick={handleStartLearning}>

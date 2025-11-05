@@ -447,6 +447,55 @@ app.post('/api/admin/create-user', async (req, res) => {
   }
 });
 
+// Public stats endpoint for dashboard (no auth required)
+app.get('/api/stats/dashboard', async (req, res) => {
+  try {
+    console.log('Fetching dashboard statistics');
+    
+    const pool = await db.getPool();
+
+    // Get active users count
+    const [activeUsersResult] = await pool.query(
+      "SELECT COUNT(*) as count FROM users WHERE status = 'Active'"
+    );
+
+    // Get total forum posts count
+    const [forumPostsResult] = await pool.query(
+      'SELECT COUNT(*) as count FROM forums'
+    );
+
+    // Get recommended tutors count (ratings >= 4)
+    const [tutorsResult] = await pool.query(
+      'SELECT COUNT(*) as count FROM tutors WHERE status = "Approved" AND ratings >= 4'
+    );
+
+    // Get learning materials count
+    const [materialsResult] = await pool.query(
+      'SELECT COUNT(*) as count FROM studymaterials'
+    );
+
+    console.log('📊 Dashboard Stats:', {
+      activeUsers: activeUsersResult[0].count,
+      forumPosts: forumPostsResult[0].count,
+      recommendedTutors: tutorsResult[0].count,
+      learningMaterials: materialsResult[0].count
+    });
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        activeUsers: activeUsersResult[0].count || 0,
+        forumPosts: forumPostsResult[0].count || 0,
+        recommendedTutors: tutorsResult[0].count || 0,
+        learningMaterials: materialsResult[0].count || 0
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching dashboard stats:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Add the /api/users endpoint to fetch all users for admin management
 app.get('/api/users', async (req, res) => {
   try {
