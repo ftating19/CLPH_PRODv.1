@@ -12,9 +12,16 @@ import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award
 import Layout from "@/components/dashboard/layout"
 import { useUser } from "@/contexts/UserContext"
 import ChatModal from "@/components/modals/ChatModal"
-import PostTestModal from "@/components/modals/PostTestModal"
 import TakePostTestModal from "@/components/modals/TakePostTestModal"
 import PostTestResultsModal from "@/components/modals/PostTestResultsModal"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
 
 // Updated booking data structure
 interface Booking {
@@ -53,11 +60,21 @@ export default function TutorSessionPage() {
   // State for chat modal
   const [showChatModal, setShowChatModal] = useState<{open: boolean, bookingId?: number, bookingDetails?: Booking}>({open: false})
 
-  // State for post-test modal
-  const [showPostTestModal, setShowPostTestModal] = useState<{open: boolean, bookingId?: number, bookingDetails?: Booking}>({open: false})
+  // State for template selector modal
+  const [showSelectTemplateModal, setShowSelectTemplateModal] = useState<{open: boolean, bookingId?: number, bookingDetails?: Booking}>({open: false})
+  const [templates, setTemplates] = useState<any[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState(false)
+  const [assigningTemplate, setAssigningTemplate] = useState(false)
+  const { toast } = useToast()
   
   // State for take post-test modal  
-  const [showTakePostTestModal, setShowTakePostTestModal] = useState<{open: boolean, postTestId?: number, bookingDetails?: Booking}>({open: false})
+  const [showTakePostTestModal, setShowTakePostTestModal] = useState<{
+    open: boolean, 
+    postTestId?: number, 
+    bookingDetails?: Booking,
+    isTemplate?: boolean,
+    assignmentId?: number
+  }>({open: false})
   
   // State for post-test results modal
   const [showResultsModal, setShowResultsModal] = useState<{open: boolean, bookingId?: number, bookingDetails?: Booking}>({open: false})
@@ -67,6 +84,67 @@ export default function TutorSessionPage() {
   const [postTestsLoading, setPostTestsLoading] = useState<{[bookingId: number]: boolean}>({})
   const [postTestResults, setPostTestResults] = useState<{[bookingId: number]: any[]}>({})
   const [resultsLoading, setResultsLoading] = useState<{[bookingId: number]: boolean}>({})
+
+  // Fetch tutor's templates
+  const fetchTemplates = async () => {
+    if (!currentUser?.user_id) return
+    
+    try {
+      setLoadingTemplates(true)
+      const response = await fetch(`http://localhost:4000/api/post-test-templates/tutor/${currentUser.user_id}`)
+      
+      if (!response.ok) throw new Error('Failed to fetch templates')
+      
+      const data = await response.json()
+      if (data.success) {
+        setTemplates(data.templates || [])
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error)
+    } finally {
+      setLoadingTemplates(false)
+    }
+  }
+  
+  // Assign template to student
+  const handleAssignTemplate = async (templateId: number, bookingDetails: Booking) => {
+    try {
+      setAssigningTemplate(true)
+      
+      const response = await fetch(`http://localhost:4000/api/post-test-templates/${templateId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_ids: [bookingDetails.student_id],
+          booking_ids: [bookingDetails.booking_id],
+          assigned_by: currentUser?.user_id,
+          due_date: null
+        })
+      })
+      
+      if (!response.ok) throw new Error('Failed to assign template')
+      
+      toast({
+        title: "Success",
+        description: "Post-test assigned to student!"
+      })
+      
+      setShowSelectTemplateModal({open: false})
+      
+      // Refresh bookings to show the new assignment
+      fetchBookings()
+      
+    } catch (error) {
+      console.error('Error assigning template:', error)
+      toast({
+        title: "Error",
+        description: "Failed to assign post-test",
+        variant: "destructive"
+      })
+    } finally {
+      setAssigningTemplate(false)
+    }
+  }
 
   // Mark session as complete handler for student
   const handleStudentComplete = async (booking_id: number) => {
@@ -254,6 +332,35 @@ export default function TutorSessionPage() {
       // First try to get post-tests by student ID if current user is student
       if (currentUser?.user_id) {
         let response;
+        let assignedTemplates = [];
+        
+        // Check for assigned templates
+        try {
+          const templatesResponse = await fetch(`http://localhost:4000/api/post-test-assignments/student/${currentUser.user_id}?booking_id=${bookingId}`)
+          const templatesData = await templatesResponse.json()
+          if (templatesData.success && templatesData.assignments) {
+            // Map template assignments to post-test format
+            assignedTemplates = templatesData.assignments
+              .filter((a: any) => a.status === 'assigned' && a.booking_id === bookingId)
+              .map((a: any) => ({
+                id: a.template_id,
+                post_test_id: a.template_id,
+                assignment_id: a.assignment_id,
+                title: a.template_title,
+                description: a.template_description,
+                subject_id: a.subject_id,
+                subject_name: a.subject_name,
+                time_limit: a.time_limit,
+                passing_score: a.passing_score,
+                booking_id: a.booking_id,
+                test_status: 'available',
+                is_template: true // Flag to identify template-based tests
+              }))
+          }
+        } catch (err) {
+          console.error('Error fetching template assignments:', err)
+        }
+        
         if (currentUser.role?.toLowerCase() === 'student') {
           // Use student-specific endpoint for students
           response = await fetch(`http://localhost:4000/api/post-tests/student/${currentUser.user_id}`)
@@ -279,11 +386,15 @@ export default function TutorSessionPage() {
             id: postTest.post_test_id || postTest.id
           }));
           
-          setAvailablePostTests(prev => ({...prev, [bookingId]: mappedPostTests}))
-          console.log('Set available post-tests for booking', bookingId, ':', mappedPostTests);
+          // Combine regular post-tests with assigned templates
+          const allTests = [...mappedPostTests, ...assignedTemplates]
+          
+          setAvailablePostTests(prev => ({...prev, [bookingId]: allTests}))
+          console.log('Set available post-tests for booking', bookingId, ':', allTests);
         } else {
-          setAvailablePostTests(prev => ({...prev, [bookingId]: []}))
-          console.log('No post-tests found for booking', bookingId);
+          // Even if no regular post-tests, show assigned templates
+          setAvailablePostTests(prev => ({...prev, [bookingId]: assignedTemplates}))
+          console.log('No regular post-tests, but have template assignments:', assignedTemplates);
         }
       }
     } catch (error) {
@@ -657,7 +768,7 @@ export default function TutorSessionPage() {
                         </Button>
                       )}
 
-                      {/* Create Post-test Button - Only for tutors in accepted sessions without completed post-tests */}
+                      {/* Select Post-test Template Button - Only for tutors in accepted sessions without completed post-tests */}
                       {currentUser?.user_id === booking.tutor_id && 
                        (booking.status === "Accepted" || booking.status === "accepted") && 
                        !isSessionExpired(booking) && 
@@ -665,10 +776,13 @@ export default function TutorSessionPage() {
                         <Button 
                           size="sm"
                           variant="default"
-                          onClick={() => setShowPostTestModal({open: true, bookingId: booking.booking_id, bookingDetails: booking})}
+                          onClick={() => {
+                            setShowSelectTemplateModal({open: true, bookingId: booking.booking_id, bookingDetails: booking})
+                            fetchTemplates()
+                          }}
                         >
                           <Award className="w-4 h-4 mr-2" />
-                          Create Post-test
+                          Select Post-test
                         </Button>
                       )}
 
@@ -697,15 +811,19 @@ export default function TutorSessionPage() {
                           size="sm"
                           variant="secondary"
                           onClick={() => {
+                            const postTest = availablePostTests[booking.booking_id][0];
                             console.log('Take Post-test clicked', {
                               bookingId: booking.booking_id,
-                              postTest: availablePostTests[booking.booking_id][0],
-                              booking: booking
+                              postTest: postTest,
+                              booking: booking,
+                              isTemplate: postTest.is_template
                             });
                             setShowTakePostTestModal({
                               open: true, 
-                              postTestId: availablePostTests[booking.booking_id][0].id, 
-                              bookingDetails: booking
+                              postTestId: postTest.id, 
+                              bookingDetails: booking,
+                              isTemplate: postTest.is_template,
+                              assignmentId: postTest.assignment_id
                             });
                           }}
                           disabled={postTestsLoading[booking.booking_id]}
@@ -860,12 +978,70 @@ export default function TutorSessionPage() {
           />
         )}
 
-        {/* Post-Test Modal */}
-        <PostTestModal
-          isOpen={showPostTestModal.open}
-          onClose={() => setShowPostTestModal({open: false})}
-          booking={showPostTestModal.bookingDetails!}
-        />
+        {/* Template Selector Modal */}
+        <Dialog open={showSelectTemplateModal.open} onOpenChange={(open) => setShowSelectTemplateModal({open})}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Select Post-Test Template</DialogTitle>
+              <DialogDescription>
+                Choose a post-test template to assign to {showSelectTemplateModal.bookingDetails?.student_name}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {loadingTemplates ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" />
+                <p className="mt-4 text-muted-foreground">Loading templates...</p>
+              </div>
+            ) : templates.length === 0 ? (
+              <div className="text-center py-12">
+                <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Templates Available</h3>
+                <p className="text-muted-foreground">
+                  You haven't created any post-test templates yet. Please go to the Manage Post-Tests page to create templates.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                {templates
+                  .filter(t => !showSelectTemplateModal.bookingDetails?.subject_id || 
+                    t.subject_id === showSelectTemplateModal.bookingDetails.subject_id)
+                  .map((template) => (
+                    <Card key={template.template_id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-lg">{template.title}</h4>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {template.description || 'No description'}
+                            </p>
+                            <div className="flex gap-4 mt-3 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <BookOpen className="w-4 h-4" />
+                                {template.subject_name}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                {template.time_limit} minutes
+                              </span>
+                              <span>{template.total_questions} questions</span>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => handleAssignTemplate(template.template_id, showSelectTemplateModal.bookingDetails!)}
+                            disabled={assigningTemplate}
+                            size="sm"
+                          >
+                            {assigningTemplate ? 'Assigning...' : 'Assign'}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Take Post-Test Modal */}
         <TakePostTestModal
@@ -873,6 +1049,8 @@ export default function TutorSessionPage() {
           onClose={() => setShowTakePostTestModal({open: false})}
           postTestId={showTakePostTestModal.postTestId || 0}
           booking={showTakePostTestModal.bookingDetails || { booking_id: 0, tutor_id: 0, tutor_name: '', student_id: 0, student_name: '' }}
+          isTemplate={showTakePostTestModal.isTemplate}
+          assignmentId={showTakePostTestModal.assignmentId}
         />
 
         {/* Post-Test Results Modal */}

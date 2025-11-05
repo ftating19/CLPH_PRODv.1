@@ -7284,6 +7284,377 @@ app.get('/api/post-test-results', async (req, res) => {
   }
 });
 
+// ===== POST-TEST TEMPLATES API ENDPOINTS =====
+
+// Get all templates for a tutor
+app.get('/api/post-test-templates/tutor/:tutorId', async (req, res) => {
+  try {
+    const tutorId = parseInt(req.params.tutorId);
+    const postTestTemplates = require('../queries/postTestTemplates');
+    
+    const templates = await postTestTemplates.getTemplatesByTutor(tutorId);
+    
+    res.json({
+      success: true,
+      templates,
+      total: templates.length
+    });
+  } catch (err) {
+    console.error('Error fetching templates:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get template by ID with questions
+app.get('/api/post-test-templates/:templateId', async (req, res) => {
+  try {
+    const templateId = parseInt(req.params.templateId);
+    const postTestTemplates = require('../queries/postTestTemplates');
+    
+    const template = await postTestTemplates.getTemplateById(templateId);
+    
+    if (!template) {
+      return res.status(404).json({ success: false, error: 'Template not found' });
+    }
+    
+    res.json({
+      success: true,
+      template
+    });
+  } catch (err) {
+    console.error('Error fetching template:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Create new template
+app.post('/api/post-test-templates', async (req, res) => {
+  try {
+    const postTestTemplates = require('../queries/postTestTemplates');
+    const result = await postTestTemplates.createTemplate(req.body);
+    
+    res.json({
+      success: true,
+      template_id: result.template_id
+    });
+  } catch (err) {
+    console.error('Error creating template:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Update template
+app.put('/api/post-test-templates/:templateId', async (req, res) => {
+  try {
+    const templateId = parseInt(req.params.templateId);
+    const postTestTemplates = require('../queries/postTestTemplates');
+    
+    await postTestTemplates.updateTemplate(templateId, req.body);
+    
+    res.json({
+      success: true,
+      message: 'Template updated successfully'
+    });
+  } catch (err) {
+    console.error('Error updating template:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Delete template (soft delete)
+app.delete('/api/post-test-templates/:templateId', async (req, res) => {
+  try {
+    const templateId = parseInt(req.params.templateId);
+    const postTestTemplates = require('../queries/postTestTemplates');
+    
+    await postTestTemplates.deleteTemplate(templateId);
+    
+    res.json({
+      success: true,
+      message: 'Template deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting template:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get eligible students for template assignment
+app.get('/api/post-test-templates/:templateId/eligible-students', async (req, res) => {
+  try {
+    const templateId = parseInt(req.params.templateId);
+    const { tutor_id, subject_id } = req.query;
+    const postTestTemplates = require('../queries/postTestTemplates');
+    
+    const students = await postTestTemplates.getEligibleStudents(
+      parseInt(tutor_id),
+      parseInt(subject_id)
+    );
+    
+    res.json({
+      success: true,
+      students
+    });
+  } catch (err) {
+    console.error('Error fetching eligible students:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Assign template to students
+app.post('/api/post-test-templates/:templateId/assign', async (req, res) => {
+  try {
+    const templateId = parseInt(req.params.templateId);
+    const { student_ids, booking_ids, assigned_by, due_date } = req.body;
+    const postTestTemplates = require('../queries/postTestTemplates');
+    
+    // Create assignment array
+    const assignments = student_ids.map((studentId, index) => ({
+      template_id: templateId,
+      student_id: studentId,
+      booking_id: booking_ids[index],
+      assigned_by,
+      due_date
+    }));
+    
+    const result = await postTestTemplates.assignTemplate(assignments);
+    
+    res.json({
+      success: true,
+      message: `Template assigned to ${result.assignments_created} student(s)`,
+      assignments_created: result.assignments_created
+    });
+  } catch (err) {
+    console.error('Error assigning template:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get assignments for a template
+app.get('/api/post-test-templates/:templateId/assignments', async (req, res) => {
+  try {
+    const templateId = parseInt(req.params.templateId);
+    const postTestTemplates = require('../queries/postTestTemplates');
+    
+    const assignments = await postTestTemplates.getTemplateAssignments(templateId);
+    
+    res.json({
+      success: true,
+      assignments,
+      total: assignments.length
+    });
+  } catch (err) {
+    console.error('Error fetching assignments:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get assignments for a student
+app.get('/api/post-test-assignments/student/:studentId', async (req, res) => {
+  try {
+    const studentId = parseInt(req.params.studentId);
+    const bookingId = req.query.booking_id ? parseInt(req.query.booking_id) : null;
+    
+    const pool = await db.getPool();
+    
+    let query = `
+      SELECT 
+        a.*,
+        t.title as template_title,
+        t.description as template_description,
+        t.subject_id,
+        t.subject_name,
+        t.time_limit,
+        t.passing_score,
+        t.total_questions
+      FROM post_test_assignments a
+      JOIN post_test_templates t ON a.template_id = t.template_id
+      WHERE a.student_id = ?
+    `;
+    
+    const params = [studentId];
+    
+    if (bookingId) {
+      query += ' AND a.booking_id = ?';
+      params.push(bookingId);
+    }
+    
+    query += ' ORDER BY a.assigned_at DESC';
+    
+    const [assignments] = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      assignments
+    });
+  } catch (err) {
+    console.error('Error fetching student assignments:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get questions for a template
+app.get('/api/post-test-templates/:templateId/questions', async (req, res) => {
+  try {
+    const templateId = parseInt(req.params.templateId);
+    
+    const pool = await db.getPool();
+    const [rows] = await pool.query(
+      'SELECT * FROM post_test_questions WHERE template_id = ? ORDER BY order_number ASC',
+      [templateId]
+    );
+    
+    // Parse JSON options for each question
+    const questions = rows.map(row => ({
+      ...row,
+      id: row.question_id,
+      options: row.options ? JSON.parse(row.options) : null
+    }));
+    
+    res.json({
+      success: true,
+      questions
+    });
+  } catch (err) {
+    console.error('Error fetching template questions:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Add question to template
+app.post('/api/post-test-templates/:templateId/questions', async (req, res) => {
+  try {
+    const templateId = parseInt(req.params.templateId);
+    const { questions } = req.body;
+    
+    const pool = await db.getPool();
+    
+    for (const question of questions) {
+      await pool.query(
+        `INSERT INTO post_test_questions (
+          post_test_id, template_id, question_text, question_type, options, 
+          correct_answer, points, explanation, order_number
+        ) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          templateId,
+          question.question_text || question.question,
+          (question.question_type || question.type).replace(/-/g, '_'),
+          question.options ? JSON.stringify(question.options) : null,
+          question.correct_answer,
+          question.points || 1,
+          question.explanation || null,
+          question.order_number || 1
+        ]
+      );
+    }
+    
+    // Update total_questions count
+    await pool.query(
+      'UPDATE post_test_templates SET total_questions = (SELECT COUNT(*) FROM post_test_questions WHERE template_id = ?) WHERE template_id = ?',
+      [templateId, templateId]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Questions added to template'
+    });
+  } catch (err) {
+    console.error('Error adding questions to template:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Submit template-based post-test
+app.post('/api/post-test-templates/:templateId/submit', async (req, res) => {
+  try {
+    const templateId = parseInt(req.params.templateId);
+    const { assignment_id, student_id, booking_id, time_taken, answers } = req.body;
+    
+    const pool = await db.getPool();
+    
+    // Get template questions with correct answers
+    const [questions] = await pool.query(
+      'SELECT question_id, correct_answer, points FROM post_test_questions WHERE template_id = ?',
+      [templateId]
+    );
+    
+    // Calculate score
+    let totalPoints = 0;
+    let earnedPoints = 0;
+    let correctAnswersCount = 0;
+    
+    questions.forEach(question => {
+      totalPoints += question.points || 1;
+      const userAnswer = answers.find((a) => a.question_id === question.question_id);
+      
+      if (userAnswer && userAnswer.answer.trim().toLowerCase() === question.correct_answer.trim().toLowerCase()) {
+        earnedPoints += question.points || 1;
+        correctAnswersCount++;
+      }
+    });
+    
+    const totalQuestions = questions.length;
+    const percentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+    
+    // Get template passing score
+    const [templateData] = await pool.query(
+      'SELECT passing_score FROM post_test_templates WHERE template_id = ?',
+      [templateId]
+    );
+    const passingScore = templateData[0]?.passing_score || 70;
+    const passed = percentage >= passingScore;
+    
+    // Insert result into post_test_results
+    const [resultInsert] = await pool.query(
+      `INSERT INTO post_test_results (
+        post_test_id, template_id, assignment_id, student_id, booking_id,
+        answers, score, total_questions, correct_answers, passed, time_taken, 
+        started_at, completed_at
+      ) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        templateId, 
+        assignment_id, 
+        student_id, 
+        booking_id, 
+        JSON.stringify(answers),
+        percentage,
+        totalQuestions,
+        correctAnswersCount,
+        passed,
+        time_taken
+      ]
+    );
+    
+    const resultId = resultInsert.insertId;
+    
+    // Update assignment status
+    await pool.query(
+      `UPDATE post_test_assignments 
+       SET status = 'completed', completed_at = NOW() 
+       WHERE assignment_id = ?`,
+      [assignment_id]
+    );
+    
+    // Return result
+    res.json({
+      success: true,
+      result: {
+        result_id: resultId,
+        score: percentage,
+        total_points: totalPoints,
+        percentage: percentage,
+        passed: passed,
+        passing_score: passingScore,
+        correctAnswers: correctAnswersCount,
+        totalQuestions: totalQuestions
+      }
+    });
+  } catch (err) {
+    console.error('Error submitting template test:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 // ===== FORUMS API ENDPOINTS =====
 
 // Get all forums

@@ -42,9 +42,18 @@ interface TakePostTestModalProps {
   onClose: () => void
   postTestId: number
   booking: Booking
+  isTemplate?: boolean
+  assignmentId?: number
 }
 
-export default function TakePostTestModal({ isOpen, onClose, postTestId, booking }: TakePostTestModalProps) {
+export default function TakePostTestModal({ 
+  isOpen, 
+  onClose, 
+  postTestId, 
+  booking, 
+  isTemplate = false, 
+  assignmentId 
+}: TakePostTestModalProps) {
   const [postTest, setPostTest] = useState<PostTest | null>(null)
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -92,31 +101,69 @@ export default function TakePostTestModal({ isOpen, onClose, postTestId, booking
 
     setLoading(true)
     try {
-      console.log('Fetching post-test with ID:', postTestId);
+      console.log('Fetching post-test with ID:', postTestId, 'isTemplate:', isTemplate);
       
-      // Fetch post-test details
-      const postTestResponse = await fetch(`http://localhost:4000/api/post-tests/${postTestId}`)
-      const postTestData = await postTestResponse.json()
+      if (isTemplate) {
+        // Fetch template details
+        const templateResponse = await fetch(`http://localhost:4000/api/post-test-templates/${postTestId}`)
+        const templateData = await templateResponse.json()
 
-      if (!postTestData.success) {
-        throw new Error('Failed to fetch post-test')
-      }
-
-      // Fetch questions
-      const questionsResponse = await fetch(`http://localhost:4000/api/post-tests/${postTestId}/questions`)
-      const questionsData = await questionsResponse.json()
-      console.log('Questions response:', questionsData);
-
-      if (questionsData.success) {
-        const postTestWithQuestions = {
-          ...postTestData.postTest,
-          questions: questionsData.questions || []
+        if (!templateData.success) {
+          throw new Error('Failed to fetch template')
         }
-        console.log('Post-test with questions:', postTestWithQuestions);
-        setPostTest(postTestWithQuestions)
-        setTimeRemaining(postTestWithQuestions.time_limit * 60) // Convert minutes to seconds
+
+        // Fetch template questions
+        const questionsResponse = await fetch(`http://localhost:4000/api/post-test-templates/${postTestId}/questions`)
+        const questionsData = await questionsResponse.json()
+        console.log('Template questions response:', questionsData);
+
+        if (questionsData.success) {
+          const postTestWithQuestions = {
+            id: postTestId,
+            title: templateData.template.title,
+            description: templateData.template.description || '',
+            time_limit: templateData.template.time_limit,
+            passing_score: templateData.template.passing_score,
+            total_points: questionsData.questions.reduce((sum: number, q: any) => sum + (q.points || 1), 0),
+            questions: questionsData.questions.map((q: any) => ({
+              id: q.question_id,
+              question_text: q.question_text,
+              question_type: q.question_type,
+              options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : undefined,
+              points: q.points || 1
+            }))
+          }
+          console.log('Template post-test with questions:', postTestWithQuestions);
+          setPostTest(postTestWithQuestions)
+          setTimeRemaining(postTestWithQuestions.time_limit * 60) // Convert minutes to seconds
+        } else {
+          console.error('Failed to fetch template questions:', questionsData);
+        }
       } else {
-        console.error('Failed to fetch questions:', questionsData);
+        // Fetch regular post-test details
+        const postTestResponse = await fetch(`http://localhost:4000/api/post-tests/${postTestId}`)
+        const postTestData = await postTestResponse.json()
+
+        if (!postTestData.success) {
+          throw new Error('Failed to fetch post-test')
+        }
+
+        // Fetch questions
+        const questionsResponse = await fetch(`http://localhost:4000/api/post-tests/${postTestId}/questions`)
+        const questionsData = await questionsResponse.json()
+        console.log('Questions response:', questionsData);
+
+        if (questionsData.success) {
+          const postTestWithQuestions = {
+            ...postTestData.postTest,
+            questions: questionsData.questions || []
+          }
+          console.log('Post-test with questions:', postTestWithQuestions);
+          setPostTest(postTestWithQuestions)
+          setTimeRemaining(postTestWithQuestions.time_limit * 60) // Convert minutes to seconds
+        } else {
+          console.error('Failed to fetch questions:', questionsData);
+        }
       }
     } catch (error) {
       console.error('Error fetching post-test:', error)
@@ -161,21 +208,44 @@ export default function TakePostTestModal({ isOpen, onClose, postTestId, booking
     
     setSubmitting(true)
     try {
-      const response = await fetch(`http://localhost:4000/api/post-tests/${postTestId}/submit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          student_id: currentUser?.user_id,
-          booking_id: booking.booking_id,
-          time_taken: timeTaken,
-          answers: Object.entries(answers).map(([questionId, answer]) => ({
-            question_id: parseInt(questionId),
-            answer
-          }))
+      let response;
+      
+      if (isTemplate && assignmentId) {
+        // Submit template-based test via assignment
+        response = await fetch(`http://localhost:4000/api/post-test-templates/${postTestId}/submit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            assignment_id: assignmentId,
+            student_id: currentUser?.user_id,
+            booking_id: booking.booking_id,
+            time_taken: timeTaken,
+            answers: Object.entries(answers).map(([questionId, answer]) => ({
+              question_id: parseInt(questionId),
+              answer
+            }))
+          })
         })
-      })
+      } else {
+        // Submit regular post-test
+        response = await fetch(`http://localhost:4000/api/post-tests/${postTestId}/submit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            student_id: currentUser?.user_id,
+            booking_id: booking.booking_id,
+            time_taken: timeTaken,
+            answers: Object.entries(answers).map(([questionId, answer]) => ({
+              question_id: parseInt(questionId),
+              answer
+            }))
+          })
+        })
+      }
 
       const data = await response.json()
       if (data.success) {
