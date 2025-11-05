@@ -109,9 +109,15 @@ export default function ManagePostTest() {
   
   // Dialog states
   const [showViewDialog, setShowViewDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
   const [selectedPostTest, setSelectedPostTest] = useState<PostTest | null>(null)
   const [postTestQuestions, setPostTestQuestions] = useState<Question[]>([])
   const [loadingQuestions, setLoadingQuestions] = useState(false)
+  
+  // Edit question states
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null)
+  const [editedQuestion, setEditedQuestion] = useState<Question | null>(null)
+  const [savingQuestion, setSavingQuestion] = useState(false)
   
   // Delete confirmation
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -170,7 +176,21 @@ export default function ManagePostTest() {
       const data = await response.json()
       
       if (data.success) {
-        setPostTestQuestions(data.questions || [])
+        // Parse options if they are JSON strings and map field names
+        const parsedQuestions = (data.questions || []).map((q: any) => ({
+          id: q.id || q.question_id,
+          type: (q.type || q.question_type).replace(/_/g, '-'), // Convert underscores to hyphens
+          question: q.question || q.question_text,
+          options: typeof q.options === 'string' 
+            ? (q.options ? JSON.parse(q.options) : [])
+            : Array.isArray(q.options) 
+              ? q.options 
+              : [],
+          correct_answer: q.correct_answer,
+          points: q.points || 1,
+          subject_id: q.subject_id
+        }))
+        setPostTestQuestions(parsedQuestions)
       }
     } catch (error) {
       console.error('Error fetching questions:', error)
@@ -189,6 +209,118 @@ export default function ManagePostTest() {
     setSelectedPostTest(postTest)
     setShowViewDialog(true)
     await fetchPostTestQuestions(postTest.id)
+  }
+  
+  // Handle edit post-test
+  const handleEditPostTest = async (postTest: PostTest) => {
+    setSelectedPostTest(postTest)
+    setShowEditDialog(true)
+    await fetchPostTestQuestions(postTest.id)
+  }
+  
+  // Handle edit question
+  const handleEditQuestion = (index: number) => {
+    const question = postTestQuestions[index]
+    console.log('Editing question:', question)
+    setEditingQuestionIndex(index)
+    // Deep clone to avoid reference issues and ensure options is an array
+    setEditedQuestion({
+      ...question,
+      options: Array.isArray(question.options) 
+        ? [...question.options] 
+        : typeof question.options === 'string'
+          ? JSON.parse(question.options || '[]')
+          : []
+    })
+    console.log('Edited question set to:', {
+      ...question,
+      options: Array.isArray(question.options) ? question.options : []
+    })
+  }
+  
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setEditingQuestionIndex(null)
+    setEditedQuestion(null)
+  }
+  
+  // Handle save edited question
+  const handleSaveQuestion = async () => {
+    if (!editedQuestion || editingQuestionIndex === null || !selectedPostTest) return
+    
+    try {
+      setSavingQuestion(true)
+      
+      const response = await fetch(`http://localhost:4000/api/post-tests/questions/${editedQuestion.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          question: editedQuestion.question,
+          type: editedQuestion.type.replace(/-/g, '_'), // Convert hyphens back to underscores for DB
+          options: editedQuestion.options,
+          correct_answer: editedQuestion.correct_answer,
+          points: editedQuestion.points
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to update question')
+      }
+      
+      // Update local state
+      const updatedQuestions = [...postTestQuestions]
+      updatedQuestions[editingQuestionIndex] = editedQuestion
+      setPostTestQuestions(updatedQuestions)
+      
+      toast({
+        title: "Success",
+        description: "Question updated successfully"
+      })
+      
+      handleCancelEdit()
+    } catch (error) {
+      console.error('Error updating question:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update question",
+        variant: "destructive"
+      })
+    } finally {
+      setSavingQuestion(false)
+    }
+  }
+  
+  // Handle delete question
+  const handleDeleteQuestion = async (questionId: number | undefined, index: number) => {
+    if (!questionId || !selectedPostTest) return
+    
+    try {
+      const response = await fetch(`http://localhost:4000/api/post-tests/questions/${questionId}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete question')
+      }
+      
+      // Update local state
+      const updatedQuestions = postTestQuestions.filter((_, i) => i !== index)
+      setPostTestQuestions(updatedQuestions)
+      
+      toast({
+        title: "Success",
+        description: "Question deleted successfully"
+      })
+    } catch (error) {
+      console.error('Error deleting question:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete question",
+        variant: "destructive"
+      })
+    }
   }
   
   // Handle delete post-test
@@ -487,6 +619,15 @@ export default function ManagePostTest() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="flex-1"
+                    onClick={() => handleEditPostTest(postTest)}
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="text-red-600 hover:text-red-700"
                     onClick={() => {
                       setPostTestToDelete(postTest)
@@ -603,6 +744,281 @@ export default function ManagePostTest() {
                             <Label className="text-sm text-muted-foreground">Correct Answer:</Label>
                             <p className="font-medium mt-1">{question.correct_answer}</p>
                           </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Post-Test Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit: {selectedPostTest?.title}</DialogTitle>
+            <DialogDescription>Edit questions for this post-test</DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Post-Test Info */}
+            <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div>
+                <Label className="text-muted-foreground">Student</Label>
+                <p className="font-medium">{selectedPostTest?.student_name || 'N/A'}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Subject</Label>
+                <p className="font-medium">{selectedPostTest?.subject_name || 'N/A'}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Duration</Label>
+                <p className="font-medium">{selectedPostTest?.duration} {selectedPostTest?.duration_unit}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Created</Label>
+                <p className="font-medium">
+                  {selectedPostTest?.created_at ? new Date(selectedPostTest.created_at).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+            
+            {/* Questions */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Questions ({postTestQuestions.length})</h3>
+              {loadingQuestions ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-sm text-muted-foreground">Loading questions...</p>
+                </div>
+              ) : postTestQuestions.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No questions found</p>
+              ) : (
+                <div className="space-y-4">
+                  {postTestQuestions.map((question, index) => (
+                    <Card key={question.id || index}>
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <CardTitle className="text-base">Question {index + 1}</CardTitle>
+                          <div className="flex gap-2">
+                            <Badge variant="outline">{question.points} point{question.points !== 1 ? 's' : ''}</Badge>
+                            {editingQuestionIndex !== index && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditQuestion(index)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700"
+                                  onClick={() => handleDeleteQuestion(question.id, index)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {editingQuestionIndex === index && editedQuestion ? (
+                          // Edit Mode
+                          <div className="space-y-4">
+                            <div>
+                              <Label>Question Text</Label>
+                              <Textarea
+                                value={editedQuestion.question}
+                                onChange={(e) => setEditedQuestion({ ...editedQuestion, question: e.target.value })}
+                                className="mt-1"
+                                rows={3}
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label>Question Type</Label>
+                              <Select
+                                value={editedQuestion.type}
+                                onValueChange={(value: QuestionType) => setEditedQuestion({ ...editedQuestion, type: value })}
+                              >
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue placeholder="Select question type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
+                                  <SelectItem value="true-false">True/False</SelectItem>
+                                  <SelectItem value="identification">Identification</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            {editedQuestion.type === 'multiple-choice' && (
+                              <div className="space-y-2">
+                                <Label>Options</Label>
+                                {(editedQuestion.options || []).map((option, optIndex) => (
+                                  <div key={optIndex} className="flex gap-2">
+                                    <Input
+                                      value={option}
+                                      onChange={(e) => {
+                                        const newOptions = [...(editedQuestion.options || [])]
+                                        newOptions[optIndex] = e.target.value
+                                        setEditedQuestion({ ...editedQuestion, options: newOptions })
+                                      }}
+                                    />
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        const newOptions = (editedQuestion.options || []).filter((_, i) => i !== optIndex)
+                                        setEditedQuestion({ ...editedQuestion, options: newOptions })
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditedQuestion({
+                                      ...editedQuestion,
+                                      options: [...(editedQuestion.options || []), '']
+                                    })
+                                  }}
+                                >
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Add Option
+                                </Button>
+                              </div>
+                            )}
+                            
+                            <div>
+                              <Label>Correct Answer</Label>
+                              {editedQuestion.type === 'multiple-choice' ? (
+                                <Select
+                                  value={editedQuestion.correct_answer}
+                                  onValueChange={(value) => setEditedQuestion({ ...editedQuestion, correct_answer: value })}
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(editedQuestion.options || []).map((option, idx) => (
+                                      <SelectItem key={idx} value={option}>{option}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : editedQuestion.type === 'true-false' ? (
+                                <Select
+                                  value={editedQuestion.correct_answer}
+                                  onValueChange={(value) => setEditedQuestion({ ...editedQuestion, correct_answer: value })}
+                                >
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="True">True</SelectItem>
+                                    <SelectItem value="False">False</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  value={editedQuestion.correct_answer}
+                                  onChange={(e) => setEditedQuestion({ ...editedQuestion, correct_answer: e.target.value })}
+                                  className="mt-1"
+                                />
+                              )}
+                            </div>
+                            
+                            <div>
+                              <Label>Points</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={editedQuestion.points}
+                                onChange={(e) => setEditedQuestion({ ...editedQuestion, points: parseInt(e.target.value) || 1 })}
+                                className="mt-1"
+                              />
+                            </div>
+                            
+                            <div className="flex gap-2 pt-2">
+                              <Button
+                                variant="default"
+                                onClick={handleSaveQuestion}
+                                disabled={savingQuestion}
+                              >
+                                {savingQuestion ? 'Saving...' : 'Save Changes'}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={handleCancelEdit}
+                                disabled={savingQuestion}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          // View Mode
+                          <>
+                            <p className="font-medium">{question.question}</p>
+                            
+                            {question.type === 'multiple-choice' && question.options && (
+                              <div className="space-y-2">
+                                <Label className="text-sm text-muted-foreground">Options:</Label>
+                                {question.options.map((option, optIndex) => (
+                                  <div
+                                    key={optIndex}
+                                    className={`p-2 rounded border ${
+                                      option === question.correct_answer
+                                        ? 'bg-green-50 border-green-300 dark:bg-green-950 dark:border-green-700'
+                                        : 'bg-gray-50 dark:bg-gray-800'
+                                    }`}
+                                  >
+                                    {option}
+                                    {option === question.correct_answer && (
+                                      <CheckCircle className="w-4 h-4 inline ml-2 text-green-600" />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
+                            {question.type === 'true-false' && (
+                              <div className="space-y-2">
+                                <Label className="text-sm text-muted-foreground">Options:</Label>
+                                {['True', 'False'].map((option) => (
+                                  <div
+                                    key={option}
+                                    className={`p-2 rounded border ${
+                                      option === question.correct_answer
+                                        ? 'bg-green-50 border-green-300 dark:bg-green-950 dark:border-green-700'
+                                        : 'bg-gray-50 dark:bg-gray-800'
+                                    }`}
+                                  >
+                                    {option}
+                                    {option === question.correct_answer && (
+                                      <CheckCircle className="w-4 h-4 inline ml-2 text-green-600" />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
+                            {question.type === 'identification' && (
+                              <div className="p-3 bg-green-50 border border-green-300 rounded dark:bg-green-950 dark:border-green-700">
+                                <Label className="text-sm text-muted-foreground">Correct Answer:</Label>
+                                <p className="font-medium mt-1">{question.correct_answer}</p>
+                              </div>
+                            )}
+                          </>
                         )}
                       </CardContent>
                     </Card>

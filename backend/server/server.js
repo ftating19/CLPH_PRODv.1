@@ -7061,6 +7061,89 @@ app.post('/api/post-tests/:id/questions', async (req, res) => {
   }
 });
 
+// Update a post-test question
+app.put('/api/post-tests/questions/:questionId', async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.questionId);
+    const { question, type, options, correct_answer, points } = req.body;
+    
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Question ID is required' 
+      });
+    }
+    
+    console.log(`Updating post-test question ${questionId}`, { question, type, options, correct_answer, points });
+    
+    const pool = await db.getPool();
+    
+    // Update the question using correct database column names
+    const updateQuery = `
+      UPDATE post_test_questions 
+      SET question_text = ?, 
+          question_type = ?, 
+          options = ?, 
+          correct_answer = ?, 
+          points = ?
+      WHERE question_id = ?
+    `;
+    
+    const optionsJson = options ? JSON.stringify(options) : null;
+    
+    await pool.query(updateQuery, [
+      question,
+      type,
+      optionsJson,
+      correct_answer,
+      points,
+      questionId
+    ]);
+    
+    console.log(`✅ Updated question ${questionId}`);
+    
+    res.json({
+      success: true,
+      message: 'Question updated successfully'
+    });
+  } catch (err) {
+    console.error('Error updating post-test question:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Delete a post-test question
+app.delete('/api/post-tests/questions/:questionId', async (req, res) => {
+  try {
+    const questionId = parseInt(req.params.questionId);
+    
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Question ID is required' 
+      });
+    }
+    
+    console.log(`Deleting post-test question ${questionId}`);
+    
+    const pool = await db.getPool();
+    
+    // Delete the question using correct column name
+    const deleteQuery = 'DELETE FROM post_test_questions WHERE question_id = ?';
+    await pool.query(deleteQuery, [questionId]);
+    
+    console.log(`✅ Deleted question ${questionId}`);
+    
+    res.json({
+      success: true,
+      message: 'Question deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting post-test question:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 // Submit post-test results
 app.post('/api/post-tests/:id/submit', async (req, res) => {
   try {
