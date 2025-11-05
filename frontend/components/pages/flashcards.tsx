@@ -60,6 +60,7 @@ import { useUpdateFlashcardProgress, useFlashcardProgress } from "@/hooks/use-fl
 import { useSubjects } from "@/hooks/use-subjects"
 import { useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { StarRating } from "@/components/ui/star-rating"
 
 export default function Flashcards() {
   // Program options
@@ -149,6 +150,12 @@ export default function Flashcards() {
       fullUser: currentUser
     })
   }
+
+  // Flashcard set ratings state
+  const [setRatings, setSetRatings] = useState<{[subId: number]: {average_rating: number, total_ratings: number}}>({})
+  const [userSetRatings, setUserSetRatings] = useState<{[subId: number]: number}>({})
+  const [userSetComments, setUserSetComments] = useState<{[subId: number]: string}>({})
+  const [ratingsLoading, setRatingsLoading] = useState(true)
 
   // Permission helper functions
   // Permission logic for Students, Tutors, Faculty, Admin
@@ -396,6 +403,176 @@ export default function Flashcards() {
 
     fetchFlashcardSetStatistics()
   }, [flashcardGroupedSets.length])
+
+  // Fetch flashcard set ratings
+  useEffect(() => {
+    const fetchFlashcardSetRatings = async () => {
+      if (flashcardGroupedSets.length === 0) {
+        setRatingsLoading(false)
+        return
+      }
+
+      try {
+        // Fetch average ratings for all flashcard sets
+        const ratingsPromises = flashcardGroupedSets.map(async (set: any) => {
+          try {
+            const response = await fetch(`http://localhost:4000/api/flashcards/set/${set.sub_id}/rating`)
+            if (response.ok) {
+              const data = await response.json()
+              return {
+                subId: set.sub_id,
+                average_rating: data.average_rating || 0,
+                total_ratings: data.total_ratings || 0
+              }
+            }
+            return { subId: set.sub_id, average_rating: 0, total_ratings: 0 }
+          } catch (error) {
+            console.error(`Error fetching rating for flashcard set ${set.sub_id}:`, error)
+            return { subId: set.sub_id, average_rating: 0, total_ratings: 0 }
+          }
+        })
+
+        const ratingsArray = await Promise.all(ratingsPromises)
+        const ratingsMap: {[subId: number]: {average_rating: number, total_ratings: number}} = {}
+        ratingsArray.forEach(rating => {
+          ratingsMap[rating.subId] = { average_rating: rating.average_rating, total_ratings: rating.total_ratings }
+        })
+        setSetRatings(ratingsMap)
+
+        // Fetch user's ratings if logged in
+        if (currentUser?.user_id) {
+          const userRatingsPromises = flashcardGroupedSets.map(async (set: any) => {
+            try {
+              const response = await fetch(`http://localhost:4000/api/flashcards/set/${set.sub_id}/rating/${currentUser.user_id}`)
+              if (response.ok) {
+                const data = await response.json()
+                return {
+                  subId: set.sub_id,
+                  rating: data.rating?.rating || 0
+                }
+              }
+              return { subId: set.sub_id, rating: 0 }
+            } catch (error) {
+              return { subId: set.sub_id, rating: 0 }
+            }
+          })
+
+          const userRatingsArray = await Promise.all(userRatingsPromises)
+          const userRatingsMap: {[subId: number]: number} = {}
+          const userCommentsMap: {[subId: number]: string} = {}
+          userRatingsArray.forEach(rating => {
+            if (rating.rating > 0) {
+              userRatingsMap[rating.subId] = rating.rating
+            }
+          })
+          
+          // Fetch user's comments
+          const userCommentsPromises = flashcardGroupedSets.map(async (set: any) => {
+            try {
+              const response = await fetch(`http://localhost:4000/api/flashcards/set/${set.sub_id}/rating/${currentUser.user_id}`)
+              if (response.ok) {
+                const data = await response.json()
+                return {
+                  subId: set.sub_id,
+                  comment: data.rating?.comment || null
+                }
+              }
+              return { subId: set.sub_id, comment: null }
+            } catch (error) {
+              return { subId: set.sub_id, comment: null }
+            }
+          })
+          
+          const userCommentsArray = await Promise.all(userCommentsPromises)
+          userCommentsArray.forEach(item => {
+            if (item.comment) {
+              userCommentsMap[item.subId] = item.comment
+            }
+          })
+          
+          setUserSetRatings(userRatingsMap)
+          setUserSetComments(userCommentsMap)
+        }
+      } catch (error) {
+        console.error('Error fetching flashcard set ratings:', error)
+      } finally {
+        setRatingsLoading(false)
+      }
+    }
+
+    fetchFlashcardSetRatings()
+  }, [flashcardGroupedSets.length, currentUser?.user_id])
+
+  // Handle flashcard set rating
+  const handleRateFlashcardSet = async (subId: number, rating: number, comment?: string) => {
+    if (!currentUser?.user_id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to rate flashcard sets",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/flashcards/set/${subId}/rating`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: currentUser.user_id,
+          rating: rating,
+          comment: comment || null
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Update local state
+        setSetRatings(prev => ({
+          ...prev,
+          [subId]: {
+            average_rating: data.average_rating,
+            total_ratings: data.total_ratings
+          }
+        }))
+        setUserSetRatings(prev => ({
+          ...prev,
+          [subId]: rating
+        }))
+        
+        // Update comment if provided
+        if (comment) {
+          setUserSetComments(prev => ({
+            ...prev,
+            [subId]: comment
+          }))
+        } else {
+          // Remove comment if empty
+          setUserSetComments(prev => {
+            const newComments = { ...prev }
+            delete newComments[subId]
+            return newComments
+          })
+        }
+
+        toast({
+          title: "Success",
+          description: "Flashcard set rated successfully!",
+          duration: 2000
+        })
+      } else {
+        throw new Error('Failed to rate flashcard set')
+      }
+    } catch (error) {
+      console.error('Error rating flashcard set:', error)
+      toast({
+        title: "Error",
+        description: "Failed to rate flashcard set. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
 
   const handleCreateFlashcard = async () => {
     if (!question.trim()) {
@@ -1020,6 +1197,20 @@ export default function Flashcards() {
             <div className="text-sm text-muted-foreground">
               {set.cardCount === 1 ? 'Flashcard' : 'Flashcards'} ready to study
             </div>
+          </div>
+
+          {/* Flashcard Set Rating */}
+          <div className="border-t pt-3">
+            <StarRating
+              rating={setRatings[set.sub_id]?.average_rating || 0}
+              totalRatings={setRatings[set.sub_id]?.total_ratings || 0}
+              userRating={userSetRatings[set.sub_id] || null}
+              userComment={userSetComments[set.sub_id] || null}
+              onRate={(rating, comment) => handleRateFlashcardSet(set.sub_id, rating, comment)}
+              readonly={!currentUser?.user_id || set.is_pending}
+              size="md"
+              showCount={true}
+            />
           </div>
 
           <div className="flex space-x-2 pt-2">

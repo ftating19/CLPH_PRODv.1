@@ -47,6 +47,23 @@ const {
   deleteQuiz, 
   getUserQuizAttempts 
 } = require('../queries/quizzes')
+const {
+  getQuizAverageRating,
+  getUserQuizRating,
+  upsertQuizRating,
+  deleteQuizRating,
+  getQuizRatings
+} = require('../queries/quizRatings')
+const {
+  getFlashcardAverageRating,
+  getFlashcardSetAverageRating,
+  getUserFlashcardRating,
+  getUserFlashcardSetRating,
+  upsertFlashcardRating,
+  rateFlashcardSet,
+  deleteFlashcardRating,
+  getFlashcardRatings
+} = require('../queries/flashcardRatings')
 const { 
   getQuestionsByQuizId, 
   getQuestionById, 
@@ -4400,6 +4417,141 @@ app.delete('/api/quizzes/:id', async (req, res) => {
   }
 });
 
+// ========== QUIZ RATING ENDPOINTS ==========
+
+// Get average rating for a quiz
+app.get('/api/quizzes/:id/rating', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    
+    if (!quizId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID is required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    const ratingData = await getQuizAverageRating(pool, quizId);
+    
+    res.json({
+      success: true,
+      ...ratingData
+    });
+  } catch (err) {
+    console.error('Error fetching quiz rating:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get user's rating for a quiz
+app.get('/api/quizzes/:id/rating/:userId', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    const userId = parseInt(req.params.userId);
+    
+    if (!quizId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID and user ID are required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    const userRating = await getUserQuizRating(pool, quizId, userId);
+    
+    res.json({
+      success: true,
+      rating: userRating
+    });
+  } catch (err) {
+    console.error('Error fetching user quiz rating:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Create or update quiz rating
+app.post('/api/quizzes/:id/rating', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    const { user_id, rating, comment } = req.body;
+    
+    if (!quizId || !user_id || !rating) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Quiz ID, user ID, and rating are required' 
+      });
+    }
+    
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Rating must be between 1 and 5' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    await upsertQuizRating(pool, quizId, user_id, rating, comment || null);
+    
+    // Get updated average rating
+    const ratingData = await getQuizAverageRating(pool, quizId);
+    
+    res.json({
+      success: true,
+      message: 'Quiz rated successfully',
+      ...ratingData
+    });
+  } catch (err) {
+    console.error('Error rating quiz:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete quiz rating
+app.delete('/api/quizzes/:id/rating/:userId', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id);
+    const userId = parseInt(req.params.userId);
+    
+    if (!quizId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid quiz ID and user ID are required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    const deleted = await deleteQuizRating(pool, quizId, userId);
+    
+    if (!deleted) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Rating not found' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Rating deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting quiz rating:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
 // Get user quiz attempts
 app.get('/api/quizzes/:id/attempts/:userId', async (req, res) => {
   try {
@@ -5292,6 +5444,203 @@ app.delete('/api/flashcards/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('Error deleting flashcard:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ========== FLASHCARD RATING ENDPOINTS ==========
+
+// Get average rating for a flashcard
+app.get('/api/flashcards/:id/rating', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.id);
+    
+    if (!flashcardId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid flashcard ID is required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    const ratingData = await getFlashcardAverageRating(pool, flashcardId);
+    
+    res.json({
+      success: true,
+      ...ratingData
+    });
+  } catch (err) {
+    console.error('Error fetching flashcard rating:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get average rating for a flashcard set (by sub_id)
+app.get('/api/flashcards/set/:subId/rating', async (req, res) => {
+  try {
+    const subId = parseInt(req.params.subId);
+    
+    if (!subId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid sub ID is required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    const ratingData = await getFlashcardSetAverageRating(pool, subId);
+    
+    res.json({
+      success: true,
+      ...ratingData
+    });
+  } catch (err) {
+    console.error('Error fetching flashcard set rating:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get user's rating for a flashcard set
+app.get('/api/flashcards/set/:subId/rating/:userId', async (req, res) => {
+  try {
+    const subId = parseInt(req.params.subId);
+    const userId = parseInt(req.params.userId);
+    
+    if (!subId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid sub ID and user ID are required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    const userRating = await getUserFlashcardSetRating(pool, subId, userId);
+    
+    res.json({
+      success: true,
+      rating: userRating
+    });
+  } catch (err) {
+    console.error('Error fetching user flashcard set rating:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Rate a flashcard set (rates all cards in the set)
+app.post('/api/flashcards/set/:subId/rating', async (req, res) => {
+  try {
+    const subId = parseInt(req.params.subId);
+    const { user_id, rating, comment } = req.body;
+    
+    if (!subId || !user_id || !rating) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Sub ID, user ID, and rating are required' 
+      });
+    }
+    
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Rating must be between 1 and 5' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    const result = await rateFlashcardSet(pool, subId, user_id, rating, comment || null);
+    
+    // Get updated average rating
+    const ratingData = await getFlashcardSetAverageRating(pool, subId);
+    
+    res.json({
+      success: true,
+      message: 'Flashcard set rated successfully',
+      rated_count: result.rated_count,
+      ...ratingData
+    });
+  } catch (err) {
+    console.error('Error rating flashcard set:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get user's rating for a single flashcard
+app.get('/api/flashcards/:id/rating/:userId', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.id);
+    const userId = parseInt(req.params.userId);
+    
+    if (!flashcardId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid flashcard ID and user ID are required' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    const userRating = await getUserFlashcardRating(pool, flashcardId, userId);
+    
+    res.json({
+      success: true,
+      rating: userRating
+    });
+  } catch (err) {
+    console.error('Error fetching user flashcard rating:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Create or update single flashcard rating
+app.post('/api/flashcards/:id/rating', async (req, res) => {
+  try {
+    const flashcardId = parseInt(req.params.id);
+    const { user_id, rating, comment } = req.body;
+    
+    if (!flashcardId || !user_id || !rating) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Flashcard ID, user ID, and rating are required' 
+      });
+    }
+    
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Rating must be between 1 and 5' 
+      });
+    }
+    
+    const pool = await db.getPool();
+    await upsertFlashcardRating(pool, flashcardId, user_id, rating, comment || null);
+    
+    // Get updated average rating
+    const ratingData = await getFlashcardAverageRating(pool, flashcardId);
+    
+    res.json({
+      success: true,
+      message: 'Flashcard rated successfully',
+      ...ratingData
+    });
+  } catch (err) {
+    console.error('Error rating flashcard:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 

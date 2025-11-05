@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils"
 import { useQuizzes, useQuizQuestions, useQuizAttempts, useQuizzesWithPending } from "@/hooks/use-quizzes"
 import { useSubjects } from "@/hooks/use-subjects"
 import { useSearchParams } from "next/navigation"
+import { StarRating } from "@/components/ui/star-rating"
 
 // Question types
 type QuestionType = "multiple-choice" | "true-false" | "enumeration" | "essay"
@@ -208,6 +209,12 @@ export default function Quizzes() {
   const [quizStatistics, setQuizStatistics] = useState<{[quizId: number]: {unique_users: number}}>({})
   const [statisticsLoading, setStatisticsLoading] = useState(true)
 
+  // Quiz ratings state
+  const [quizRatings, setQuizRatings] = useState<{[quizId: number]: {average_rating: number, total_ratings: number}}>({})
+  const [userRatings, setUserRatings] = useState<{[quizId: number]: number}>({})
+  const [userComments, setUserComments] = useState<{[quizId: number]: string}>({})
+  const [ratingsLoading, setRatingsLoading] = useState(true)
+
   // Fetch user attempts when user is available
   useEffect(() => {
     const fetchUserAttempts = async () => {
@@ -293,6 +300,176 @@ export default function Quizzes() {
 
     fetchQuizStatistics()
   }, [quizzes])
+
+  // Fetch quiz ratings
+  useEffect(() => {
+    const fetchQuizRatings = async () => {
+      if (!quizzes || quizzes.length === 0) {
+        setRatingsLoading(false)
+        return
+      }
+
+      try {
+        // Fetch average ratings for all quizzes
+        const ratingsPromises = quizzes.map(async (quiz: any) => {
+          try {
+            const response = await fetch(`http://localhost:4000/api/quizzes/${quiz.quizzes_id}/rating`)
+            if (response.ok) {
+              const data = await response.json()
+              return {
+                quizId: quiz.quizzes_id,
+                average_rating: data.average_rating || 0,
+                total_ratings: data.total_ratings || 0
+              }
+            }
+            return { quizId: quiz.quizzes_id, average_rating: 0, total_ratings: 0 }
+          } catch (error) {
+            console.error(`Error fetching rating for quiz ${quiz.quizzes_id}:`, error)
+            return { quizId: quiz.quizzes_id, average_rating: 0, total_ratings: 0 }
+          }
+        })
+
+        const ratingsArray = await Promise.all(ratingsPromises)
+        const ratingsMap: {[quizId: number]: {average_rating: number, total_ratings: number}} = {}
+        ratingsArray.forEach(rating => {
+          ratingsMap[rating.quizId] = { average_rating: rating.average_rating, total_ratings: rating.total_ratings }
+        })
+        setQuizRatings(ratingsMap)
+
+        // Fetch user's ratings if logged in
+        if (currentUser?.user_id) {
+          const userRatingsPromises = quizzes.map(async (quiz: any) => {
+            try {
+              const response = await fetch(`http://localhost:4000/api/quizzes/${quiz.quizzes_id}/rating/${currentUser.user_id}`)
+              if (response.ok) {
+                const data = await response.json()
+                return {
+                  quizId: quiz.quizzes_id,
+                  rating: data.rating?.rating || 0
+                }
+              }
+              return { quizId: quiz.quizzes_id, rating: 0 }
+            } catch (error) {
+              return { quizId: quiz.quizzes_id, rating: 0 }
+            }
+          })
+
+          const userRatingsArray = await Promise.all(userRatingsPromises)
+          const userRatingsMap: {[quizId: number]: number} = {}
+          const userCommentsMap: {[quizId: number]: string} = {}
+          userRatingsArray.forEach(rating => {
+            if (rating.rating > 0) {
+              userRatingsMap[rating.quizId] = rating.rating
+            }
+          })
+          
+          // Fetch user's comments
+          const userCommentsPromises = quizzes.map(async (quiz: any) => {
+            try {
+              const response = await fetch(`http://localhost:4000/api/quizzes/${quiz.quizzes_id}/rating/${currentUser.user_id}`)
+              if (response.ok) {
+                const data = await response.json()
+                return {
+                  quizId: quiz.quizzes_id,
+                  comment: data.rating?.comment || null
+                }
+              }
+              return { quizId: quiz.quizzes_id, comment: null }
+            } catch (error) {
+              return { quizId: quiz.quizzes_id, comment: null }
+            }
+          })
+          
+          const userCommentsArray = await Promise.all(userCommentsPromises)
+          userCommentsArray.forEach(item => {
+            if (item.comment) {
+              userCommentsMap[item.quizId] = item.comment
+            }
+          })
+          
+          setUserRatings(userRatingsMap)
+          setUserComments(userCommentsMap)
+        }
+      } catch (error) {
+        console.error('Error fetching quiz ratings:', error)
+      } finally {
+        setRatingsLoading(false)
+      }
+    }
+
+    fetchQuizRatings()
+  }, [quizzes, currentUser?.user_id])
+
+  // Handle quiz rating
+  const handleRateQuiz = async (quizId: number, rating: number, comment?: string) => {
+    if (!currentUser?.user_id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to rate quizzes",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/quizzes/${quizId}/rating`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: currentUser.user_id,
+          rating: rating,
+          comment: comment || null
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Update local state
+        setQuizRatings(prev => ({
+          ...prev,
+          [quizId]: {
+            average_rating: data.average_rating,
+            total_ratings: data.total_ratings
+          }
+        }))
+        setUserRatings(prev => ({
+          ...prev,
+          [quizId]: rating
+        }))
+        
+        // Update comment if provided
+        if (comment) {
+          setUserComments(prev => ({
+            ...prev,
+            [quizId]: comment
+          }))
+        } else {
+          // Remove comment if empty
+          setUserComments(prev => {
+            const newComments = { ...prev }
+            delete newComments[quizId]
+            return newComments
+          })
+        }
+
+        toast({
+          title: "Success",
+          description: "Quiz rated successfully!",
+          duration: 2000
+        })
+      } else {
+        throw new Error('Failed to rate quiz')
+      }
+    } catch (error) {
+      console.error('Error rating quiz:', error)
+      toast({
+        title: "Error",
+        description: "Failed to rate quiz. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
 
   // Get user_id early for use in filters
   const user_id = currentUser?.user_id
@@ -1333,6 +1510,20 @@ export default function Quizzes() {
             <User className="w-4 h-4 text-muted-foreground" />
             <span>{quizStatistics[quiz.id]?.unique_users || 0} {(quizStatistics[quiz.id]?.unique_users || 0) === 1 ? 'user' : 'users'} took this</span>
           </div>
+        </div>
+
+        {/* Quiz Rating */}
+        <div className="border-t pt-3">
+          <StarRating
+            rating={quizRatings[quiz.id]?.average_rating || 0}
+            totalRatings={quizRatings[quiz.id]?.total_ratings || 0}
+            userRating={userRatings[quiz.id] || null}
+            userComment={userComments[quiz.id] || null}
+            onRate={(rating, comment) => handleRateQuiz(quiz.id, rating, comment)}
+            readonly={!currentUser?.user_id || quiz.is_pending}
+            size="md"
+            showCount={true}
+          />
         </div>
 
         {/* Creator indicator */}
