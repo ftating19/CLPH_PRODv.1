@@ -158,6 +158,10 @@ export default function Quizzes() {
   const [showTimeUpDialog, setShowTimeUpDialog] = useState(false)
   const [isTimeUp, setIsTimeUp] = useState(false)
   
+  // Rating prompt dialog
+  const [showRatingPrompt, setShowRatingPrompt] = useState(false)
+  const [quizToRate, setQuizToRate] = useState<{id: number, title: string} | null>(null)
+  
   // Quiz results modal states
   const [showResultsDialog, setShowResultsDialog] = useState(false)
   const [quizResults, setQuizResults] = useState<{
@@ -556,6 +560,27 @@ export default function Quizzes() {
     }
 
     return matchesSearch && matchesSubject && matchesDifficulty && matchesProgram && matchesView
+  })
+
+  // Sort quizzes: Recommended (4.5+ rating) first, then by rating, then by date
+  const sortedAndFilteredQuizList = filteredQuizList.sort((a: any, b: any) => {
+    const ratingA = quizRatings[a.id]?.average_rating || 0
+    const ratingB = quizRatings[b.id]?.average_rating || 0
+    
+    const isRecommendedA = ratingA >= 4.5
+    const isRecommendedB = ratingB >= 4.5
+    
+    // Recommended items first
+    if (isRecommendedA && !isRecommendedB) return -1
+    if (!isRecommendedA && isRecommendedB) return 1
+    
+    // Within same category (both recommended or both not), sort by rating
+    if (ratingB !== ratingA) return ratingB - ratingA
+    
+    // If ratings are equal, sort by date (newest first)
+    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
+    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
+    return dateB - dateA
   })
 
   // Removed quizGroupedSets logic
@@ -969,8 +994,19 @@ export default function Quizzes() {
 
   const closeResultsDialog = () => {
     setShowResultsDialog(false)
+    const completedQuizData = quizResults?.quiz
     setQuizResults(null)
     exitQuiz() // Reset all quiz states
+    
+    // Show rating prompt if user hasn't rated this quiz yet
+    if (completedQuizData && currentUser?.user_id && !isPreviewMode) {
+      const quizId = completedQuizData.quiz_id || completedQuizData.id
+      // Only show rating prompt if user hasn't rated yet
+      if (!userRatings[quizId]) {
+        setQuizToRate({ id: quizId, title: completedQuizData.title })
+        setShowRatingPrompt(true)
+      }
+    }
   }
 
   const handleCreateQuiz = async () => {
@@ -1434,9 +1470,22 @@ export default function Quizzes() {
       (new Date().getTime() - new Date(quiz.created_at).getTime()) < (24 * 60 * 60 * 1000) : 
       false;
     
+    // Check if quiz is highly rated (4.5+)
+    const isRecommended = (quizRatings[quiz.id]?.average_rating || 0) >= 4.5;
+    
     return (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader>
+        {/* Recommended Banner for highly-rated quizzes (4.5+) */}
+        {isRecommended && !quiz.is_pending && (
+          <div className="-mx-6 -mt-6 mb-4 px-4 py-2 text-sm font-medium rounded-t-lg bg-gradient-to-r from-yellow-100 to-amber-100 text-amber-900 border-b border-amber-200 dark:from-yellow-900/30 dark:to-amber-900/30 dark:text-amber-300">
+            <div className="flex items-center space-x-2">
+              <Trophy className="w-4 h-4" />
+              <span>⭐ Recommended - Highly Rated ({quizRatings[quiz.id]?.average_rating.toFixed(1)} stars)</span>
+            </div>
+          </div>
+        )}
+        
         {/* Status Banner for Pending/Approved/Rejected - Above Title */}
         {quiz.is_pending && (
           <div className={`-mx-6 -mt-6 mb-4 px-4 py-2 text-sm font-medium rounded-t-lg ${
@@ -2148,7 +2197,7 @@ export default function Quizzes() {
 
       {/* Always use Grid View - quizzes rendered individually, 3 per row on large screens */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredQuizList.map((quiz) => (
+        {sortedAndFilteredQuizList.map((quiz) => (
           <QuizCard key={quiz.id} quiz={quiz} />
         ))}
       </div>
@@ -2156,7 +2205,7 @@ export default function Quizzes() {
       {/* List View (removed viewMode check, always show list) */}
 
       {/* Show different messages based on filter state */}
-      {filteredQuizList.length === 0 && !quizzesLoading && (
+      {sortedAndFilteredQuizList.length === 0 && !quizzesLoading && (
         <div className="text-center py-12">
           <Brain className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           {quizList.length === 0 ? (
@@ -2740,6 +2789,50 @@ export default function Quizzes() {
           <div className="flex justify-end">
             <Button onClick={() => setShowRejectionDialog(false)}>
               Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rating Prompt Dialog */}
+      <Dialog open={showRatingPrompt} onOpenChange={setShowRatingPrompt}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Star className="w-5 h-5 text-yellow-500" />
+              <span>Rate This Quiz</span>
+            </DialogTitle>
+            <DialogDescription>
+              How would you rate "{quizToRate?.title}"? Your feedback helps improve the learning experience.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-6">
+            {quizToRate && (
+              <StarRating
+                rating={0}
+                totalRatings={quizRatings[quizToRate.id]?.total_ratings || 0}
+                userRating={null}
+                userComment={null}
+                onRate={(rating, comment) => {
+                  handleRateQuiz(quizToRate.id, rating, comment)
+                  setShowRatingPrompt(false)
+                  setQuizToRate(null)
+                }}
+                readonly={false}
+                size="lg"
+                showCount={false}
+              />
+            )}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowRatingPrompt(false)
+                setQuizToRate(null)
+              }}
+            >
+              Skip
             </Button>
           </div>
         </DialogContent>

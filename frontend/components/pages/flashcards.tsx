@@ -52,7 +52,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Layers, Plus, RotateCcw, ChevronLeft, ChevronRight, BookOpen, Brain, Search, Filter, Star, Clock, Trash2, Edit, List, User, ChevronDown, CheckCircle, XCircle, Check, ChevronsUpDown } from "lucide-react"
+import { Layers, Plus, RotateCcw, ChevronLeft, ChevronRight, BookOpen, Brain, Search, Filter, Star, Clock, Trash2, Edit, List, User, ChevronDown, CheckCircle, XCircle, Check, ChevronsUpDown, Trophy } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useFlashcards, useFlashcardsWithPending, useCreateFlashcard, useUpdateFlashcard, useDeleteFlashcard } from "@/hooks/use-flashcards"
@@ -88,6 +88,10 @@ export default function Flashcards() {
   // Rejection comment dialog states
   const [showRejectionDialog, setShowRejectionDialog] = useState(false)
   const [selectedRejectionComment, setSelectedRejectionComment] = useState<{ subject: string, comment: string } | null>(null)
+
+  // Rating prompt dialog
+  const [showRatingPrompt, setShowRatingPrompt] = useState(false)
+  const [setToRate, setSetToRate] = useState<{subId: number, subject: string} | null>(null)
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("")
@@ -346,8 +350,22 @@ export default function Flashcards() {
     };
   });
 
-  // Sort by latest created_at (descending)
+  // Sort flashcard sets: Recommended (4.5+ rating) first, then by rating, then by date
   flashcardGroupedSets = flashcardGroupedSets.sort((a, b) => {
+    const ratingA = setRatings[a.sub_id]?.average_rating || 0
+    const ratingB = setRatings[b.sub_id]?.average_rating || 0
+    
+    const isRecommendedA = ratingA >= 4.5
+    const isRecommendedB = ratingB >= 4.5
+    
+    // Recommended items first
+    if (isRecommendedA && !isRecommendedB) return -1
+    if (!isRecommendedA && isRecommendedB) return 1
+    
+    // Within same category (both recommended or both not), sort by rating
+    if (ratingB !== ratingA) return ratingB - ratingA
+    
+    // If ratings are equal, sort by date (newest first)
     const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
     const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
     return dateB - dateA;
@@ -1078,14 +1096,25 @@ export default function Flashcards() {
         });
         refetchProgress();
         refetchFlashcards();
+        
+        const completedSubId = selectedSet.sub_id;
+        const completedSubject = selectedSet.subject;
+        
         // Show completion message and go back to sets
         toast({
           title: "Congratulations!",
           description: "You've completed this flashcard set! 🎉",
           duration: 4000
         });
+        
         setTimeout(() => {
           setStudyMode(false);
+          
+          // Show rating prompt if user hasn't rated this set yet
+          if (!userSetRatings[completedSubId]) {
+            setSetToRate({ subId: completedSubId, subject: completedSubject });
+            setShowRatingPrompt(true);
+          }
         }, 2000);
       } else {
         // Just go to next card, do not mark as completed
@@ -1103,8 +1132,23 @@ export default function Flashcards() {
       (new Date().getTime() - new Date(set.created_at).getTime()) < (24 * 60 * 60 * 1000) : 
       false;
     
+    // Check if flashcard set is highly rated (4.5+)
+    const isRecommended = (setRatings[set.sub_id]?.average_rating || 0) >= 4.5;
+    
     return (
       <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 overflow-hidden">
+        {/* Recommended Banner for highly-rated sets (4.5+) */}
+        {isRecommended && !set.is_pending && (
+          <div className="bg-gradient-to-r from-yellow-100 to-amber-100 text-amber-900 border-b border-amber-200 dark:from-yellow-900/30 dark:to-amber-900/30 dark:text-amber-300 px-3 py-1.5 text-xs font-medium">
+            <div className="flex items-center space-x-1.5">
+              <Trophy className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate">
+                ⭐ Recommended - Highly Rated ({setRatings[set.sub_id]?.average_rating.toFixed(1)} stars)
+              </span>
+            </div>
+          </div>
+        )}
+        
         {set.is_pending && (
           <div className={`${
             set.status === 'pending' 
@@ -2163,6 +2207,50 @@ export default function Flashcards() {
           <div className="flex justify-end">
             <Button onClick={() => setShowRejectionDialog(false)}>
               Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rating Prompt Dialog */}
+      <Dialog open={showRatingPrompt} onOpenChange={setShowRatingPrompt}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Star className="w-5 h-5 text-yellow-500" />
+              <span>Rate This Flashcard Set</span>
+            </DialogTitle>
+            <DialogDescription>
+              How would you rate the "{setToRate?.subject}" flashcard set? Your feedback helps improve the learning experience.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-6">
+            {setToRate && (
+              <StarRating
+                rating={0}
+                totalRatings={setRatings[setToRate.subId]?.total_ratings || 0}
+                userRating={null}
+                userComment={null}
+                onRate={(rating, comment) => {
+                  handleRateFlashcardSet(setToRate.subId, rating, comment)
+                  setShowRatingPrompt(false)
+                  setSetToRate(null)
+                }}
+                readonly={false}
+                size="lg"
+                showCount={false}
+              />
+            )}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowRatingPrompt(false)
+                setSetToRate(null)
+              }}
+            >
+              Skip
             </Button>
           </div>
         </DialogContent>
