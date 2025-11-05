@@ -36,6 +36,7 @@ import { useSubjects } from "@/hooks/use-subjects"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { containsProfanity } from "@/lib/profanity-filter"
 
 export default function DiscussionForums() {
   const { currentUser } = useUser();
@@ -160,6 +161,18 @@ export default function DiscussionForums() {
   // Submit edit
   const handleSubmitEdit = async () => {
     if (!editingForum || !currentUser) return;
+    
+    // Check for profanity
+    const hasProfanity = await containsProfanity(editTitle) || await containsProfanity(editDesc);
+    if (hasProfanity) {
+      setEditError("Your post contains inappropriate language. Please remove any offensive words.");
+      toast({
+        variant: "destructive",
+        title: "Inappropriate Content",
+        description: "Your post contains inappropriate language. Please remove any offensive words.",
+      });
+      return;
+    }
     
     setEditLoading(true);
     setEditError("");
@@ -576,6 +589,20 @@ export default function DiscussionForums() {
                 onClick={async () => {
                   setNewTopicLoading(true);
                   setNewTopicError("");
+                  
+                  // Check for profanity
+                  const hasProfanity = await containsProfanity(newTopicTitle) || await containsProfanity(newTopicDesc);
+                  if (hasProfanity) {
+                    setNewTopicError("Your post contains inappropriate language. Please remove any offensive words.");
+                    toast({
+                      variant: "destructive",
+                      title: "Inappropriate Content",
+                      description: "Your post contains inappropriate language. Please remove any offensive words.",
+                    });
+                    setNewTopicLoading(false);
+                    return;
+                  }
+                  
                   const created_by = currentUser?.user_id;
                   if (!created_by) {
                     setNewTopicError("User not found. Please log in.");
@@ -597,6 +624,10 @@ export default function DiscussionForums() {
                     setNewTopicTitle("");
                     setNewTopicDesc("");
                     setNewTopicSubject("");
+                    toast({
+                      title: "Success",
+                      description: "Forum topic created successfully",
+                    });
                     // Refresh forums
                     fetch("http://localhost:4000/api/forums")
                       .then((r) => r.json())
@@ -777,6 +808,17 @@ export default function DiscussionForums() {
                     className="bg-blue-600 hover:bg-blue-700"
                     disabled={!newComment.trim()}
                     onClick={async () => {
+                      // Check for profanity
+                      const hasProfanity = await containsProfanity(newComment);
+                      if (hasProfanity) {
+                        toast({
+                          variant: "destructive",
+                          title: "Inappropriate Content",
+                          description: "Your comment contains inappropriate language. Please remove any offensive words.",
+                        });
+                        return;
+                      }
+                      
                       const user_id = currentUser?.user_id;
                       if (!user_id) return;
                       const res = await fetch(`http://localhost:4000/api/forums/${selectedForumId}/comments`, {
@@ -786,6 +828,10 @@ export default function DiscussionForums() {
                       });
                       if (res.ok) {
                         setNewComment("");
+                        toast({
+                          title: "Success",
+                          description: "Comment posted successfully",
+                        });
                         // Refresh comments
                         fetch(`http://localhost:4000/api/forums/${selectedForumId}/comments`)
                           .then((r) => r.json())
