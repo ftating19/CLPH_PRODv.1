@@ -406,10 +406,10 @@ export default function Sidebar() {
                       </div>
                       <div className="space-y-1">
                         <NavItem href="/quizzes" icon={Brain}>
-                          Quizzes
+                          My Quizzes
                         </NavItem>
                         <NavItem href="/flashcards" icon={Layers}>
-                          Flashcards
+                          My Flashcards
                         </NavItem>
                       </div>
                     </div>
