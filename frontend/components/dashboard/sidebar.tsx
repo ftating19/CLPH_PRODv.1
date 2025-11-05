@@ -364,10 +364,10 @@ export default function Sidebar() {
                     </div>
                     <div className="space-y-1">
                       <NavItem href="/quizzes" icon={Brain}>
-                        Manage Quizzes
+                        Manage My Quizzes
                       </NavItem>
                       <NavItem href="/flashcards" icon={Layers}>
-                        Manage Flashcards
+                        Manage My Flashcards
                       </NavItem>
                       <NavItem href="/manage-subjects" icon={Library}>
                         Manage Subjects
