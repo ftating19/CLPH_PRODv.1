@@ -84,6 +84,9 @@ export default function TutorSessionPage() {
   const [postTestsLoading, setPostTestsLoading] = useState<{[bookingId: number]: boolean}>({})
   const [postTestResults, setPostTestResults] = useState<{[bookingId: number]: any[]}>({})
   const [resultsLoading, setResultsLoading] = useState<{[bookingId: number]: boolean}>({})
+  
+  // State for unread message counts
+  const [unreadCounts, setUnreadCounts] = useState<{[bookingId: number]: number}>({})
 
   // Fetch tutor's templates
   const fetchTemplates = async () => {
@@ -104,6 +107,42 @@ export default function TutorSessionPage() {
     } finally {
       setLoadingTemplates(false)
     }
+  }
+  
+  // Fetch unread message count for a booking
+  const fetchUnreadCount = async (bookingId: number) => {
+    if (!currentUser?.user_id) return
+    
+    try {
+      const response = await fetch(
+        `http://localhost:4000/api/sessions/${bookingId}/chat/unread?user_id=${currentUser.user_id}`
+      )
+      const data = await response.json()
+      
+      if (data.success) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [bookingId]: data.unread_count || 0
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error)
+    }
+  }
+  
+  // Fetch unread counts for all active bookings
+  const fetchAllUnreadCounts = async (bookings: Booking[]) => {
+    if (!currentUser?.user_id) return
+    
+    const activeBookings = bookings.filter(booking => 
+      (booking.status === 'Accepted' || booking.status === 'accepted') &&
+      ((currentUser.user_id === booking.tutor_id) || (currentUser.user_id === booking.student_id))
+    )
+    
+    // Fetch unread counts for all active bookings
+    await Promise.all(
+      activeBookings.map(booking => fetchUnreadCount(booking.booking_id))
+    )
   }
   
   // Assign template to student
@@ -486,6 +525,9 @@ export default function TutorSessionPage() {
         await autoCompleteExpiredSessions(data.sessions)
         setBookings(data.sessions)
         
+        // Fetch unread message counts for all bookings
+        fetchAllUnreadCounts(data.sessions)
+        
         // Fetch post-tests for each booking for students
         if (currentUser?.role?.toLowerCase() === 'student') {
           data.sessions.forEach((booking: Booking) => {
@@ -517,6 +559,17 @@ export default function TutorSessionPage() {
   useEffect(() => {
     fetchBookings()
   }, [currentUser])
+  
+  // Poll for unread message counts every 10 seconds
+  useEffect(() => {
+    if (!currentUser?.user_id || bookings.length === 0) return
+    
+    const interval = setInterval(() => {
+      fetchAllUnreadCounts(bookings)
+    }, 10000) // Poll every 10 seconds
+    
+    return () => clearInterval(interval)
+  }, [currentUser, bookings])
 
   // Status badge component
   const StatusBadge = ({ status, isExpired }: { status?: string; isExpired?: boolean }) => {
@@ -761,10 +814,23 @@ export default function TutorSessionPage() {
                         <Button 
                           size="sm"
                           variant="outline"
-                          onClick={() => setShowChatModal({open: true, bookingId: booking.booking_id, bookingDetails: booking})}
+                          onClick={() => {
+                            setShowChatModal({open: true, bookingId: booking.booking_id, bookingDetails: booking})
+                            // Reset unread count when opening chat
+                            setUnreadCounts(prev => ({
+                              ...prev,
+                              [booking.booking_id]: 0
+                            }))
+                          }}
+                          className="relative"
                         >
                           <MessageCircle className="w-4 h-4 mr-2" />
                           Chat
+                          {unreadCounts[booking.booking_id] > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                              {unreadCounts[booking.booking_id] > 9 ? '9+' : unreadCounts[booking.booking_id]}
+                            </span>
+                          )}
                         </Button>
                       )}
 
@@ -973,7 +1039,13 @@ export default function TutorSessionPage() {
         {showChatModal.bookingDetails && (
           <ChatModal
             isOpen={showChatModal.open}
-            onClose={() => setShowChatModal({open: false})}
+            onClose={() => {
+              setShowChatModal({open: false})
+              // Refresh unread count after closing chat
+              if (showChatModal.bookingId) {
+                fetchUnreadCount(showChatModal.bookingId)
+              }
+            }}
             booking={showChatModal.bookingDetails}
           />
         )}
