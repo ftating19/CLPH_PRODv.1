@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, MoreHorizontal, UserPlus, Filter, Download, Mail, Phone } from "lucide-react"
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table"
+import { Search, MoreHorizontal, UserPlus, Filter, Download, Mail, Phone, ArrowUpDown, ChevronUp, ChevronDown, Grid3x3, TableIcon } from "lucide-react"
 
 import UserAccountModal from "@/components/modals/useraccount_modal"
 import UserDetailsModal, { UserActionsDropdown } from "@/components/modals/user-details-modal"
@@ -56,6 +64,10 @@ export default function UserManagement() {
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
+  const [sortColumn, setSortColumn] = useState<keyof User | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('table'); // Default to table view
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Additional security check within the component
   useEffect(() => {
@@ -95,8 +107,69 @@ export default function UserManagement() {
       );
     }
 
+    // Apply sorting
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        const aValue = a[sortColumn];
+        const bValue = b[sortColumn];
+        
+        if (aValue === null || aValue === undefined) return 1;
+        if (bValue === null || bValue === undefined) return -1;
+        
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortDirection === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        }
+        
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        
+        return 0;
+      });
+    }
+
     return filtered;
-  }, [users, searchTerm, selectedRole]);
+  }, [users, searchTerm, selectedRole, sortColumn, sortDirection]);
+
+  // Calculate pagination
+  const itemsPerPage = viewMode === 'card' ? 12 : 10; // 12 for card view, 10 for table view
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredUsers.slice(startIndex, endIndex);
+  }, [filteredUsers, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedRole]);
+
+  // Reset to page 1 when view mode changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [viewMode]);
+
+  const handleSort = (column: keyof User) => {
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
 
   const fetchUsers = async () => {
     try {
@@ -279,6 +352,27 @@ export default function UserManagement() {
               />
             </div>
             <div className="flex gap-2">
+              {/* View Mode Toggle */}
+              <div className="flex border rounded-lg overflow-hidden">
+                <Button
+                  variant={viewMode === 'card' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('card')}
+                  className={`rounded-none ${viewMode === 'card' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                >
+                  <Grid3x3 className="h-4 w-4 mr-2" />
+                  Cards
+                </Button>
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className={`rounded-none ${viewMode === 'table' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                >
+                  <TableIcon className="h-4 w-4 mr-2" />
+                  Table
+                </Button>
+              </div>
               <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger className="w-[180px]">
                   <Filter className="h-4 w-4 mr-2" />
@@ -370,92 +464,310 @@ export default function UserManagement() {
               )}
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredUsers.map((user) => (
-                  <Card key={user.user_id} className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="w-12 h-12 flex-shrink-0">
-                          <AvatarFallback className="bg-gradient-to-br from-blue-400 to-blue-600 text-white font-semibold">
-                            {getUserInitials(user.first_name, user.last_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate text-sm">
-                            {user.first_name} {user.middle_name && `${user.middle_name} `}{user.last_name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                        </div>
-                        <UserActionsDropdown 
-                          user={user} 
-                          onViewDetails={handleViewUserDetails}
-                          onEditUser={handleEditUser}
-                          onDeactivateUser={handleDeactivateUser}
-                        />
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Badge variant={getBadgeVariant(user.role)} className="text-xs">
-                          {user.role}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {user.status === 'Active' ? 'Active' : user.status}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          <span className="text-xs text-muted-foreground truncate">
-                            {user.program}
-                          </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Joined {formatDate(user.created_at)}
-                        </div>
-                        {user.first_login === 0 && (
-                          <div className="text-xs text-amber-600 dark:text-amber-400">
-                            First login pending
+            <>
+              {/* Card View */}
+              {viewMode === 'card' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {paginatedUsers.map((user) => (
+                      <Card key={user.user_id} className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="w-12 h-12 flex-shrink-0">
+                              <AvatarFallback className="bg-gradient-to-br from-blue-400 to-blue-600 text-white font-semibold">
+                                {getUserInitials(user.first_name, user.last_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium truncate text-sm">
+                                {user.first_name} {user.middle_name && `${user.middle_name} `}{user.last_name}
+                              </h3>
+                              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                            </div>
+                            <UserActionsDropdown 
+                              user={user} 
+                              onViewDetails={handleViewUserDetails}
+                              onEditUser={handleEditUser}
+                              onDeactivateUser={handleDeactivateUser}
+                            />
                           </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex justify-end pt-2 border-t">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleViewUserDetails(user)}
-                        >
-                          View Details
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              
-              {/* Pagination info */}
-              <div className="flex items-center justify-between mt-6 pt-4 border-t">
-                <p className="text-sm text-muted-foreground">
-                  Showing {filteredUsers.length} of {users.length} users
-                  {(searchTerm || selectedRole !== "all") && (
-                    <span className="ml-2 text-blue-600">
-                      (filtered)
-                    </span>
-                  )}
-                </p>
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" disabled>
-                    Previous
-                  </Button>
-                  <Button variant="outline" size="sm" disabled>
-                    Next
-                  </Button>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Badge variant={getBadgeVariant(user.role)} className="text-xs">
+                              {user.role}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {user.status === 'Active' ? 'Active' : user.status}
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="text-xs text-muted-foreground truncate">
+                                {user.program}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Joined {formatDate(user.created_at)}
+                            </div>
+                            {user.first_login === 0 && (
+                              <div className="text-xs text-amber-600 dark:text-amber-400">
+                                First login pending
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex justify-end pt-2 border-t">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleViewUserDetails(user)}
+                            >
+                              View Details
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  
+                  {/* Pagination info */}
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} users
+                      {(searchTerm || selectedRole !== "all") && (
+                        <span className="ml-2 text-blue-600">
+                          (filtered from {users.length} total)
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-muted-foreground mr-2">
+                        Page {currentPage} of {totalPages || 1}
+                      </span>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages || totalPages === 0}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              )}
+
+              {/* Table View */}
+              {viewMode === 'table' && (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[50px]">#</TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('first_name')}
+                            className="h-8 px-2 hover:bg-transparent"
+                          >
+                            Name
+                            {sortColumn === 'first_name' && (
+                              sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('email')}
+                            className="h-8 px-2 hover:bg-transparent"
+                          >
+                            Email
+                            {sortColumn === 'email' && (
+                              sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('role')}
+                            className="h-8 px-2 hover:bg-transparent"
+                          >
+                            Role
+                            {sortColumn === 'role' && (
+                              sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('program')}
+                            className="h-8 px-2 hover:bg-transparent"
+                          >
+                            Program
+                            {sortColumn === 'program' && (
+                              sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('year_level')}
+                            className="h-8 px-2 hover:bg-transparent"
+                          >
+                            Year Level
+                            {sortColumn === 'year_level' && (
+                              sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('status')}
+                            className="h-8 px-2 hover:bg-transparent"
+                          >
+                            Status
+                            {sortColumn === 'status' && (
+                              sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button 
+                            variant="ghost" 
+                            onClick={() => handleSort('created_at')}
+                            className="h-8 px-2 hover:bg-transparent"
+                          >
+                            Joined
+                            {sortColumn === 'created_at' && (
+                              sortDirection === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedUsers.map((user, index) => (
+                        <TableRow key={user.user_id} className="hover:bg-muted/50">
+                          <TableCell className="font-medium text-muted-foreground">
+                            {((currentPage - 1) * itemsPerPage) + index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="w-8 h-8 flex-shrink-0">
+                                <AvatarFallback className="bg-gradient-to-br from-blue-400 to-blue-600 text-white text-xs font-semibold">
+                                  {getUserInitials(user.first_name, user.last_name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {user.first_name} {user.middle_name && `${user.middle_name} `}{user.last_name}
+                                </span>
+                                {user.first_login === 0 && (
+                                  <span className="text-xs text-amber-600 dark:text-amber-400">
+                                    First login pending
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <span className="text-sm">{user.email}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getBadgeVariant(user.role)} className="text-xs">
+                              {user.role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">{user.program}</TableCell>
+                          <TableCell className="text-sm">{user.year_level || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={user.status === 'Active' ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {user.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatDate(user.created_at)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end space-x-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleViewUserDetails(user)}
+                              >
+                                View
+                              </Button>
+                              <UserActionsDropdown 
+                                user={user} 
+                                onViewDetails={handleViewUserDetails}
+                                onEditUser={handleEditUser}
+                                onDeactivateUser={handleDeactivateUser}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {/* Pagination info */}
+                  <div className="flex items-center justify-between p-4 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} users
+                      {(searchTerm || selectedRole !== "all") && (
+                        <span className="ml-2 text-blue-600">
+                          (filtered from {users.length} total)
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-muted-foreground mr-2">
+                        Page {currentPage} of {totalPages || 1}
+                      </span>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages || totalPages === 0}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>      {/* User Account Modal */}
