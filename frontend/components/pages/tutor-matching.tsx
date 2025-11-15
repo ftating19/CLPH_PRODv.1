@@ -424,7 +424,7 @@ export default function TutorMatching() {
   }
 
   const TutorCard = ({ tutor }: { tutor: Tutor }) => {
-    const isRecommended = recommendedSubjects.includes(tutor.subject_id);
+    const isSubjectRecommended = recommendedSubjects.includes(tutor.subject_id);
     const [cardStats, setCardStats] = useState<{
       comments: any[];
       loading: boolean;
@@ -458,8 +458,12 @@ export default function TutorMatching() {
       fetchCardReviews();
     }, [tutor.user_id]);
     
+    // derive numeric rating and 5-star flag
+    const ratingValue = typeof tutor.ratings === 'string' ? parseFloat(tutor.ratings) : tutor.ratings || 0;
+    const isFiveStar = ratingValue >= 5;
+
     return (
-      <Card className={`hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 ${isRecommended ? 'ring-2 ring-green-400 border-green-300' : ''}`}>
+      <Card className={`hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 ${isFiveStar ? 'ring-2 ring-green-400 border-green-300' : ''}`}>
         <CardHeader className="pb-4">
           <div className="flex items-start space-x-4">
             <Avatar className="w-16 h-16">
@@ -474,9 +478,14 @@ export default function TutorMatching() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="text-xl">{tutor.name || 'Name not provided'}</CardTitle>
                 <div className="flex gap-2">
-                  {isRecommended && (
+                  {isFiveStar && (
                     <Badge variant="default" className="bg-green-600 hover:bg-green-700">
                       Recommended
+                    </Badge>
+                  )}
+                  {!isFiveStar && isSubjectRecommended && (
+                    <Badge variant="outline" className="bg-amber-100 border-amber-300 text-amber-800">
+                      Suggested
                     </Badge>
                   )}
                   <Badge variant={tutor.status === "approved" ? "default" : "secondary"}>
@@ -698,16 +707,22 @@ export default function TutorMatching() {
         return isNotCurrentUser && subjectMatch && programMatch && searchMatch;
       })
       .sort((a, b) => {
-        // Priority 1: Recommended tutors first (based on pre-assessment results)
-        const aIsRecommended = recommendedSubjects.includes(a.subject_id);
-        const bIsRecommended = recommendedSubjects.includes(b.subject_id);
-        
-        if (aIsRecommended && !bIsRecommended) return -1;
-        if (!aIsRecommended && bIsRecommended) return 1;
-        
-        // Priority 2: Within same recommendation status, sort by rating (highest first)
+        // Priority 1: 5-star tutors first
         const ratingA = typeof a.ratings === 'string' ? parseFloat(a.ratings) : a.ratings || 0;
         const ratingB = typeof b.ratings === 'string' ? parseFloat(b.ratings) : b.ratings || 0;
+        const aIsFive = ratingA >= 5;
+        const bIsFive = ratingB >= 5;
+
+        if (aIsFive && !bIsFive) return -1;
+        if (!aIsFive && bIsFive) return 1;
+
+        // Priority 2: Then prioritize tutors recommended by subject (Suggested)
+        const aIsSuggested = recommendedSubjects.includes(a.subject_id);
+        const bIsSuggested = recommendedSubjects.includes(b.subject_id);
+        if (aIsSuggested && !bIsSuggested) return -1;
+        if (!aIsSuggested && bIsSuggested) return 1;
+
+        // Priority 3: Within same status, sort by rating (highest first)
         return ratingB - ratingA;
       });
   }, [tutors, currentUser?.user_id, selectedSubjectFilter, selectedProgramFilter, userRole, userProgram, searchTerm, recommendedSubjects]);
@@ -1154,9 +1169,9 @@ export default function TutorMatching() {
             </div>
             <div>
               <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">Personalized Tutor Recommendations</h3>
-              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                 Based on your pre-assessment results (average: {avgLowScore}%), we recommend tutors for the following subjects. 
-                Recommended tutors are highlighted with a green badge and appear first, sorted by their ratings (5 stars to lowest).
+                Tutors with a 5-star rating are labeled <strong>Recommended</strong> (green) and appear first. Tutors who match your weak subjects but are not 5★ are labeled <strong>Suggested</strong>.
               </p>
               <div className="mt-2 flex flex-wrap gap-1">
                 {recommendedSubjects.map(subjectId => {
