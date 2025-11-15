@@ -43,6 +43,13 @@ interface Student {
 export default function StudentMatching() {
   const [students, setStudents] = useState<Student[]>([])
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([])
+  // Map of studentId -> assessment info for subjects
+  // subjectPercentages: subject_id -> { percentage: number | null, name: string }
+  const [studentAssessmentMap, setStudentAssessmentMap] = useState<Record<number, {
+    subjectPercentages: Record<number, { percentage: number | null; name: string }>
+  }>>({})
+  const [loadingAssessments, setLoadingAssessments] = useState(false)
+  const [tutorSubjectId, setTutorSubjectId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -99,6 +106,78 @@ export default function StudentMatching() {
     }
   }
 
+  // Fetch tutor profile (to get subject) and then fetch assessments for students if current user is a tutor
+  useEffect(() => {
+    const loadTutorAndAssessments = async () => {
+      if (!currentUser || (currentUser.role || '').toLowerCase() !== 'tutor') return;
+
+      try {
+        // Get tutor record for current user
+        const tutorsRes = await fetch('http://localhost:4000/api/tutors')
+        const tutorsData = await tutorsRes.json()
+        const myTutor = Array.isArray(tutorsData.tutors) ? tutorsData.tutors.find((t: any) => t.user_id === currentUser.user_id) : null
+        const foundTutorSubjectId = myTutor?.subject_id
+        setTutorSubjectId(foundTutorSubjectId || null)
+
+        if (!foundTutorSubjectId) {
+          // No subject assigned - nothing to do
+          return
+        }
+
+        // For each student fetch their most recent pre-assessment and compute per-subject percentages
+        setLoadingAssessments(true)
+
+        // Limit to students currently loaded to avoid overloading the backend
+        const studentsToCheck = students.slice(0, 200) // safety cap
+
+        const assessments = await Promise.all(studentsToCheck.map(async (s) => {
+          try {
+            const res = await fetch(`http://localhost:4000/api/pre-assessment-results/user/${s.user_id}?_t=${Date.now()}`)
+            if (!res.ok) return { user_id: s.user_id, percentage: null }
+            const data = await res.json()
+            const latest = Array.isArray(data.results) && data.results.length > 0 ? data.results[0] : null
+            if (!latest || !Array.isArray(latest.answers) || latest.answers.length === 0) {
+              return { user_id: s.user_id, subjects: {} }
+            }
+
+            // Compute per-subject percentages from answers
+            const bySubject: Record<number, { correct: number; total: number; name: string }> = {}
+            latest.answers.forEach((ans: any) => {
+              const sid = Number(ans.subject_id) || 0
+              if (!bySubject[sid]) bySubject[sid] = { correct: 0, total: 0, name: ans.subject_name || '' }
+              bySubject[sid].total++
+              if (ans.is_correct) bySubject[sid].correct++
+            })
+
+            const subjectsResult: Record<number, { percentage: number | null; name: string }> = {}
+            Object.keys(bySubject).forEach((k) => {
+              const sid = Number(k)
+              const data = bySubject[sid]
+              const pct = data.total > 0 ? (data.correct / data.total) * 100 : null
+              subjectsResult[sid] = { percentage: pct, name: data.name }
+            })
+
+            return { user_id: s.user_id, subjects: subjectsResult }
+          } catch (e) {
+            return { user_id: s.user_id, subjects: {} }
+          }
+        }))
+        const map: Record<number, { subjectPercentages: Record<number, { percentage: number | null; name: string }> }> = {}
+        assessments.forEach((a: any) => {
+          map[a.user_id] = { subjectPercentages: a.subjects || {} }
+        })
+
+        setStudentAssessmentMap(map)
+      } catch (e) {
+        console.error('Error loading tutor assessments:', e)
+      } finally {
+        setLoadingAssessments(false)
+      }
+    }
+
+    loadTutorAndAssessments()
+  }, [currentUser, students])
+
   useEffect(() => {
     fetchStudents()
   }, [])
@@ -135,6 +214,41 @@ export default function StudentMatching() {
     setFilteredStudents(filtered)
   }, [searchTerm, programFilter, students, userRole, userProgram])
 
+  // Sort filteredStudents so that, for tutors, students who need help in the tutor's subject appear first
+  useEffect(() => {
+    if (!currentUser || (currentUser.role || '').toLowerCase() !== 'tutor') return
+
+    // Try to determine tutor's subject from tutors API
+    const sortForTutor = async () => {
+      try {
+        const tutorsRes = await fetch('http://localhost:4000/api/tutors')
+        const tutorsData = await tutorsRes.json()
+        const myTutor = Array.isArray(tutorsData.tutors) ? tutorsData.tutors.find((t: any) => t.user_id === currentUser.user_id) : null
+        const tutorSubjectId = myTutor?.subject_id
+        if (!tutorSubjectId) return
+
+        const sorted = [...filteredStudents].sort((a, b) => {
+          const aPctObj = studentAssessmentMap[a.user_id]?.subjectPercentages?.[tutorSubjectId]
+          const bPctObj = studentAssessmentMap[b.user_id]?.subjectPercentages?.[tutorSubjectId]
+          const aPct = aPctObj?.percentage
+          const bPct = bPctObj?.percentage
+
+          const aNeeds = typeof aPct === 'number' && aPct < 82.5 ? 1 : 0
+          const bNeeds = typeof bPct === 'number' && bPct < 82.5 ? 1 : 0
+          if (aNeeds !== bNeeds) return bNeeds - aNeeds
+          // otherwise keep existing order
+          return 0
+        })
+
+        setFilteredStudents(sorted)
+      } catch (e) {
+        console.error('Error sorting students for tutor view:', e)
+      }
+    }
+
+    sortForTutor()
+  }, [currentUser, studentAssessmentMap])
+
   // Get unique programs for filter - only for admins
   const programs = userRole === "admin" ? allPrograms : []
 
@@ -165,18 +279,86 @@ export default function StudentMatching() {
               {getInitials(student.first_name, student.last_name)}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1">
+              <div className="flex-1">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">
-                {student.first_name} {student.middle_name ? `${student.middle_name} ` : ""}{student.last_name}
-              </CardTitle>
-              <Badge variant="default" className="ml-2 bg-green-600">
-                Active Student
-              </Badge>
+                <CardTitle className="text-xl">
+                  {student.first_name} {student.middle_name ? `${student.middle_name} ` : ""}{student.last_name}
+                </CardTitle>
+              <div className="flex items-center gap-2">
+                {/* Tutor view: show assessment-based badges */}
+                {currentUser && (currentUser.role || '').toLowerCase() === 'tutor' && (() => {
+                  const assessment = studentAssessmentMap[student.user_id]
+                  const subjId = tutorSubjectId
+                  const pct = subjId ? assessment?.subjectPercentages?.[subjId]?.percentage ?? null : null
+
+                  if (subjId == null) {
+                    return (
+                      <Badge variant="outline" className="ml-2 bg-gray-50 text-gray-700 border-gray-200">
+                        No Subject
+                      </Badge>
+                    )
+                  }
+
+                  if (pct === null || pct === undefined) {
+                    return (
+                      <Badge variant="outline" className="ml-2 bg-gray-50 text-gray-700 border-gray-200">
+                        No Assessment
+                      </Badge>
+                    )
+                  }
+
+                  if (typeof pct === 'number' && pct < 82.5) {
+                    return (
+                      <Badge variant="default" className="ml-2 bg-green-600">
+                        Recommended
+                      </Badge>
+                    )
+                  }
+
+                  if (typeof pct === 'number' && pct < 90) {
+                    return (
+                      <Badge variant="outline" className="ml-2 bg-amber-100 border-amber-300 text-amber-800">
+                        Suggested
+                      </Badge>
+                    )
+                  }
+
+                  return null
+                })()}
+
+                <Badge variant="default" className="ml-2 bg-green-600">
+                  Active Student
+                </Badge>
+              </div>
             </div>
             <CardDescription className="text-base mt-1">
               {student.program}
             </CardDescription>
+            {/* Tutor-only: show per-subject assessment breakdown */}
+            {currentUser && (currentUser.role || '').toLowerCase() === 'tutor' && (
+              <div className="mt-3">
+                <div className="text-xs text-muted-foreground mb-2">Assessment Results</div>
+                {(() => {
+                  const assessment = studentAssessmentMap[student.user_id]
+                  if (!assessment || !assessment.subjectPercentages || Object.keys(assessment.subjectPercentages).length === 0) {
+                    return <div className="text-xs text-muted-foreground">No assessment data</div>
+                  }
+
+                  return (
+                    <div className="space-y-1">
+                      {Object.entries(assessment.subjectPercentages).map(([sid, info]) => (
+                        <div key={sid} className="flex items-center justify-between">
+                          <div className="text-xs">{info.name || `Subject ${sid}`}</div>
+                          <div className="text-xs font-semibold">
+                            {typeof info.percentage === 'number' ? `${info.percentage.toFixed(1)}%` : 'N/A'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
             <div className="flex items-center space-x-4 mt-2">
               <div className="flex items-center text-sm text-muted-foreground">
                 <User className="w-4 h-4 mr-1" />
