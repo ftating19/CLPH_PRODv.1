@@ -81,7 +81,8 @@ const {
   updateQuizAttempt, 
   deleteQuizAttempt, 
   getUserBestScore, 
-  getQuizStatistics 
+  getQuizStatistics, 
+  getTopQuizPerformers
 } = require('../queries/quizAttempts')
 const { 
   getAllTutorApplications, 
@@ -5156,6 +5157,28 @@ app.get('/api/quiz-attempts/statistics/:quizId', async (req, res) => {
       success: false,
       error: 'Internal server error' 
     });
+  }
+});
+
+// Get top quiz performers (analytics)
+app.get('/api/analytics/top-quiz-performers', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+
+    console.log(`Fetching top ${limit} quiz performers`);
+
+    const pool = await db.getPool();
+    const performers = await getTopQuizPerformers(pool, limit);
+
+    console.log(`✅ Retrieved ${performers.length} top performers`);
+
+    res.json({
+      success: true,
+      performers
+    });
+  } catch (err) {
+    console.error('Error fetching top quiz performers:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

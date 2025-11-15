@@ -38,6 +38,8 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   const [preAssessmentLoading, setPreAssessmentLoading] = useState(true);
   // Quiz attempts
   const [quizAttempts, setQuizAttempts] = useState<any[]>([]);
+  // Top quiz performers (global leaderboard)
+  const [topPerformers, setTopPerformers] = useState<any[]>([]);
   // Post-test data
   const [postTestsData, setPostTestsData] = useState<any[]>([]);
   // Upcoming bookings/sessions
@@ -202,6 +204,23 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
       .catch(() => setQuizAttempts([]));
   }, [currentUser]);
 
+  // Fetch top quiz performers for dashboard global view
+  useEffect(() => {
+    fetch(`http://localhost:4000/api/analytics/top-quiz-performers?limit=5`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.performers)) {
+          setTopPerformers(data.performers);
+        } else {
+          setTopPerformers([]);
+        }
+      })
+      .catch((err) => {
+        console.error('Error fetching top performers:', err);
+        setTopPerformers([]);
+      });
+  }, []);
+
   // Fetch post-test data for students
   useEffect(() => {
     if (!currentUser?.user_id || currentUser?.role?.toLowerCase() !== 'student') return;
@@ -321,6 +340,45 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
               {preAssessmentStatus === 'Needs Improvement' && <span className="text-yellow-600">⚠ Needs Improvement</span>}
               {preAssessmentStatus === 'Not Taken' && <span className="text-gray-600">Not taken yet</span>}
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top quiz performers (global leaderboard) */}
+      <div className="mt-4">
+        <Card className="bg-white dark:bg-[#0F0F12] border border-gray-200 dark:border-[#1F1F23]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              Top Quiz Performers
+            </CardTitle>
+            <CardDescription>Students with the highest average quiz scores</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {topPerformers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Award className="h-12 w-12 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground mb-4">No performance data yet</p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {topPerformers.map((p, idx) => (
+                  <li key={p.user_id || idx} className="flex items-center justify-between border-b pb-2">
+                    <div>
+                      <div className="font-semibold">{p.first_name} {p.last_name}</div>
+                      <div className="text-xs text-muted-foreground">{p.attempts} attempts</div>
+                      {p.best_quiz_title && (
+                        <div className="text-xs text-muted-foreground mt-1">Top quiz: {p.best_quiz_title}</div>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-lg">{(Number(p.avg_score) || 0).toFixed(1)}%</div>
+                      <div className="text-xs text-muted-foreground">Best: {p.best_score}%</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
       </div>

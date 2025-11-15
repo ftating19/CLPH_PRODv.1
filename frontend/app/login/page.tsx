@@ -232,9 +232,11 @@ export default function LoginPage() {
       // Set flag to indicate user is coming from login
       sessionStorage.setItem('fromLogin', 'true')
 
-      // Redirect to dashboard after a short delay
+      // Redirect to appropriate dashboard after a short delay
+      const role = (data.user.role || '').toString().toLowerCase()
+      const destination = role === 'admin' ? '/admin-dashboard' : '/dashboard'
       setTimeout(() => {
-        window.location.href = "/dashboard"
+        window.location.href = destination
       }, 1000);
 
     } catch (err) {

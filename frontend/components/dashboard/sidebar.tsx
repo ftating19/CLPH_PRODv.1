@@ -34,6 +34,7 @@ export default function Sidebar() {
 
   // Get user role from context, default to 'student' if not available
   const userRole = currentUser?.role?.toLowerCase() || 'student'
+  const isAdmin = userRole === 'admin'
 
   function handleNavigation() {
     setIsMobileMenuOpen(false)
@@ -280,109 +281,168 @@ export default function Sidebar() {
 
           <div className="flex-1 overflow-y-auto py-4 px-4">
             <div className="space-y-6">
-              <div>
-                <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  Learning
-                </div>
-                <div className="space-y-1">
-                  <NavItem href="/dashboard" icon={Home}>
-                    Dashboard
-                  </NavItem>
-                  <NavItem href="/tutor-matching" icon={UserCheck}>
-                    Tutor Matching
-                  </NavItem>
-                  {(userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
-                    <NavItem href="/student-matching" icon={Users}>
-                      Student Matching
-                    </NavItem>
-                  )}
-                  <NavItem href="/learning-resources" icon={FileText}>
-                    Learning Resources
-                  </NavItem>
-                  <NavItem href="/quizzes?view=simple" icon={Brain}>
-                    Quizzes
-                  </NavItem>
-                  <NavItem href="/flashcards?view=simple" icon={Layers}>
-                    Flashcards
-                  </NavItem>
-                </div>
-              </div>
-
-              {(userRole === "student" || userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
+              {!isAdmin && (
                 <div>
                   <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    Community
+                    Learning
                   </div>
                   <div className="space-y-1">
-                    <NavItem href="/discussion-forums" icon={MessageSquare}>
-                      Discussion Forums
+                    <NavItem href="/dashboard" icon={Home}>
+                      Dashboard
                     </NavItem>
-                    <NavItem href="/feedback-rating" icon={Star}>
-                      Feedback & Rating
+                    <NavItem href="/tutor-matching" icon={UserCheck}>
+                      Tutor Matching
+                    </NavItem>
+                    {(userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
+                      <NavItem href="/student-matching" icon={Users}>
+                        Student Matching
+                      </NavItem>
+                    )}
+                    <NavItem href="/learning-resources" icon={FileText}>
+                      Learning Resources
+                    </NavItem>
+                    <NavItem href="/quizzes?view=simple" icon={Brain}>
+                      Quizzes
+                    </NavItem>
+                    <NavItem href="/flashcards?view=simple" icon={Layers}>
+                      Flashcards
                     </NavItem>
                   </div>
                 </div>
               )}
 
-              {(userRole === "faculty" || userRole === "admin") && (
+              {isAdmin ? (
                 <>
-                  <div>
-                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      Management
-                    </div>
-                    <div className="space-y-1">
-                      {userRole === "admin" && (
-                        <NavItem href="/admin-dashboard" icon={Shield}>
-                          Admin Dashboard
+                  {(["faculty","admin"].includes(userRole)) && (
+                    <>
+                      <div>
+                        <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                          Management
+                        </div>
+                        <div className="space-y-1">
+                          {userRole === "admin" && (
+                            <NavItem href="/admin-dashboard" icon={Shield}>
+                              Admin Dashboard
+                            </NavItem>
+                          )}
+                          {userRole === "admin" && (
+                            <NavItem href="/user-management" icon={Users}>
+                              User Management
+                            </NavItem>
+                          )}
+                          <PendingApplicantsNavItem href="/pending-applicants" icon={Clock}>
+                            Pending Applicants
+                          </PendingApplicantsNavItem>
+                          <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
+                            Pending Materials
+                          </PendingMaterialsNavItem>
+                          <NavItem href="/pending-quizzes" icon={Brain}>
+                            Pending Quizzes
+                          </NavItem>
+                          <NavItem href="/pending-flashcards" icon={Layers}>
+                            Pending Flashcards
+                          </NavItem>
+                          <NavItem href="/pending-post-tests" icon={FileText}>
+                            Pending Post-Tests
+                          </NavItem>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {(["student","tutor","faculty","admin"].includes(userRole)) && (
+                    <div>
+                      <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Community
+                      </div>
+                      <div className="space-y-1">
+                        <NavItem href="/discussion-forums" icon={MessageSquare}>
+                          Discussion Forums
                         </NavItem>
-                      )}
-                      {userRole === "admin" && (
-                        <NavItem href="/user-management" icon={Users}>
-                          User Management
+                        <NavItem href="/feedback-rating" icon={Star}>
+                          Feedback & Rating
                         </NavItem>
-                      )}
-                      <PendingApplicantsNavItem href="/pending-applicants" icon={Clock}>
-                        Pending Applicants
-                      </PendingApplicantsNavItem>
-                      <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
-                        Pending Materials
-                      </PendingMaterialsNavItem>
-                      <NavItem href="/pending-quizzes" icon={Brain}>
-                        Pending Quizzes
-                      </NavItem>
-                      <NavItem href="/pending-flashcards" icon={Layers}>
-                        Pending Flashcards
-                      </NavItem>
-                      <NavItem href="/pending-post-tests" icon={FileText}>
-                        Pending Post-Tests
-                      </NavItem>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mt-6">
-                      Tools
-                    </div>
-                    <div className="space-y-1">
-                      <NavItem href="/quizzes" icon={Brain}>
-                        Manage My Quizzes
-                      </NavItem>
-                      <NavItem href="/flashcards" icon={Layers}>
-                        Manage My Flashcards
-                      </NavItem>
-                      <NavItem href="/manage-subjects" icon={Library}>
-                        Manage Subjects
-                      </NavItem>
-                      {userRole === "admin" && (
-                        <NavItem href="/pre-assessments" icon={FileText}>
-                          Pre-Assessments
+                  )}
+                </>
+              ) : (
+                <>
+                  {(["student","tutor","faculty","admin"].includes(userRole)) && (
+                    <div>
+                      <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Community
+                      </div>
+                      <div className="space-y-1">
+                        <NavItem href="/discussion-forums" icon={MessageSquare}>
+                          Discussion Forums
                         </NavItem>
-                      )}
+                        <NavItem href="/feedback-rating" icon={Star}>
+                          Feedback & Rating
+                        </NavItem>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {(["faculty","admin"].includes(userRole)) && (
+                    <>
+                      <div>
+                        <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                          Management
+                        </div>
+                        <div className="space-y-1">
+                          {userRole === "admin" && (
+                            <NavItem href="/admin-dashboard" icon={Shield}>
+                              Admin Dashboard
+                            </NavItem>
+                          )}
+                          {userRole === "admin" && (
+                            <NavItem href="/user-management" icon={Users}>
+                              User Management
+                            </NavItem>
+                          )}
+                          <PendingApplicantsNavItem href="/pending-applicants" icon={Clock}>
+                            Pending Applicants
+                          </PendingApplicantsNavItem>
+                          <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
+                            Pending Materials
+                          </PendingMaterialsNavItem>
+                          <NavItem href="/pending-quizzes" icon={Brain}>
+                            Pending Quizzes
+                          </NavItem>
+                          <NavItem href="/pending-flashcards" icon={Layers}>
+                            Pending Flashcards
+                          </NavItem>
+                          <NavItem href="/pending-post-tests" icon={FileText}>
+                            Pending Post-Tests
+                          </NavItem>
+                        </div>
+                      </div>
+
+                      {userRole === "faculty" && (
+                        <div>
+                          <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mt-6">
+                            Tools
+                          </div>
+                          <div className="space-y-1">
+                            <NavItem href="/quizzes" icon={Brain}>
+                              Manage My Quizzes
+                            </NavItem>
+                            <NavItem href="/flashcards" icon={Layers}>
+                              Manage My Flashcards
+                            </NavItem>
+                            <NavItem href="/manage-subjects" icon={Library}>
+                              Manage Subjects
+                            </NavItem>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </>
               )}
 
-              {(userRole === "student" || userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
+              {!isAdmin && (userRole === "student" || userRole === "tutor" || userRole === "faculty" || userRole === "admin") && (
                 <>
                   <div>
                     <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -423,16 +483,18 @@ export default function Sidebar() {
             </div>
           </div>
 
-          <div className="px-4 py-4 border-t border-gray-200 dark:border-[#1F1F23]">
-            <div className="space-y-1">
-              <NavItem href="/settings" icon={Settings}>
-                Settings
-              </NavItem>
-              <NavItem href="/help" icon={HelpCircle}>
-                Help
-              </NavItem>
+          {!isAdmin && (
+            <div className="px-4 py-4 border-t border-gray-200 dark:border-[#1F1F23]">
+              <div className="space-y-1">
+                <NavItem href="/settings" icon={Settings}>
+                  Settings
+                </NavItem>
+                <NavItem href="/help" icon={HelpCircle}>
+                  Help
+                </NavItem>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </nav>
 

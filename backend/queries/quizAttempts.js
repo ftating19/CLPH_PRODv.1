@@ -197,5 +197,39 @@ module.exports = {
   updateQuizAttempt,
   deleteQuizAttempt,
   getUserBestScore,
-  getQuizStatistics
+  getQuizStatistics,
+  // Return top performers across all quizzes (by average score). Returns rows with
+  // user_id, first_name, last_name, attempts, avg_score, best_score
+  getTopQuizPerformers: async (pool, limit = 5) => {
+    try {
+      const [rows] = await pool.query(`
+        SELECT
+          u.user_id,
+          u.first_name,
+          u.last_name,
+          COUNT(*) AS attempts,
+          AVG(qa.score) AS avg_score,
+          MAX(qa.score) AS best_score,
+          (
+            SELECT q.title
+            FROM quizattempts qa2
+            JOIN quizzes q ON qa2.quizzes_id = q.quizzes_id
+            WHERE qa2.user_id = qa.user_id
+            ORDER BY qa2.score DESC, qa2.timestamp DESC
+            LIMIT 1
+          ) AS best_quiz_title
+        FROM quizattempts qa
+        JOIN users u ON qa.user_id = u.user_id
+        GROUP BY qa.user_id
+        HAVING COUNT(*) > 0
+        ORDER BY avg_score DESC, best_score DESC
+        LIMIT ?
+      `, [limit]);
+
+      return rows;
+    } catch (error) {
+      console.error('Error fetching top quiz performers:', error);
+      throw error;
+    }
+  }
 };
