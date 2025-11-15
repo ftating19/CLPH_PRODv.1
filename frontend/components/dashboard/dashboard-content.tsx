@@ -194,23 +194,45 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   useEffect(() => {
     if (!currentUser?.user_id) return;
     
-    fetch(`http://localhost:4000/api/quiz-attempts/user/${currentUser.user_id}`)
+    fetch(`http://localhost:4000/api/quiz-attempts/user/${currentUser.user_id}?_t=${Date.now()}`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.attempts)) {
-          setQuizAttempts(data.attempts.slice(0, 5));
+          // Normalize backend fields to what the UI expects
+          const normalized = data.attempts
+            .map((a: any) => ({
+              id: a.attempt_id || a.id,
+              quiz_title: a.quiz_title || a.name || 'Quiz',
+              score: Number(a.score ?? 0),
+              subject_name: a.subject_name || a.subject || '',
+              created_at: a.timestamp || a.created_at || new Date().toISOString(),
+            }))
+            // keep most recent 5
+            .slice(0, 5);
+
+          setQuizAttempts(normalized);
+        } else {
+          setQuizAttempts([]);
         }
       })
-      .catch(() => setQuizAttempts([]));
+      .catch((err) => {
+        console.error('❌ Dashboard: Error fetching quiz attempts:', err);
+        setQuizAttempts([]);
+      });
   }, [currentUser]);
 
   // Fetch top quiz performers for dashboard global view
   useEffect(() => {
-    fetch(`http://localhost:4000/api/analytics/top-quiz-performers?limit=5`)
+    // request top performers limited to 3
+    fetch(`http://localhost:4000/api/analytics/top-quiz-performers?limit=3`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.performers)) {
-          setTopPerformers(data.performers);
+          // Only keep performers with avg_score >= 80 and cap at 3
+          const highPerformers = data.performers
+            .filter((p: any) => Number(p.avg_score) >= 80)
+            .slice(0, 3);
+          setTopPerformers(highPerformers);
         } else {
           setTopPerformers([]);
         }
