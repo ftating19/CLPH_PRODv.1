@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useUser } from "@/contexts/UserContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,13 +16,23 @@ import {
 } from "lucide-react"
 
 export default function AdminDashboard() {
+  const { currentUser } = useUser()
   const [userCount, setUserCount] = useState<number | null>(null);
   const [studentCount, setStudentCount] = useState<number | null>(null);
   const [tutorCount, setTutorCount] = useState<number | null>(null);
   const [facultyCount, setFacultyCount] = useState<number | null>(null);
-
   useEffect(() => {
-    fetch("http://localhost:4000/api/users")
+    // Only fetch counts when we know the current user (and ideally only for admins)
+    if (!currentUser) return
+
+    // Add role header since the /api/users endpoint requires admin privileges
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    }
+    if (currentUser.role) headers['x-user-role'] = currentUser.role
+
+    // Fetch users (admin-only endpoint)
+    fetch("http://localhost:4000/api/users", { headers })
       .then((res) => res.json())
       .then((data) => {
         if (typeof data.total === "number") {
@@ -31,7 +42,7 @@ export default function AdminDashboard() {
         } else {
           setUserCount(0);
         }
-        // Count students and faculty
+        // Count students and faculty from returned users (if present)
         if (Array.isArray(data.users)) {
           setStudentCount(data.users.filter((u: any) => u.role && u.role.toLowerCase() === "student").length);
           setFacultyCount(data.users.filter((u: any) => u.role && u.role.toLowerCase() === "faculty").length);
@@ -40,12 +51,14 @@ export default function AdminDashboard() {
           setFacultyCount(0);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Error fetching users for admin dashboard:', err)
         setUserCount(null);
         setStudentCount(null);
+        setFacultyCount(null);
       });
 
-    // Fetch tutors count from tutors table
+    // Fetch tutors count from tutors table (public endpoint)
     fetch("http://localhost:4000/api/tutors")
       .then((res) => res.json())
       .then((data) => {
@@ -57,10 +70,11 @@ export default function AdminDashboard() {
           setTutorCount(0);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Error fetching tutors for admin dashboard:', err)
         setTutorCount(null);
       });
-  }, []);
+  }, [currentUser]);
 
   return (
     <>
