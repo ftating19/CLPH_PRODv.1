@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { CheckCircle, XCircle, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Eye } from "lucide-react"
+import { CheckCircle, XCircle, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Eye, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function PendingApplicants() {
@@ -35,10 +35,48 @@ export default function PendingApplicants() {
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [currentApplicant, setCurrentApplicant] = useState<any>(null)
+  const [applicants, setApplicants] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
-  // Updated applicants based on your database schema
-  const applicants = [
+  // Fetch pending tutor applications from backend
+  useEffect(() => {
+    const fetchPendingApplicants = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await fetch('http://localhost:4000/api/tutor-applications?status=pending')
+        if (!response.ok) {
+          throw new Error('Failed to fetch pending applicants')
+        }
+
+        const data = await response.json()
+        if (data.success && Array.isArray(data.applications)) {
+          console.log('Pending applicants loaded:', data.applications)
+          setApplicants(data.applications)
+        } else {
+          throw new Error(data.error || 'Invalid response format')
+        }
+      } catch (err) {
+        console.error('Error fetching pending applicants:', err)
+        setError(err instanceof Error ? err.message : 'Unknown error')
+        toast({
+          title: "Error",
+          description: "Failed to load pending applicants",
+          variant: "destructive"
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPendingApplicants()
+  }, [toast])
+
+  // Fallback hardcoded applicants if needed (keep as reference)
+  const fallbackApplicants = [
     {
       application_id: 1,
       user_id: 101,
@@ -147,27 +185,74 @@ export default function PendingApplicants() {
     setShowRejectDialog(true)
   }
 
-  const confirmApproval = () => {
-    toast({
-      title: "Application Approved",
-      description: `${currentApplicant?.name} has been approved as a tutor and will be notified via email.`,
-      duration: 5000,
-    })
-    setShowApproveDialog(false)
-    setCurrentApplicant(null)
+  const confirmApproval = async () => {
+    if (currentApplicant) {
+      try {
+        const response = await fetch(`http://localhost:4000/api/tutor-applications/${currentApplicant.application_id}/approve`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' }
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to approve applicant')
+        }
+
+        // Remove from pending list
+        setApplicants(prev => prev.filter(a => a.application_id !== currentApplicant.application_id))
+        
+        toast({
+          title: "Application Approved",
+          description: `${currentApplicant?.name} has been approved as a tutor and will be notified via email.`,
+          duration: 5000,
+        })
+        setShowApproveDialog(false)
+        setCurrentApplicant(null)
+      } catch (err) {
+        toast({
+          title: "Error",
+          description: err instanceof Error ? err.message : 'Failed to approve applicant',
+          variant: "destructive"
+        })
+      }
+    }
   }
 
-  const confirmRejection = () => {
-    toast({
-      title: "Application Rejected",
-      description: `${currentApplicant?.name}'s application has been rejected. They will be notified via email.`,
-      duration: 5000,
-    })
-    setShowRejectDialog(false)
-    setCurrentApplicant(null)
+  const confirmRejection = async () => {
+    if (currentApplicant) {
+      try {
+        const response = await fetch(`http://localhost:4000/api/tutor-applications/${currentApplicant.application_id}/reject`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rejectionReason: "" })
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to reject applicant')
+        }
+
+        // Remove from pending list
+        setApplicants(prev => prev.filter(a => a.application_id !== currentApplicant.application_id))
+        
+        toast({
+          title: "Application Rejected",
+          description: `${currentApplicant?.name}'s application has been rejected. They will be notified via email.`,
+          duration: 5000,
+        })
+        setShowRejectDialog(false)
+        setCurrentApplicant(null)
+      } catch (err) {
+        toast({
+          title: "Error",
+          description: err instanceof Error ? err.message : 'Failed to reject applicant',
+          variant: "destructive"
+        })
+      }
+    }
   }
 
   const viewDetails = (applicant: any) => {
+    console.log('Viewing applicant details:', applicant)
+    console.log('Class card image URL:', applicant.class_card_image_url)
     setCurrentApplicant(applicant)
     setShowDetailsModal(true)
   }
@@ -181,7 +266,7 @@ export default function PendingApplicants() {
             <AvatarFallback className="text-lg font-semibold">
               {applicant.name
                 .split(" ")
-                .map((n) => n[0])
+                .map((n: string) => n[0])
                 .join("")}
             </AvatarFallback>
           </Avatar>
@@ -265,26 +350,53 @@ export default function PendingApplicants() {
         </Badge>
       </div>
 
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input placeholder="Search applicants by name, subject, or specialty..." className="pl-10" />
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mr-2" />
+          <span className="text-muted-foreground">Loading pending applicants...</span>
         </div>
-        <Button variant="outline">
-          <Filter className="w-4 h-4 mr-2" />
-          Filters
-        </Button>
-      </div>
+      )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {applicants.map((applicant) => (
-          <ApplicantCard key={applicant.application_id} applicant={applicant} />
-        ))}
-      </div>
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-700">Error: {error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && applicants.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">No pending applications at this time</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && (
+        <>
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input placeholder="Search applicants by name, subject, or specialty..." className="pl-10" />
+            </div>
+            <Button variant="outline">
+              <Filter className="w-4 h-4 mr-2" />
+              Filters
+            </Button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {applicants.map((applicant) => (
+              <ApplicantCard key={applicant.application_id} applicant={applicant} />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Details Modal */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Tutor Application Details</DialogTitle>
             <DialogDescription>
@@ -292,7 +404,7 @@ export default function PendingApplicants() {
             </DialogDescription>
           </DialogHeader>
           {currentApplicant && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Applicant Name</Label>
@@ -300,39 +412,137 @@ export default function PendingApplicants() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Email</Label>
-                  <p className="text-sm">{currentApplicant.email}</p>
+                  <p className="text-sm">{currentApplicant.email || 'N/A'}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Student ID</Label>
-                  <p className="text-sm">{currentApplicant.studentId}</p>
+                  <Label className="text-sm font-medium">User ID</Label>
+                  <p className="text-sm">{currentApplicant.user_id}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Year Level</Label>
-                  <p className="text-sm">{currentApplicant.yearLevel}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">GPA</Label>
-                  <p className="text-sm">{currentApplicant.gpa}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Application Date</Label>
-                  <p className="text-sm">{new Date(currentApplicant.application_date).toLocaleDateString()}</p>
+                  <p className="text-sm">{currentApplicant.year_level || 'N/A'}</p>
                 </div>
               </div>
               
-              <div>
+              <div className="border-t pt-4">
                 <Label className="text-sm font-medium">Subject to Tutor</Label>
                 <p className="text-sm">{currentApplicant.subject_name}</p>
               </div>
               
               <div>
                 <Label className="text-sm font-medium">Program</Label>
-                <p className="text-sm">{currentApplicant.tutor_information.program}</p>
+                <p className="text-sm">{currentApplicant.program || 'N/A'}</p>
               </div>
               
               <div>
-                <Label className="text-sm font-medium">Specialties & Experience</Label>
-                <p className="text-sm text-muted-foreground">{currentApplicant.tutor_information.specialties}</p>
+                <Label className="text-sm font-medium">Specialties</Label>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{currentApplicant.specialties || 'N/A'}</p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Teaching Experience & Information</Label>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{currentApplicant.tutor_information || 'N/A'}</p>
+              </div>
+
+              {/* Class Card Image Viewer */}
+              <div className="border-t pt-4">
+                <Label className="text-sm font-medium mb-3 block">Class Card Image</Label>
+                {currentApplicant.class_card_image_url ? (
+                  <div className="space-y-3">
+                    {/* Image Preview */}
+                    <div className="relative bg-gray-50 dark:bg-gray-900 rounded-lg border p-4">
+                      <img 
+                        src={currentApplicant.class_card_image_url} 
+                        alt="Class card for verification" 
+                        className="w-full h-auto max-h-64 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => {
+                          // Create full-screen image viewer
+                          const overlay = document.createElement('div');
+                          overlay.className = 'fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4';
+                          overlay.style.zIndex = '9999';
+                          
+                          const imageContainer = document.createElement('div');
+                          imageContainer.className = 'relative max-w-full max-h-full';
+                          
+                          const fullImg = document.createElement('img');
+                          fullImg.src = currentApplicant.class_card_image_url;
+                          fullImg.className = 'max-w-full max-h-full object-contain rounded-lg';
+                          fullImg.alt = 'Class card full view';
+                          
+                          const closeBtn = document.createElement('button');
+                          closeBtn.innerHTML = '✕';
+                          closeBtn.className = 'absolute -top-2 -right-2 bg-white dark:bg-gray-800 text-black dark:text-white rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors';
+                          closeBtn.onclick = () => document.body.removeChild(overlay);
+                          
+                          imageContainer.appendChild(fullImg);
+                          imageContainer.appendChild(closeBtn);
+                          overlay.appendChild(imageContainer);
+                          
+                          // Close on overlay click
+                          overlay.onclick = (e) => {
+                            if (e.target === overlay) document.body.removeChild(overlay);
+                          };
+                          
+                          // Close on escape key
+                          const handleEscape = (e: KeyboardEvent) => {
+                            if (e.key === 'Escape') {
+                              document.body.removeChild(overlay);
+                              document.removeEventListener('keydown', handleEscape);
+                            }
+                          };
+                          document.addEventListener('keydown', handleEscape);
+                          
+                          document.body.appendChild(overlay);
+                        }}
+                        onError={(e) => {
+                          console.error('Image failed to load:', currentApplicant.class_card_image_url);
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="flex flex-col items-center justify-center py-8 text-red-600">
+                                <svg class="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                </svg>
+                                <p class="text-sm font-medium">Failed to load image</p>
+                                <p class="text-xs text-muted-foreground mt-1">The image file may be corrupted or unavailable</p>
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Image Actions */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>📷 Click image to view full size</span>
+                      <a 
+                        href={currentApplicant.class_card_image_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Open in new tab
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-8">
+                    <div className="flex flex-col items-center text-center text-muted-foreground">
+                      <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-sm font-medium">No class card image provided</p>
+                      <p className="text-xs mt-1">The applicant did not upload their class card</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4 text-xs text-muted-foreground">
+                <p>Application Date: {new Date(currentApplicant.application_date).toLocaleDateString()}</p>
+                <p>Status: {currentApplicant.status}</p>
               </div>
             </div>
           )}

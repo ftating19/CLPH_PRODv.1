@@ -1017,7 +1017,8 @@ app.get('/api/tutor-applications', async (req, res) => {
       tutor_information: app.tutor_information || '',
       program: app.program || '',
       year_level: app.year_level || '',
-      specialties: app.specialties || ''
+      specialties: app.specialties || '',
+      class_card_image_url: app.class_card_image_url || null
     }));
 
     console.log(`✅ Found ${transformedApplications.length} tutor applications (filtered)`);
@@ -1062,7 +1063,8 @@ app.get('/api/tutor-applications/:id', async (req, res) => {
       tutor_information: application.tutor_information || '',
       program: application.program || '',
       year_level: application.year_level || '',
-      specialties: application.specialties || ''
+      specialties: application.specialties || '',
+      class_card_image_url: application.class_card_image_url || null
     };
 
     console.log(`✅ Found tutor application ${applicationId}`);
@@ -1090,7 +1092,8 @@ app.post('/api/tutor-applications', async (req, res) => {
       tutor_information, 
       program, 
       year_level,
-      specialties 
+      specialties,
+      class_card_image_url
     } = req.body;
 
     // Validate required fields
@@ -1112,7 +1115,8 @@ app.post('/api/tutor-applications', async (req, res) => {
       tutor_information,
       program,
       year_level,
-      specialties
+      specialties,
+      class_card_image_url
     });
 
     console.log(`✅ Tutor application created with ID: ${result.insertId}`);
@@ -1846,6 +1850,77 @@ const upload = multer({
   fileFilter: fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
+
+// Configure multer for image uploads (class cards, etc.)
+const imageStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, '../../frontend/public/class-cards');
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter to only allow image files
+const imageFileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+const imageUpload = multer({ 
+  storage: imageStorage,
+  fileFilter: imageFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
+
+// Upload image endpoint
+app.post('/api/upload', imageUpload.single('file'), async (req, res) => {
+  try {
+    console.log('Image upload request:', {
+      file: req.file,
+      type: req.body.type,
+      user_id: req.body.user_id
+    });
+
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'No file uploaded' 
+      });
+    }
+
+    const fileUrl = `/class-cards/${req.file.filename}`;
+    
+    console.log(`✅ Image uploaded successfully: ${fileUrl}`);
+    
+    res.json({
+      success: true,
+      message: 'Image uploaded successfully',
+      file_url: fileUrl,
+      filename: req.file.filename
+    });
+  } catch (err) {
+    console.error('Error uploading image:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
   }
 });
 

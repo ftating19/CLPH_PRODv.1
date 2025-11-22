@@ -15,7 +15,8 @@ const getAllTutorApplications = async (pool) => {
       tutor_information,
       program,
       year_level,
-      specialties
+      specialties,
+      class_card_image_url
     FROM tutorapplications
     ORDER BY application_date DESC
   `;
@@ -39,7 +40,8 @@ const getTutorApplicationsByStatus = async (pool, status) => {
       tutor_information,
       program,
       year_level,
-      specialties
+      specialties,
+      class_card_image_url
     FROM tutorapplications
     WHERE status = ?
     ORDER BY application_date DESC
@@ -64,7 +66,8 @@ const getTutorApplicationById = async (pool, applicationId) => {
       tutor_information,
       program,
       year_level,
-      specialties
+      specialties,
+      class_card_image_url
     FROM tutorapplications
     WHERE application_id = ?
   `;
@@ -83,7 +86,8 @@ const createTutorApplication = async (pool, applicationData) => {
     tutor_information,
     program,
     year_level,
-    specialties
+    specialties,
+    class_card_image_url
   } = applicationData;
 
   const query = `
@@ -98,8 +102,9 @@ const createTutorApplication = async (pool, applicationData) => {
       tutor_information,
       program,
       year_level,
-      specialties
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      specialties,
+      class_card_image_url
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -114,7 +119,8 @@ const createTutorApplication = async (pool, applicationData) => {
     tutor_information || '',
     program || '',
     year_level || '',
-    specialties || ''
+    specialties || '',
+    class_card_image_url || null
   ]);
 
   return result;

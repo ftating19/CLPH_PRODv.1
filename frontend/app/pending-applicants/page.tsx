@@ -1,4 +1,4 @@
-import PendingApplicants from "@/components/pages/pending-applicants"
+import PendingApplicants from "@/components/pages/pending-applicants-new"
 import Layout from "@/components/dashboard/layout"
 
 export default function PendingApplicantsPage() {
