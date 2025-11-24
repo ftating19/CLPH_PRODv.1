@@ -18,6 +18,7 @@ import {
   BookOpen,
   Layers,
   Library,
+  Target,
 } from "lucide-react"
 
 import { Home } from "lucide-react"
@@ -28,6 +29,7 @@ import { useUser } from "@/contexts/UserContext"
 
 export default function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { currentUser } = useUser()
@@ -35,6 +37,10 @@ export default function Sidebar() {
   // Get user role from context, default to 'student' if not available
   const userRole = currentUser?.role?.toLowerCase() || 'student'
   const isAdmin = userRole === 'admin'
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   function handleNavigation() {
     setIsMobileMenuOpen(false)
@@ -330,21 +336,16 @@ export default function Sidebar() {
                               User Management
                             </NavItem>
                           )}
-                          <PendingApplicantsNavItem href="/pending-applicants" icon={Clock}>
-                            Pending Applicants
-                          </PendingApplicantsNavItem>
-                          <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
-                            Pending Materials
-                          </PendingMaterialsNavItem>
-                          <NavItem href="/pending-quizzes" icon={Brain}>
-                            Pending Quizzes
-                          </NavItem>
-                          <NavItem href="/pending-flashcards" icon={Layers}>
-                            Pending Flashcards
-                          </NavItem>
-                          <NavItem href="/pending-post-tests" icon={FileText}>
-                            Pending Post-Tests
-                          </NavItem>
+                          {userRole === "admin" && (
+                            <NavItem href="/pre-assessments" icon={Target}>
+                              Manage Pre-Assessments
+                            </NavItem>
+                          )}
+                          {userRole === "admin" && (
+                            <NavItem href="/manage-subjects" icon={Library}>
+                              Manage Subjects
+                            </NavItem>
+                          )}
                         </div>
                       </div>
                     </>
@@ -401,21 +402,31 @@ export default function Sidebar() {
                               User Management
                             </NavItem>
                           )}
-                          <PendingApplicantsNavItem href="/pending-applicants" icon={Clock}>
-                            Pending Applicants
-                          </PendingApplicantsNavItem>
-                          <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
-                            Pending Materials
-                          </PendingMaterialsNavItem>
-                          <NavItem href="/pending-quizzes" icon={Brain}>
-                            Pending Quizzes
-                          </NavItem>
-                          <NavItem href="/pending-flashcards" icon={Layers}>
-                            Pending Flashcards
-                          </NavItem>
-                          <NavItem href="/pending-post-tests" icon={FileText}>
-                            Pending Post-Tests
-                          </NavItem>
+                          {userRole === "faculty" && (
+                            <PendingApplicantsNavItem href="/pending-applicants" icon={Clock}>
+                              Pending Applicants
+                            </PendingApplicantsNavItem>
+                          )}
+                          {userRole === "faculty" && (
+                            <PendingMaterialsNavItem href="/pending-materials" icon={BookOpen}>
+                              Pending Materials
+                            </PendingMaterialsNavItem>
+                          )}
+                          {userRole === "faculty" && (
+                            <NavItem href="/pending-quizzes" icon={Brain}>
+                              Pending Quizzes
+                            </NavItem>
+                          )}
+                          {userRole === "faculty" && (
+                            <NavItem href="/pending-flashcards" icon={Layers}>
+                              Pending Flashcards
+                            </NavItem>
+                          )}
+                          {userRole === "faculty" && (
+                            <NavItem href="/pending-post-tests" icon={FileText}>
+                              Pending Post-Tests
+                            </NavItem>
+                          )}
                         </div>
                       </div>
 
@@ -430,9 +441,6 @@ export default function Sidebar() {
                             </NavItem>
                             <NavItem href="/flashcards" icon={Layers}>
                               Manage My Flashcards
-                            </NavItem>
-                            <NavItem href="/manage-subjects" icon={Library}>
-                              Manage Subjects
                             </NavItem>
                           </div>
                         </div>
