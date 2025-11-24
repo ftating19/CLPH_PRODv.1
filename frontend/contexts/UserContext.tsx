@@ -35,9 +35,16 @@ interface UserProviderProps {
 export function UserProvider({ children }: UserProviderProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   // Function to fetch current user from localStorage or API
   const refreshCurrentUser = async () => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       
@@ -100,7 +107,7 @@ export function UserProvider({ children }: UserProviderProps) {
 
   // Function to update current user data
   const updateCurrentUser = (userData: Partial<User>) => {
-    if (currentUser) {
+    if (currentUser && typeof window !== 'undefined') {
       const updatedUser = { ...currentUser, ...userData };
       setCurrentUser(updatedUser);
       
@@ -124,19 +131,21 @@ export function UserProvider({ children }: UserProviderProps) {
       localStorage.setItem('user', JSON.stringify(userForProfile));
       
       // Trigger a custom event to notify other components
-      window.dispatchEvent(new CustomEvent('userDataUpdated', { 
-        detail: updatedUser 
-      }));
-      
-      window.dispatchEvent(new CustomEvent('userProfileUpdated', { 
-        detail: userForProfile 
-      }));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('userDataUpdated', { 
+          detail: updatedUser 
+        }));
+        
+        window.dispatchEvent(new CustomEvent('userProfileUpdated', { 
+          detail: userForProfile 
+        }));
+      }
     }
   };
 
   // Function to force refresh user data from database
   const forceRefreshUserData = async () => {
-    if (currentUser) {
+    if (currentUser && typeof window !== 'undefined') {
       try {
         console.log('Force refreshing user data from database...');
         const response = await fetch(`http://localhost:4000/api/users/${currentUser.user_id}`);
@@ -161,18 +170,20 @@ export function UserProvider({ children }: UserProviderProps) {
               year_level: data.user.year_level,
               user_id: data.user.user_id
             };
-            localStorage.setItem('user', JSON.stringify(userForProfile));
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('user', JSON.stringify(userForProfile));
+              
+              // Trigger events to notify other components
+              window.dispatchEvent(new CustomEvent('userDataUpdated', { 
+                detail: data.user 
+              }));
+              
+              window.dispatchEvent(new CustomEvent('userProfileUpdated', { 
+                detail: userForProfile 
+              }));
+            }
             
             console.log('✅ User data refreshed from database:', data.user);
-            
-            // Trigger events to notify other components
-            window.dispatchEvent(new CustomEvent('userDataUpdated', { 
-              detail: data.user 
-            }));
-            
-            window.dispatchEvent(new CustomEvent('userProfileUpdated', { 
-              detail: userForProfile 
-            }));
           }
         }
       } catch (error) {
@@ -183,11 +194,14 @@ export function UserProvider({ children }: UserProviderProps) {
 
   // Initialize user data on mount
   useEffect(() => {
+    setMounted(true);
     refreshCurrentUser();
   }, []);
 
   // Listen for user update events from other parts of the app
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const handleUserUpdate = (event: CustomEvent) => {
       const updatedUser = event.detail;
       setCurrentUser(updatedUser);
