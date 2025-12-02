@@ -200,6 +200,8 @@ export default function UserManagement() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-role': currentUser?.role || '',
+          'x-user-id': currentUser?.user_id ? String(currentUser.user_id) : '',
         },
         body: JSON.stringify(userData),
       });
@@ -260,6 +262,8 @@ export default function UserManagement() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-role': currentUser?.role || '',
+          'x-user-id': currentUser?.user_id ? String(currentUser.user_id) : '',
         },
         body: JSON.stringify({
           first_name: userToDeactivate.first_name,
