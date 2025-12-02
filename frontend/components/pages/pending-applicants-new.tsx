@@ -35,6 +35,7 @@ export default function PendingApplicants() {
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [currentApplicant, setCurrentApplicant] = useState<any>(null)
+  const [rejectionComment, setRejectionComment] = useState('')
   const [applicants, setApplicants] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -182,6 +183,7 @@ export default function PendingApplicants() {
 
   const handleReject = (applicant: any) => {
     setCurrentApplicant(applicant)
+    setRejectionComment('')
     setShowRejectDialog(true)
   }
 
@@ -223,7 +225,10 @@ export default function PendingApplicants() {
         const response = await fetch(`http://localhost:4000/api/tutor-applications/${currentApplicant.application_id}/reject`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rejectionReason: "" })
+          body: JSON.stringify({ 
+            comment: rejectionComment.trim() || 'No reason provided',
+            validatedby: '1' // Default admin user ID - should be replaced with actual user context
+          })
         })
 
         if (!response.ok) {
@@ -240,6 +245,7 @@ export default function PendingApplicants() {
         })
         setShowRejectDialog(false)
         setCurrentApplicant(null)
+        setRejectionComment('')
       } catch (err) {
         toast({
           title: "Error",
@@ -702,13 +708,27 @@ export default function PendingApplicants() {
           <AlertDialogHeader>
             <AlertDialogTitle>Reject Tutor Application</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to reject {currentApplicant?.name}'s application? This action cannot be undone.
+              You can optionally provide a reason for rejecting {currentApplicant?.name}'s application. 
               They will be notified via email.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="rejectionComment">Rejection Reason (Optional)</Label>
+            <Textarea
+              id="rejectionComment"
+              placeholder="Optional: Explain why this application is being rejected..."
+              value={rejectionComment}
+              onChange={(e) => setRejectionComment(e.target.value)}
+              className="mt-2"
+              rows={4}
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRejection} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogCancel onClick={() => setRejectionComment('')}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmRejection} 
+              className="bg-red-600 hover:bg-red-700"
+            >
               Reject Application
             </AlertDialogAction>
           </AlertDialogFooter>

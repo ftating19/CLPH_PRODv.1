@@ -1509,13 +1509,8 @@ app.put('/api/tutor-applications/:id/reject', async (req, res) => {
     const applicationId = parseInt(req.params.id);
     const { validatedby, comment } = req.body;
     
-    // Validate that comment is provided
-    if (!comment || comment.trim() === '') {
-      return res.status(400).json({ 
-        success: false,
-        error: 'Rejection comment is required' 
-      });
-    }
+    // Use default comment if none provided
+    const finalComment = comment && comment.trim() ? comment.trim() : 'No reason provided';
     
     console.log(`Rejecting tutor application ${applicationId} by user ${validatedby} with comment`);
 
@@ -1531,7 +1526,7 @@ app.put('/api/tutor-applications/:id/reject', async (req, res) => {
     console.log(`Found application for user ${application.user_id}`);
 
     // Update application status to rejected with comment
-    const result = await updateTutorApplicationStatus(pool, applicationId, 'rejected', validatedby || '1', comment);
+    const result = await updateTutorApplicationStatus(pool, applicationId, 'rejected', validatedby || '1', finalComment);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Failed to update application status' });
