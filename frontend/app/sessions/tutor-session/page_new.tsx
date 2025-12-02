@@ -168,7 +168,15 @@ export default function TutorSessionPage() {
       if (role !== "admin" && role !== "faculty") {
         url += `?user_id=${currentUser.user_id}`
       }
-      const response = await fetch(url)
+      
+      // Include headers for faculty filtering
+      const headers: Record<string, string> = {}
+      if (role === "faculty" || role === "admin") {
+        headers['x-user-id'] = currentUser.user_id.toString()
+        headers['x-user-role'] = currentUser.role || ''
+      }
+      
+      const response = await fetch(url, { headers })
       const data = await response.json()
       if (data.success && Array.isArray(data.sessions)) {
         setBookings(data.sessions)

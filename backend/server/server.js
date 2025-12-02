@@ -6564,8 +6564,45 @@ app.get('/api/sessions', async (req, res) => {
         LEFT JOIN subjects s ON t.subject_id = s.subject_id
       `;
       const [result] = await pool.query(query);
-      sessions = result;
-      console.log(`Admin/faculty: Found ${sessions.length} total sessions.`);
+      let allSessions = result;
+      
+      // Check if request comes from faculty and filter sessions accordingly
+      const requestingUserId = req.headers['x-user-id'];
+      const requestingUserRole = req.headers['x-user-role'];
+      
+      if (requestingUserRole === 'Faculty' && requestingUserId) {
+        // Get all subjects and their assigned faculty
+        const [subjectsResult] = await pool.query('SELECT subject_id, user_id FROM subjects');
+        const facultySubjects = [];
+        
+        // Find subjects assigned to this faculty member
+        subjectsResult.forEach(subj => {
+          if (subj.user_id) {
+            try {
+              const facultyIds = JSON.parse(subj.user_id);
+              if (facultyIds.some(fid => String(fid) === String(requestingUserId))) {
+                facultySubjects.push(subj.subject_id);
+              }
+            } catch {
+              // Handle non-JSON user_id values
+              if (String(subj.user_id) === String(requestingUserId)) {
+                facultySubjects.push(subj.subject_id);
+              }
+            }
+          }
+        });
+        
+        // Filter sessions to only show those for subjects assigned to this faculty
+        sessions = allSessions.filter(session => 
+          session.subject_id && facultySubjects.includes(session.subject_id)
+        );
+        
+        console.log(`Faculty ${requestingUserId}: Found ${sessions.length} sessions for their assigned subjects (${facultySubjects.length} subjects).`);
+      } else {
+        // Admin sees all sessions
+        sessions = allSessions;
+        console.log(`Admin: Found ${sessions.length} total sessions.`);
+      }
     }
     res.json({ success: true, sessions });
   } catch (err) {
