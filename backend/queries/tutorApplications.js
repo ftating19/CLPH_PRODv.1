@@ -41,7 +41,11 @@ const getTutorApplicationsByStatus = async (pool, status) => {
       program,
       year_level,
       specialties,
-      class_card_image_url
+      class_card_image_url,
+      assessment_result_id,
+      assessment_score,
+      assessment_percentage,
+      assessment_passed
     FROM tutorapplications
     WHERE status = ?
     ORDER BY application_date DESC
@@ -67,7 +71,11 @@ const getTutorApplicationById = async (pool, applicationId) => {
       program,
       year_level,
       specialties,
-      class_card_image_url
+      class_card_image_url,
+      assessment_result_id,
+      assessment_score,
+      assessment_percentage,
+      assessment_passed
     FROM tutorapplications
     WHERE application_id = ?
   `;
@@ -87,7 +95,11 @@ const createTutorApplication = async (pool, applicationData) => {
     program,
     year_level,
     specialties,
-    class_card_image_url
+    class_card_image_url,
+    assessment_result_id,
+    assessment_score,
+    assessment_percentage,
+    assessment_passed
   } = applicationData;
 
   const query = `
@@ -103,8 +115,12 @@ const createTutorApplication = async (pool, applicationData) => {
       program,
       year_level,
       specialties,
-      class_card_image_url
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      class_card_image_url,
+      assessment_result_id,
+      assessment_score,
+      assessment_percentage,
+      assessment_passed
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -120,7 +136,11 @@ const createTutorApplication = async (pool, applicationData) => {
     program || '',
     year_level || '',
     specialties || '',
-    class_card_image_url || null
+    class_card_image_url || null,
+    assessment_result_id || null,
+    assessment_score || null,
+    assessment_percentage || null,
+    assessment_passed || false
   ]);
 
   return result;

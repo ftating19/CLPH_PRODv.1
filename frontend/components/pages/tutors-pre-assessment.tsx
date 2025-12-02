@@ -472,7 +472,7 @@ export default function TutorsPreAssessment() {
       correctAnswer: "",
       explanation: "",
       points: 1,
-      subjectId: ""
+      subjectId: selectedPreAssessment?.subject_id ? selectedPreAssessment.subject_id.toString() : ""
     })
     setShowQuestionDialog(true)
   }
@@ -1123,7 +1123,7 @@ export default function TutorsPreAssessment() {
 
         {/* Add/Edit Question Dialog */}
         <Dialog open={showQuestionDialog} onOpenChange={setShowQuestionDialog}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingQuestion ? 'Edit Question' : 'Add New Question'}</DialogTitle>
               <DialogDescription>

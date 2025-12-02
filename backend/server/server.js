@@ -198,7 +198,8 @@ const {
   updateTutorPreAssessment,
   deleteTutorPreAssessment,
   getTutorPreAssessmentsByProgram,
-  getTutorPreAssessmentsByYearLevel
+  getTutorPreAssessmentsByYearLevel,
+  getTutorPreAssessmentsBySubject
 } = require('../queries/tutorPreAssessments')
 const {
   getTutorPreAssessmentQuestions,
@@ -1315,7 +1316,11 @@ app.post('/api/tutor-applications', async (req, res) => {
       program, 
       year_level,
       specialties,
-      class_card_image_url
+      class_card_image_url,
+      assessment_result_id,
+      assessment_score,
+      assessment_percentage,
+      assessment_passed
     } = req.body;
 
     // Validate required fields
@@ -1338,7 +1343,11 @@ app.post('/api/tutor-applications', async (req, res) => {
       program,
       year_level,
       specialties,
-      class_card_image_url
+      class_card_image_url,
+      assessment_result_id,
+      assessment_score,
+      assessment_percentage,
+      assessment_passed
     });
 
     console.log(`✅ Tutor application created with ID: ${result.insertId}`);
@@ -3710,6 +3719,115 @@ app.get('/api/tutor-pre-assessments/year-level/:yearLevel', async (req, res) => 
     });
   } catch (err) {
     console.error('Error fetching tutor pre-assessments by year level:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get tutor pre-assessments by subject
+app.get('/api/tutor-pre-assessments/subject/:subjectId', async (req, res) => {
+  try {
+    const subjectId = req.params.subjectId;
+    
+    console.log(`🔍 Fetching tutor pre-assessments for subject: ${subjectId}`);
+    
+    if (!subjectId || isNaN(subjectId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid subject ID is required'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const assessments = await getTutorPreAssessmentsBySubject(pool, parseInt(subjectId));
+    
+    console.log(`✅ Found ${assessments.length} tutor pre-assessments for subject`);
+    
+    res.json({
+      success: true,
+      assessments: assessments,
+      total: assessments.length
+    });
+  } catch (err) {
+    console.error('Error fetching tutor pre-assessments by subject:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Save tutor pre-assessment result
+app.post('/api/tutor-pre-assessment-results', async (req, res) => {
+  try {
+    const {
+      user_id,
+      pre_assessment_id,
+      score,
+      total_points,
+      percentage,
+      correct_answers,
+      total_questions,
+      answers,
+      passed
+    } = req.body;
+
+    console.log(`📝 Saving assessment result for user ${user_id}, assessment ${pre_assessment_id}`);
+
+    // Validate required fields
+    if (!user_id || !pre_assessment_id || score === undefined || total_points === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: user_id, pre_assessment_id, score, total_points'
+      });
+    }
+
+    const pool = await db.getPool();
+
+    // Check if result already exists
+    const [existingResults] = await pool.query(
+      'SELECT id FROM tutor_pre_assessment_results WHERE user_id = ? AND pre_assessment_id = ?',
+      [user_id, pre_assessment_id]
+    );
+
+    if (existingResults.length > 0) {
+      // Update existing result
+      const [updateResult] = await pool.query(`
+        UPDATE tutor_pre_assessment_results 
+        SET score = ?, total_points = ?, percentage = ?, correct_answers = ?, 
+            total_questions = ?, answers = ?, passed = ?, completed_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND pre_assessment_id = ?
+      `, [score, total_points, percentage, correct_answers, total_questions, answers, passed, user_id, pre_assessment_id]);
+
+      console.log(`✅ Updated assessment result for user ${user_id}`);
+      
+      res.json({
+        success: true,
+        message: 'Assessment result updated successfully',
+        result_id: existingResults[0].id
+      });
+    } else {
+      // Insert new result
+      const [insertResult] = await pool.query(`
+        INSERT INTO tutor_pre_assessment_results (
+          user_id, pre_assessment_id, score, total_points, percentage, 
+          correct_answers, total_questions, answers, passed
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [user_id, pre_assessment_id, score, total_points, percentage, correct_answers, total_questions, answers, passed]);
+
+      console.log(`✅ Created assessment result with ID: ${insertResult.insertId}`);
+      
+      res.json({
+        success: true,
+        message: 'Assessment result saved successfully',
+        result_id: insertResult.insertId
+      });
+    }
+
+  } catch (err) {
+    console.error('Error saving tutor pre-assessment result:', err);
     res.status(500).json({
       success: false,
       error: 'Internal server error'

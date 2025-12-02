@@ -277,6 +277,34 @@ const getTutorPreAssessmentsByYearLevel = async (pool, yearLevel) => {
   }
 };
 
+// Get tutor pre-assessments by subject
+const getTutorPreAssessmentsBySubject = async (pool, subjectId) => {
+  try {
+    console.log(`🔍 Fetching tutor pre-assessments for subject: ${subjectId}`);
+    
+    const [rows] = await pool.query(`
+      SELECT 
+        tpa.*,
+        CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
+        COUNT(DISTINCT q.id) as question_count
+      FROM tutor_pre_assessments tpa
+      LEFT JOIN users u ON tpa.created_by = u.user_id
+      LEFT JOIN tutor_pre_assessment_questions q ON tpa.id = q.pre_assessment_id
+      WHERE tpa.subject_id = ? AND tpa.status = 'active'
+      GROUP BY tpa.id, tpa.title, tpa.description, tpa.created_by, 
+               tpa.program, tpa.year_level, tpa.duration, tpa.duration_unit, 
+               tpa.difficulty, tpa.status, tpa.subject_id, tpa.created_at, tpa.updated_at,
+               u.first_name, u.last_name
+      ORDER BY tpa.created_at DESC
+    `, [subjectId]);
+    
+    return rows;
+  } catch (error) {
+    console.error('Error fetching tutor pre-assessments by subject:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   getAllTutorPreAssessments,
   getTutorPreAssessmentById,
@@ -284,5 +312,6 @@ module.exports = {
   updateTutorPreAssessment,
   deleteTutorPreAssessment,
   getTutorPreAssessmentsByProgram,
-  getTutorPreAssessmentsByYearLevel
+  getTutorPreAssessmentsByYearLevel,
+  getTutorPreAssessmentsBySubject
 };

@@ -3,7 +3,7 @@ import { LogOut, MoveUpRight, Settings, FileText, GraduationCap, BookOpen, Edit,
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import EditProfileModal from "../modals/editprofile_modal"
-import ApplyAsTutorModal from "../modals/applyastutor_modal"
+import ApplyAsTutorModalWithAssessment from "../modals/applyastutor_modal_with_assessment"
 import { useUser } from "@/contexts/UserContext"
 
 interface MenuItem {
@@ -268,9 +268,9 @@ export default function Profile01() {
       />
 
       {/* Apply as Tutor Modal */}
-      <ApplyAsTutorModal
-        open={showApplyTutorModal}
-        onClose={() => setShowApplyTutorModal(false)}
+      <ApplyAsTutorModalWithAssessment 
+        open={showApplyTutorModal} 
+        onClose={() => setShowApplyTutorModal(false)} 
       />
     </div>
   )

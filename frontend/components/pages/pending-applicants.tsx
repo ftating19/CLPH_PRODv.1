@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { CheckCircle, XCircle, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Eye, Loader2 } from "lucide-react"
+import { CheckCircle, XCircle, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Eye, Loader2, Award, AlertTriangle, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/contexts/UserContext"
 
@@ -45,6 +45,11 @@ interface TutorApplication {
   year_level: string
   specialties: string
   avatar?: string
+  // Assessment fields
+  assessment_result_id?: number
+  assessment_score?: number
+  assessment_percentage?: number
+  assessment_passed?: boolean
 }
 
 export default function PendingApplicants() {
@@ -263,6 +268,57 @@ export default function PendingApplicants() {
           </p>
         </div>
 
+        {/* Assessment Results */}
+        {applicant.assessment_result_id && (
+          <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
+            <Label className="text-sm font-medium flex items-center">
+              <FileText className="w-4 h-4 mr-1" />
+              Pre-Assessment Results
+            </Label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="text-sm">
+                  <span className="font-medium">{applicant.assessment_score}</span>
+                  <span className="text-muted-foreground"> points</span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">{applicant.assessment_percentage?.toFixed(1)}%</span>
+                </div>
+              </div>
+              <Badge 
+                variant={applicant.assessment_passed ? "default" : "destructive"}
+                className={applicant.assessment_passed 
+                  ? "bg-green-100 text-green-800 border-green-200" 
+                  : "bg-red-100 text-red-800 border-red-200"
+                }
+              >
+                {applicant.assessment_passed ? (
+                  <>
+                    <Award className="w-3 h-3 mr-1" />
+                    Passed
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-3 h-3 mr-1" />
+                    Failed
+                  </>
+                )}
+              </Badge>
+            </div>
+          </div>
+        )}
+        {!applicant.assessment_result_id && (
+          <div className="space-y-2 bg-yellow-50 p-3 rounded-lg">
+            <Label className="text-sm font-medium text-yellow-800 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              Assessment Pending
+            </Label>
+            <p className="text-xs text-yellow-700">
+              This applicant hasn't completed the pre-assessment yet.
+            </p>
+          </div>
+        )}
+
         <div className="flex items-center justify-end pt-4 border-t space-x-2">
           <Button size="sm" variant="outline" onClick={() => viewDetails(applicant)}>
             <Eye className="w-4 h-4 mr-2" />
@@ -373,6 +429,58 @@ export default function PendingApplicants() {
                 <Label className="text-sm font-medium">Specialties & Experience</Label>
                 <p className="text-sm text-muted-foreground">{currentApplicant.specialties || 'No specialties or experience provided'}</p>
               </div>
+              
+              {/* Assessment Results in Details Modal */}
+              {currentApplicant.assessment_result_id ? (
+                <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                  <Label className="text-sm font-medium flex items-center">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Pre-Assessment Results
+                  </Label>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Score</Label>
+                      <p className="text-lg font-semibold">{currentApplicant.assessment_score} points</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Percentage</Label>
+                      <p className="text-lg font-semibold">{currentApplicant.assessment_percentage?.toFixed(1)}%</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Status</Label>
+                      <Badge 
+                        variant={currentApplicant.assessment_passed ? "default" : "destructive"}
+                        className={currentApplicant.assessment_passed 
+                          ? "bg-green-100 text-green-800 border-green-200" 
+                          : "bg-red-100 text-red-800 border-red-200"
+                        }
+                      >
+                        {currentApplicant.assessment_passed ? (
+                          <>
+                            <Award className="w-3 h-3 mr-1" />
+                            Passed
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Failed
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <Label className="text-sm font-medium text-yellow-800 flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-2" />
+                    Assessment Status
+                  </Label>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    This applicant hasn't completed the pre-assessment yet. They need to take the assessment before their application can be properly evaluated.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
@@ -388,6 +496,36 @@ export default function PendingApplicants() {
               They will be notified via email and granted tutor privileges.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          
+          {/* Assessment Summary in Approval Dialog */}
+          {currentApplicant?.assessment_result_id && (
+            <div className="py-4">
+              <Label className="text-sm font-medium mb-2 block">Assessment Results Summary</Label>
+              <div className="bg-gray-50 p-3 rounded-lg flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="text-sm">
+                    <span className="font-medium">{currentApplicant.assessment_score} points</span>
+                    <span className="text-muted-foreground"> ({currentApplicant.assessment_percentage?.toFixed(1)}%)</span>
+                  </div>
+                  <Badge 
+                    variant={currentApplicant.assessment_passed ? "default" : "destructive"}
+                    className={currentApplicant.assessment_passed 
+                      ? "bg-green-100 text-green-800 border-green-200" 
+                      : "bg-red-100 text-red-800 border-red-200"
+                    }
+                  >
+                    {currentApplicant.assessment_passed ? "Passed" : "Failed"}
+                  </Badge>
+                </div>
+              </div>
+              {!currentApplicant.assessment_passed && (
+                <p className="text-xs text-yellow-600 mt-2">
+                  ⚠️ Note: This applicant did not pass the pre-assessment. Consider this when making your decision.
+                </p>
+              )}
+            </div>
+          )}
+          
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmApproval} className="bg-green-600 hover:bg-green-700">
