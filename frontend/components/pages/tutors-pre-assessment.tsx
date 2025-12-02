@@ -107,6 +107,7 @@ interface TutorPreAssessment {
   duration_unit: string
   difficulty: "Easy" | "Medium" | "Hard"
   status: "active" | "inactive"
+  subject_id?: number
   created_at?: string
   question_count?: number
 }
@@ -142,8 +143,9 @@ export default function TutorsPreAssessment() {
     title: "",
     program: "",
     year_level: "",
+    subject_id: 0,
     description: "",
-    duration: 30,
+    duration: 0,
     duration_unit: "minutes",
     difficulty: "Medium" as "Easy" | "Medium" | "Hard"
   })
@@ -152,8 +154,9 @@ export default function TutorsPreAssessment() {
     title: "",
     program: "",
     year_level: "",
+    subject_id: 0,
     description: "",
-    duration: 30,
+    duration: 0,
     duration_unit: "minutes",
     difficulty: "Medium" as "Easy" | "Medium" | "Hard"
   })
@@ -179,6 +182,38 @@ export default function TutorsPreAssessment() {
     // Check if current user is assigned to this subject
     const assignedFaculty = (subject as any).faculty_ids || []
     return assignedFaculty.some((fid: string) => String(fid) === String(currentUser.user_id))
+  })
+
+  // Filter subjects based on selected year level for create form
+  const createFormSubjects = facultySubjects.filter(subject => {
+    if (!createForm.year_level) return true // Show all if no year level selected
+    
+    // Check if subject year level matches selected year level
+    if (subject.year_level) {
+      // Handle both string and array formats
+      const subjectYearLevels = Array.isArray(subject.year_level) 
+        ? subject.year_level 
+        : [subject.year_level]
+      return subjectYearLevels.includes(createForm.year_level)
+    }
+    
+    return true // Show all subjects if no year level specified in subject
+  })
+
+  // Filter subjects based on selected year level for edit form
+  const editFormSubjects = facultySubjects.filter(subject => {
+    if (!editForm.year_level) return true // Show all if no year level selected
+    
+    // Check if subject year level matches selected year level
+    if (subject.year_level) {
+      // Handle both string and array formats
+      const subjectYearLevels = Array.isArray(subject.year_level) 
+        ? subject.year_level 
+        : [subject.year_level]
+      return subjectYearLevels.includes(editForm.year_level)
+    }
+    
+    return true // Show all subjects if no year level specified in subject
   })
 
   // Fetch tutors pre-assessments
@@ -212,10 +247,19 @@ export default function TutorsPreAssessment() {
   // Create pre-assessment
   const handleCreatePreAssessment = async () => {
     if (!createForm.title.trim() || !createForm.program || !createForm.year_level || 
-        !createForm.description.trim()) {
+        !createForm.description.trim() || !createForm.subject_id || createForm.subject_id === 0) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields.",
+        description: "Please fill in all required fields including subject.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!createForm.duration || createForm.duration < 1) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid duration (minimum 1).",
         variant: "destructive"
       })
       return
@@ -254,8 +298,9 @@ export default function TutorsPreAssessment() {
         title: "",
         program: "",
         year_level: "",
+        subject_id: 0,
         description: "",
-        duration: 30,
+        duration: 0,
         duration_unit: "minutes",
         difficulty: "Medium"
       })
@@ -276,13 +321,14 @@ export default function TutorsPreAssessment() {
   const handleEditPreAssessment = (assessment: TutorPreAssessment) => {
     setSelectedPreAssessment(assessment)
     setEditForm({
-      title: assessment.title,
-      program: assessment.program,
-      year_level: assessment.year_level,
-      description: assessment.description,
-      duration: assessment.duration,
-      duration_unit: assessment.duration_unit,
-      difficulty: assessment.difficulty
+      title: assessment.title || "",
+      program: assessment.program || "",
+      year_level: assessment.year_level || "",
+      subject_id: assessment.subject_id || 0,
+      description: assessment.description || "",
+      duration: typeof assessment.duration === 'number' && !isNaN(assessment.duration) && assessment.duration > 0 ? assessment.duration : 0,
+      duration_unit: assessment.duration_unit || "minutes",
+      difficulty: assessment.difficulty || "Medium"
     })
     setShowEditDialog(true)
   }
@@ -290,9 +336,28 @@ export default function TutorsPreAssessment() {
   const handleUpdatePreAssessment = async () => {
     if (!selectedPreAssessment) return
 
+    if (!editForm.title.trim() || !editForm.program || !editForm.year_level || 
+        !editForm.description.trim() || !editForm.subject_id || editForm.subject_id === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields including subject.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!editForm.duration || editForm.duration < 1) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid duration (minimum 1).",
+        variant: "destructive"
+      })
+      return
+    }
+
     try {
       setIsSubmitting(true)
-      const response = await fetch(`http://localhost:3000/api/tutor-pre-assessments/${selectedPreAssessment.id}`, {
+      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessments/${selectedPreAssessment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -333,7 +398,7 @@ export default function TutorsPreAssessment() {
 
     try {
       setIsSubmitting(true)
-      const response = await fetch(`http://localhost:3000/api/tutor-pre-assessments/${selectedPreAssessment.id}`, {
+      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessments/${selectedPreAssessment.id}`, {
         method: 'DELETE'
       })
 
@@ -415,12 +480,12 @@ export default function TutorsPreAssessment() {
   const handleEditQuestion = (question: Question) => {
     setEditingQuestion(question)
     setQuestionForm({
-      type: question.type,
-      question: question.question,
+      type: question.type || "multiple-choice",
+      question: question.question || "",
       options: question.options || ["", "", "", ""],
-      correctAnswer: Array.isArray(question.correctAnswer) ? question.correctAnswer[0] : question.correctAnswer,
+      correctAnswer: Array.isArray(question.correctAnswer) ? question.correctAnswer[0] : (question.correctAnswer || ""),
       explanation: question.explanation || "",
-      points: question.points,
+      points: typeof question.points === 'number' && !isNaN(question.points) ? question.points : 1,
       subjectId: String(question.subject_id || "")
     })
     setShowQuestionDialog(true)
@@ -704,6 +769,29 @@ export default function TutorsPreAssessment() {
                   onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
                 />
               </div>
+              <div>
+                <Label htmlFor="subject">Subject</Label>
+                <Select value={createForm.subject_id ? createForm.subject_id.toString() : ""} onValueChange={(value) => setCreateForm({ ...createForm, subject_id: parseInt(value) || 0 })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {createFormSubjects && createFormSubjects.length > 0 ? (
+                      createFormSubjects.map((subject) => (
+                        subject && subject.subject_id ? (
+                          <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                            {subject.subject_name || 'Unknown Subject'} ({subject.subject_code || 'N/A'})
+                          </SelectItem>
+                        ) : null
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        No subjects available for selected year level
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="program">Program</Label>
@@ -751,9 +839,10 @@ export default function TutorsPreAssessment() {
                   <Input
                     id="duration"
                     type="number"
-                    min="5"
-                    value={createForm.duration}
-                    onChange={(e) => setCreateForm({ ...createForm, duration: parseInt(e.target.value) })}
+                    min="1"
+                    placeholder="Enter duration (e.g., 30, 60, 120)"
+                    value={createForm.duration?.toString() || ""}
+                    onChange={(e) => setCreateForm({ ...createForm, duration: parseInt(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
@@ -813,6 +902,29 @@ export default function TutorsPreAssessment() {
                   onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
                 />
               </div>
+              <div>
+                <Label htmlFor="edit-subject">Subject</Label>
+                <Select value={editForm.subject_id ? editForm.subject_id.toString() : ""} onValueChange={(value) => setEditForm({ ...editForm, subject_id: parseInt(value) || 0 })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editFormSubjects && editFormSubjects.length > 0 ? (
+                      editFormSubjects.map((subject) => (
+                        subject && subject.subject_id ? (
+                          <SelectItem key={subject.subject_id} value={subject.subject_id.toString()}>
+                            {subject.subject_name || 'Unknown Subject'} ({subject.subject_code || 'N/A'})
+                          </SelectItem>
+                        ) : null
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        No subjects available for selected year level
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="edit-program">Program</Label>
@@ -860,9 +972,10 @@ export default function TutorsPreAssessment() {
                   <Input
                     id="edit-duration"
                     type="number"
-                    min="5"
-                    value={editForm.duration}
-                    onChange={(e) => setEditForm({ ...editForm, duration: parseInt(e.target.value) })}
+                    min="1"
+                    placeholder="Enter duration (e.g., 30, 60, 120)"
+                    value={editForm.duration?.toString() || ""}
+                    onChange={(e) => setEditForm({ ...editForm, duration: parseInt(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
@@ -1197,7 +1310,7 @@ export default function TutorsPreAssessment() {
                   type="number"
                   min="1"
                   max="100"
-                  value={questionForm.points}
+                  value={questionForm.points?.toString() || "1"}
                   onChange={(e) => setQuestionForm({ ...questionForm, points: parseInt(e.target.value) || 1 })}
                 />
               </div>

@@ -18,6 +18,7 @@ const getAllTutorPreAssessments = async (pool, createdBy = null) => {
         tpa.difficulty,
         tpa.status,
         tpa.assessment_type,
+        tpa.subject_id,
         tpa.created_at,
         tpa.updated_at,
         CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
@@ -37,7 +38,7 @@ const getAllTutorPreAssessments = async (pool, createdBy = null) => {
     query += `
       GROUP BY tpa.id, tpa.title, tpa.description, tpa.created_by, 
                tpa.program, tpa.year_level, tpa.duration, tpa.duration_unit, 
-               tpa.difficulty, tpa.status, tpa.assessment_type, tpa.created_at, tpa.updated_at,
+               tpa.difficulty, tpa.status, tpa.assessment_type, tpa.subject_id, tpa.created_at, tpa.updated_at,
                u.first_name, u.last_name
       ORDER BY tpa.created_at DESC
     `;
@@ -85,6 +86,7 @@ const createTutorPreAssessment = async (pool, preAssessmentData) => {
       duration, 
       duration_unit, 
       difficulty,
+      subject_id,
       assessment_type = 'tutor'
     } = preAssessmentData;
     
@@ -100,9 +102,10 @@ const createTutorPreAssessment = async (pool, preAssessmentData) => {
         duration, 
         duration_unit, 
         difficulty,
+        subject_id,
         assessment_type,
         status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
     `;
     
     const values = [
@@ -114,6 +117,7 @@ const createTutorPreAssessment = async (pool, preAssessmentData) => {
       duration, 
       duration_unit, 
       difficulty,
+      subject_id,
       assessment_type
     ];
     
@@ -131,6 +135,7 @@ const createTutorPreAssessment = async (pool, preAssessmentData) => {
       duration,
       duration_unit,
       difficulty,
+      subject_id,
       assessment_type,
       status: 'active'
     };
@@ -150,7 +155,8 @@ const updateTutorPreAssessment = async (pool, id, preAssessmentData) => {
       year_level, 
       duration, 
       duration_unit, 
-      difficulty 
+      difficulty,
+      subject_id 
     } = preAssessmentData;
     
     console.log(`📝 Updating tutor pre-assessment ID: ${id}`);
@@ -158,7 +164,7 @@ const updateTutorPreAssessment = async (pool, id, preAssessmentData) => {
     const query = `
       UPDATE tutor_pre_assessments 
       SET title = ?, description = ?, program = ?, year_level = ?, 
-          duration = ?, duration_unit = ?, difficulty = ?, updated_at = CURRENT_TIMESTAMP
+          duration = ?, duration_unit = ?, difficulty = ?, subject_id = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
     
@@ -169,7 +175,8 @@ const updateTutorPreAssessment = async (pool, id, preAssessmentData) => {
       year_level, 
       duration, 
       duration_unit, 
-      difficulty, 
+      difficulty,
+      subject_id, 
       id
     ];
     
@@ -185,7 +192,8 @@ const updateTutorPreAssessment = async (pool, id, preAssessmentData) => {
       year_level,
       duration,
       duration_unit,
-      difficulty
+      difficulty,
+      subject_id
     };
   } catch (error) {
     console.error('Error updating tutor pre-assessment:', error);
@@ -229,7 +237,7 @@ const getTutorPreAssessmentsByProgram = async (pool, program) => {
       WHERE tpa.program = ? AND tpa.status = 'active'
       GROUP BY tpa.id, tpa.title, tpa.description, tpa.created_by, 
                tpa.program, tpa.year_level, tpa.duration, tpa.duration_unit, 
-               tpa.difficulty, tpa.status, tpa.created_at, tpa.updated_at,
+               tpa.difficulty, tpa.status, tpa.subject_id, tpa.created_at, tpa.updated_at,
                u.first_name, u.last_name
       ORDER BY tpa.created_at DESC
     `, [program]);
@@ -257,7 +265,7 @@ const getTutorPreAssessmentsByYearLevel = async (pool, yearLevel) => {
       WHERE tpa.year_level = ? AND tpa.status = 'active'
       GROUP BY tpa.id, tpa.title, tpa.description, tpa.created_by, 
                tpa.program, tpa.year_level, tpa.duration, tpa.duration_unit, 
-               tpa.difficulty, tpa.status, tpa.created_at, tpa.updated_at,
+               tpa.difficulty, tpa.status, tpa.subject_id, tpa.created_at, tpa.updated_at,
                u.first_name, u.last_name
       ORDER BY tpa.created_at DESC
     `, [yearLevel]);

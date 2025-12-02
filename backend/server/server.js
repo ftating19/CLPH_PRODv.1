@@ -3500,16 +3500,17 @@ app.post('/api/tutor-pre-assessments', async (req, res) => {
       year_level, 
       duration, 
       duration_unit, 
-      difficulty 
+      difficulty,
+      subject_id 
     } = req.body;
     
-    console.log(`📝 Creating tutor pre-assessment: ${title}`);
+    console.log(`📝 Creating tutor pre-assessment: ${title} for subject ${subject_id}`);
     
     // Validate required fields
-    if (!title || !description || !created_by || !program || !year_level) {
+    if (!title || !description || !created_by || !program || !year_level || !subject_id) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: title, description, created_by, program, year_level'
+        error: 'Missing required fields: title, description, created_by, program, year_level, subject_id'
       });
     }
     
@@ -3522,7 +3523,8 @@ app.post('/api/tutor-pre-assessments', async (req, res) => {
       year_level,
       duration: duration || 30, // default 30 minutes
       duration_unit: duration_unit || 'minutes',
-      difficulty: difficulty || 'medium'
+      difficulty: difficulty || 'medium',
+      subject_id
     });
     
     console.log(`✅ Created tutor pre-assessment: ${result.id}`);
@@ -3552,10 +3554,11 @@ app.put('/api/tutor-pre-assessments/:id', async (req, res) => {
       year_level, 
       duration, 
       duration_unit, 
-      difficulty 
+      difficulty,
+      subject_id 
     } = req.body;
     
-    console.log(`📝 Updating tutor pre-assessment ${id}`);
+    console.log(`📝 Updating tutor pre-assessment ${id} for subject ${subject_id}`);
     
     if (!id || isNaN(id)) {
       return res.status(400).json({
@@ -3565,10 +3568,10 @@ app.put('/api/tutor-pre-assessments/:id', async (req, res) => {
     }
     
     // Validate required fields
-    if (!title || !description || !program || !year_level) {
+    if (!title || !description || !program || !year_level || !subject_id) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: title, description, program, year_level'
+        error: 'Missing required fields: title, description, program, year_level, subject_id'
       });
     }
     
@@ -3580,7 +3583,8 @@ app.put('/api/tutor-pre-assessments/:id', async (req, res) => {
       year_level,
       duration,
       duration_unit,
-      difficulty
+      difficulty,
+      subject_id
     });
     
     console.log(`✅ Updated tutor pre-assessment: ${id}`);
