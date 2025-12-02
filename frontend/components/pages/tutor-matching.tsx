@@ -109,6 +109,17 @@ export default function TutorMatching() {
   const [subjectFilterComboboxOpen, setSubjectFilterComboboxOpen] = useState(false)
   const [subjectFilterSearchValue, setSubjectFilterSearchValue] = useState("")
   
+  // Ratings modal state
+  const [showRatingsModal, setShowRatingsModal] = useState(false)
+  const [selectedTutorForRatings, setSelectedTutorForRatings] = useState<Tutor | null>(null)
+  const [ratingsModalStats, setRatingsModalStats] = useState<{
+    comments: any[];
+    loading: boolean;
+  }>({
+    comments: [],
+    loading: false
+  })
+  
   // Tutor statistics state
   const [tutorStats, setTutorStats] = useState<{
     completedCount: number;
@@ -321,6 +332,30 @@ export default function TutorMatching() {
       setTutorStats({ completedCount: 0, comments: [], loading: false })
     }
   }
+  
+  // Fetch ratings for modal
+  const fetchRatingsForModal = async (tutorUserId: number) => {
+    try {
+      setRatingsModalStats(prev => ({ ...prev, loading: true }))
+      
+      // Fetch all comments for ratings modal
+      const commentsResponse = await fetch(`http://localhost:4000/api/tutors/${tutorUserId}/sessions/comments`)
+      const commentsData = await commentsResponse.json()
+      
+      if (commentsData.success) {
+        setRatingsModalStats({
+          comments: commentsData.comments,
+          loading: false
+        })
+      } else {
+        console.error('Error fetching tutor ratings:', commentsData)
+        setRatingsModalStats({ comments: [], loading: false })
+      }
+    } catch (error) {
+      console.error('Error fetching tutor ratings:', error)
+      setRatingsModalStats({ comments: [], loading: false })
+    }
+  }
 
 
 
@@ -503,40 +538,20 @@ export default function TutorMatching() {
           </div>
         )}
 
-        {/* Recent 5-Star Reviews */}
-        {!cardStats.loading && cardStats.comments.length > 0 && (
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Recent 5-Star Reviews</Label>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {cardStats.comments.map((comment, index) => (
-                <div key={index} className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center space-x-1">
-                      <span className="font-medium text-xs">{comment.student_name}</span>
-                      <div className="flex">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} className="w-2 h-2 text-yellow-500 fill-current" />
-                        ))}
-                      </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(comment.completed_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">
-                    "{comment.feedback}"
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+
 
         <div className="flex items-center justify-end pt-4 border-t">
           <div className="flex space-x-2">
             <Button size="sm" variant="outline" onClick={() => {
+              setSelectedTutorForRatings(tutor);
+              fetchRatingsForModal(tutor.user_id);
+              setShowRatingsModal(true);
+            }}>
+              View Ratings
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => {
               setSelectedTutor(tutor);
-              fetchTutorStatistics(tutor.user_id); // Fetch statistics when opening profile
+              fetchTutorStatistics(tutor.user_id);
               setShowProfileModal(true);
             }}>
               View Profile
@@ -1631,6 +1646,126 @@ export default function TutorMatching() {
                 >
                   <Calendar className="w-4 h-4 mr-2" />
                   Book Session
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Ratings Modal */}
+      <Dialog open={showRatingsModal} onOpenChange={setShowRatingsModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-3">
+              <Star className="w-6 h-6 text-yellow-500" />
+              <div>
+                <h2 className="text-xl font-bold">{selectedTutorForRatings?.name || 'Tutor'} - Student Reviews</h2>
+                <p className="text-muted-foreground">{selectedTutorForRatings?.subject_name}</p>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedTutorForRatings && (
+            <div className="space-y-6">
+              {/* Rating Summary */}
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-yellow-600">
+                        {selectedTutorForRatings.ratings || '0'}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Average Rating</div>
+                    </div>
+                    <div className="flex items-center">
+                      {(() => {
+                        const ratingValue = typeof selectedTutorForRatings.ratings === 'string' 
+                          ? parseFloat(selectedTutorForRatings.ratings) 
+                          : selectedTutorForRatings.ratings || 0;
+                        return Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} className={`w-6 h-6 ${
+                            i < ratingValue ? 'text-yellow-500 fill-current' : 'text-gray-300'
+                          }`} />
+                        ))
+                      })()}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-semibold">{ratingsModalStats.comments.length}</div>
+                    <div className="text-sm text-muted-foreground">Total Reviews</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Reviews List */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">All Student Reviews</h3>
+                {ratingsModalStats.loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                    <span>Loading reviews...</span>
+                  </div>
+                ) : ratingsModalStats.comments.length > 0 ? (
+                  <div className="space-y-4 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800">
+                    {ratingsModalStats.comments
+                      .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())
+                      .map((comment, index) => (
+                        <div key={index} className={`border rounded-lg p-4 ${
+                          comment.rating === 5 ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800' :
+                          comment.rating >= 4 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' :
+                          comment.rating >= 3 ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800' :
+                          'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+                        }`}>
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center space-x-3">
+                              <div>
+                                <div className="font-medium text-sm">{comment.student_name}</div>
+                                <div className="flex items-center mt-1">
+                                  {Array.from({ length: 5 }).map((_, i) => (
+                                    <Star key={i} className={`w-4 h-4 ${
+                                      i < comment.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'
+                                    }`} />
+                                  ))}
+                                  <span className="ml-2 text-sm text-muted-foreground">({comment.rating}/5)</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm text-muted-foreground">
+                                {new Date(comment.completed_at).toLocaleDateString('en-US', {
+                                  month: 'numeric',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </div>
+                              {comment.subject_name && (
+                                <Badge variant="outline" className="text-xs mt-1">
+                                  {comment.subject_name}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                            "{comment.feedback}"
+                          </p>
+                        </div>
+                      ))
+                    }
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Star className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>No reviews available yet.</p>
+                    <p className="text-sm">This tutor hasn't received any student feedback.</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Close Button */}
+              <div className="flex justify-end pt-4 border-t">
+                <Button variant="outline" onClick={() => setShowRatingsModal(false)}>
+                  Close
                 </Button>
               </div>
             </div>
