@@ -485,12 +485,17 @@ export default function PendingApplicants() {
                   <p className="text-sm">{currentApplicant.email || 'N/A'}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">User ID</Label>
-                  <p className="text-sm">{currentApplicant.user_id}</p>
-                </div>
-                <div>
                   <Label className="text-sm font-medium">Year Level</Label>
                   <p className="text-sm">{currentApplicant.year_level || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Application Date</Label>
+                  <p className="text-sm">{new Date(currentApplicant.application_date).toLocaleDateString('en-US', { 
+                    weekday: 'long',
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}</p>
                 </div>
               </div>
               

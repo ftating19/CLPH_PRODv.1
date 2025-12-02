@@ -4,21 +4,27 @@
 const getAllTutorApplications = async (pool) => {
   const query = `
     SELECT 
-      application_id,
-      user_id,
-      name,
-      subject_id,
-      subject_name,
-      application_date,
-      status,
-      validated_by,
-      tutor_information,
-      program,
-      year_level,
-      specialties,
-      class_card_image_url
-    FROM tutorapplications
-    ORDER BY application_date DESC
+      ta.application_id,
+      ta.user_id,
+      ta.name,
+      ta.subject_id,
+      ta.subject_name,
+      ta.application_date,
+      ta.status,
+      ta.validated_by,
+      ta.tutor_information,
+      ta.program,
+      ta.year_level,
+      ta.specialties,
+      ta.class_card_image_url,
+      ta.assessment_result_id,
+      ta.assessment_score,
+      ta.assessment_percentage,
+      ta.assessment_passed,
+      u.email
+    FROM tutorapplications ta
+    LEFT JOIN users u ON ta.user_id = u.user_id
+    ORDER BY ta.application_date DESC
   `;
   
   const [rows] = await pool.query(query);
@@ -29,26 +35,28 @@ const getAllTutorApplications = async (pool) => {
 const getTutorApplicationsByStatus = async (pool, status) => {
   const query = `
     SELECT 
-      application_id,
-      user_id,
-      name,
-      subject_id,
-      subject_name,
-      application_date,
-      status,
-      validated_by,
-      tutor_information,
-      program,
-      year_level,
-      specialties,
-      class_card_image_url,
-      assessment_result_id,
-      assessment_score,
-      assessment_percentage,
-      assessment_passed
-    FROM tutorapplications
-    WHERE status = ?
-    ORDER BY application_date DESC
+      ta.application_id,
+      ta.user_id,
+      ta.name,
+      ta.subject_id,
+      ta.subject_name,
+      ta.application_date,
+      ta.status,
+      ta.validated_by,
+      ta.tutor_information,
+      ta.program,
+      ta.year_level,
+      ta.specialties,
+      ta.class_card_image_url,
+      ta.assessment_result_id,
+      ta.assessment_score,
+      ta.assessment_percentage,
+      ta.assessment_passed,
+      u.email
+    FROM tutorapplications ta
+    LEFT JOIN users u ON ta.user_id = u.user_id
+    WHERE ta.status = ?
+    ORDER BY ta.application_date DESC
   `;
   
   const [rows] = await pool.query(query, [status]);
@@ -59,25 +67,27 @@ const getTutorApplicationsByStatus = async (pool, status) => {
 const getTutorApplicationById = async (pool, applicationId) => {
   const query = `
     SELECT 
-      application_id,
-      user_id,
-      name,
-      subject_id,
-      subject_name,
-      application_date,
-      status,
-      validated_by,
-      tutor_information,
-      program,
-      year_level,
-      specialties,
-      class_card_image_url,
-      assessment_result_id,
-      assessment_score,
-      assessment_percentage,
-      assessment_passed
-    FROM tutorapplications
-    WHERE application_id = ?
+      ta.application_id,
+      ta.user_id,
+      ta.name,
+      ta.subject_id,
+      ta.subject_name,
+      ta.application_date,
+      ta.status,
+      ta.validated_by,
+      ta.tutor_information,
+      ta.program,
+      ta.year_level,
+      ta.specialties,
+      ta.class_card_image_url,
+      ta.assessment_result_id,
+      ta.assessment_score,
+      ta.assessment_percentage,
+      ta.assessment_passed,
+      u.email
+    FROM tutorapplications ta
+    LEFT JOIN users u ON ta.user_id = u.user_id
+    WHERE ta.application_id = ?
   `;
   
   const [rows] = await pool.query(query, [applicationId]);
