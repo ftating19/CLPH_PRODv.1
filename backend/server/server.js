@@ -747,6 +747,200 @@ app.put('/api/admin/edit-user/:id', async (req, res) => {
   }
 });
 
+// Forgot Password - Request reset token
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    console.log('Forgot password request for:', req.body.email);
+
+    const { email } = req.body;
+
+    // Validate required fields
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Get a database connection
+    const pool = await db.getPool();
+
+    // Find user by email
+    const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+    
+    if (users.length === 0) {
+      // For security, don't reveal if email doesn't exist
+      return res.status(200).json({ 
+        message: 'If this email exists, you will receive a password reset link shortly.' 
+      });
+    }
+
+    const user = users[0];
+
+    // Generate reset token
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpires = new Date(Date.now() + 3600000); // 1 hour from now
+
+    // Store reset token in database
+    await pool.query(
+      'UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE email = ?',
+      [resetToken, resetTokenExpires, email]
+    );
+
+    // Send email with reset link
+    const nodemailer = require('nodemailer');
+    
+    // Create transporter using existing email config
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3002'}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+    const mailOptions = {
+      from: process.env.SMTP_USER,
+      to: email,
+      subject: 'Reset Your CICT Peer Learning Hub Password',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Password Reset Request</h1>
+          </div>
+          
+          <div style="padding: 30px; background-color: #f9f9f9;">
+            <h2 style="color: #333; margin-bottom: 20px;">Hello ${user.first_name}!</h2>
+            
+            <p style="color: #666; font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+              You requested to reset your password for your CICT Peer Learning Hub account. 
+              Click the button below to create a new password:
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" 
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                        color: white; 
+                        padding: 15px 30px; 
+                        text-decoration: none; 
+                        border-radius: 8px; 
+                        font-weight: bold; 
+                        display: inline-block;
+                        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
+                Reset My Password
+              </a>
+            </div>
+            
+            <p style="color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+              This link will expire in <strong>1 hour</strong> for security reasons.
+            </p>
+            
+            <p style="color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+              If you didn't request this password reset, you can safely ignore this email. 
+              Your password will remain unchanged.
+            </p>
+            
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 25px 0;">
+            
+            <p style="color: #999; font-size: 12px; line-height: 1.6;">
+              If the button doesn't work, copy and paste this link into your browser:<br>
+              <a href="${resetLink}" style="color: #667eea; word-break: break-all;">${resetLink}</a>
+            </p>
+            
+            <p style="color: #999; font-size: 12px; margin-top: 20px;">
+              © ${new Date().getFullYear()} CICT Peer Learning Hub. All rights reserved.
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    console.log(`✅ Password reset email sent to: ${email}`);
+    
+    res.status(200).json({ 
+      message: 'If this email exists, you will receive a password reset link shortly.' 
+    });
+  } catch (err) {
+    console.error('Forgot password error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Validate reset token
+app.post('/api/validate-reset-token', async (req, res) => {
+  try {
+    const { token, email } = req.body;
+
+    if (!token || !email) {
+      return res.status(400).json({ error: 'Token and email are required' });
+    }
+
+    const pool = await db.getPool();
+    
+    // Find user with valid reset token
+    const [rows] = await pool.query(
+      'SELECT * FROM users WHERE email = ? AND reset_token = ? AND reset_token_expires > NOW()',
+      [email, token]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ 
+        error: 'Invalid or expired reset token',
+        valid: false 
+      });
+    }
+
+    res.status(200).json({ valid: true });
+  } catch (err) {
+    console.error('Token validation error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reset password with token
+app.post('/api/reset-password-with-token', async (req, res) => {
+  try {
+    const { token, email, newPassword } = req.body;
+
+    if (!token || !email || !newPassword) {
+      return res.status(400).json({ error: 'Token, email, and new password are required' });
+    }
+
+    const pool = await db.getPool();
+    
+    // Find user with valid reset token
+    const [rows] = await pool.query(
+      'SELECT * FROM users WHERE email = ? AND reset_token = ? AND reset_token_expires > NOW()',
+      [email, token]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    // Hash the new password
+    const bcrypt = require('bcryptjs');
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear reset token
+    await pool.query(
+      'UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE email = ?',
+      [hashedNewPassword, email]
+    );
+
+    console.log(`✅ Password reset with token successful for: ${email}`);
+    
+    res.status(200).json({ 
+      message: 'Password updated successfully'
+    });
+  } catch (err) {
+    console.error('Password reset with token error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Add the /api/reset-password endpoint for first-time login password reset
 app.post('/api/reset-password', async (req, res) => {
   try {

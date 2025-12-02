@@ -15,22 +15,26 @@ export default function DashboardPage() {
     // Don't redirect while loading user data
     if (isLoading) return
 
-    // Check if user is authenticated
-    const user = localStorage.getItem("user")
-    if (!user && !currentUser) {
-      router.push("/login")
-      return
+    // Check if user is authenticated (client-side only)
+    if (typeof window !== 'undefined') {
+      const user = localStorage.getItem("user")
+      if (!user && !currentUser) {
+        router.push("/login")
+        return
+      }
     }
 
     // If we have user data, check their role for initial routing
     // This only applies when user first lands on /dashboard
-    const userData = currentUser || JSON.parse(user || '{}')
-    const userRole = userData.role?.toLowerCase()
+    if (typeof window !== 'undefined') {
+      const user = localStorage.getItem("user")
+      const userData = currentUser || JSON.parse(user || '{}')
+      const userRole = userData.role?.toLowerCase()
 
-    // Role-based initial routing - only redirect if coming from login
-    const fromLogin = sessionStorage.getItem('fromLogin')
-    if (fromLogin) {
-      sessionStorage.removeItem('fromLogin')
+      // Role-based initial routing - only redirect if coming from login
+      const fromLogin = sessionStorage.getItem('fromLogin')
+      if (fromLogin) {
+        sessionStorage.removeItem('fromLogin')
       
       switch (userRole) {
         case 'admin':
@@ -45,6 +49,7 @@ export default function DashboardPage() {
         default:
           // Default to main dashboard for unknown roles
           break
+        }
       }
     }
   }, [router, currentUser, isLoading])

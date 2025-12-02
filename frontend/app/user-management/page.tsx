@@ -15,25 +15,27 @@ export default function UserManagementPage() {
     // Don't check while loading
     if (isLoading) return
 
-    // Check if user is authenticated
-    const user = localStorage.getItem("user")
-    if (!user && !currentUser) {
-      router.push("/login")
-      return
-    }
+    // Check if user is authenticated (client-side only)
+    if (typeof window !== 'undefined') {
+      const user = localStorage.getItem("user")
+      if (!user && !currentUser) {
+        router.push("/login")
+        return
+      }
 
-    // Check if user is admin
-    const userData = currentUser || JSON.parse(user || '{}')
-    const userRole = userData.role?.toLowerCase()
-    
-    if (userRole !== 'admin') {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to access User Management. This page is restricted to administrators only.",
-        variant: "destructive",
-      })
-      router.push("/dashboard")
-      return
+      // Check if user is admin
+      const userData = currentUser || JSON.parse(user || '{}')
+      const userRole = userData.role?.toLowerCase()
+      
+      if (userRole !== 'admin') {
+        toast({
+          title: "Access Denied",
+          description: "You don't have permission to access User Management. This page is restricted to administrators only.",
+          variant: "destructive",
+        })
+        router.push("/dashboard")
+        return
+      }
     }
   }, [router, currentUser, isLoading])
 

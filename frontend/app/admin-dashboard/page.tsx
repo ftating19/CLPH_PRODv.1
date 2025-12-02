@@ -9,11 +9,13 @@ export default function AdminDashboardPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Check if user is authenticated
-    const user = localStorage.getItem("user")
-    if (!user) {
-      router.push("/login")
-      return
+    // Check if user is authenticated (client-side only)
+    if (typeof window !== 'undefined') {
+      const user = localStorage.getItem("user")
+      if (!user) {
+        router.push("/login")
+        return
+      }
     }
   }, [router])
 

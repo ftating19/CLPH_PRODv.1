@@ -5,6 +5,7 @@ import { useState } from "react"
 import Image from "next/image"
 import SignupModal from "@/components/modals/signup_modal"
 import ResetPasswordModal from "@/components/modals/resetpassword_modal"
+import ForgotPasswordModal from "@/components/modals/forgotpassword_modal"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [showSignupModal, setShowSignupModal] = useState(false)
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false)
   const [userEmail, setUserEmail] = useState("")
   const [emailError, setEmailError] = useState("")
   const [passwordError, setPasswordError] = useState("")
@@ -174,37 +176,39 @@ export default function LoginPage() {
       console.log('User first_login value:', data.user.first_login);
       console.log('Type of first_login:', typeof data.user.first_login);
 
-      // Store user data in localStorage
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          id: data.user.user_id,
-          name: `${data.user.first_name} ${data.user.last_name}`,
-          email: data.user.email,
-          description: data.user.description,
-          program: data.user.program,
-          role: data.user.role,
-          avatar: "/diverse-user-avatars.png",
-        })
-      )
+      // Store user data in localStorage (client-side only)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            id: data.user.user_id,
+            name: `${data.user.first_name} ${data.user.last_name}`,
+            email: data.user.email,
+            description: data.user.description,
+            program: data.user.program,
+            role: data.user.role,
+            avatar: "/diverse-user-avatars.png",
+          })
+        )
 
-      // Also store in the currentUser format for UserContext
-      localStorage.setItem(
-        "currentUser",
-        JSON.stringify({
-          user_id: data.user.user_id,
-          first_name: data.user.first_name,
-          middle_name: data.user.middle_name,
-          last_name: data.user.last_name,
-          email: data.user.email,
-          program: data.user.program,
-          role: data.user.role,
-          status: data.user.status,
-          first_login: data.user.first_login,
-          created_at: data.user.created_at,
-          description: data.user.description
-        })
-      )
+        // Also store in the currentUser format for UserContext
+        localStorage.setItem(
+          "currentUser",
+          JSON.stringify({
+            user_id: data.user.user_id,
+            first_name: data.user.first_name,
+            middle_name: data.user.middle_name,
+            last_name: data.user.last_name,
+            email: data.user.email,
+            program: data.user.program,
+            role: data.user.role,
+            status: data.user.status,
+            first_login: data.user.first_login,
+            created_at: data.user.created_at,
+            description: data.user.description
+          })
+        )
+      }
 
       // Check if user needs to reset password (first_login = 0)
       console.log('Checking first_login condition:', data.user.first_login === 0, data.user.first_login == 0, data.user.first_login === '0');
@@ -229,8 +233,10 @@ export default function LoginPage() {
         variant: 'default',
       });
 
-      // Set flag to indicate user is coming from login
-      sessionStorage.setItem('fromLogin', 'true')
+      // Set flag to indicate user is coming from login (client-side only)
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('fromLogin', 'true')
+      }
 
       // Redirect to appropriate dashboard after a short delay
       const role = (data.user.role || '').toString().toLowerCase()
@@ -383,13 +389,7 @@ export default function LoginPage() {
                     type="button"
                     variant="link" 
                     className="p-0 h-auto text-xs text-blue-600 hover:text-blue-700" 
-                    onClick={() => {
-                      toast({
-                        title: 'Coming Soon',
-                        description: 'Password reset functionality will be available soon.',
-                        variant: 'default',
-                      });
-                    }}
+                    onClick={() => setShowForgotPasswordModal(true)}
                   >
                     Forgot password?
                   </Button>
@@ -469,6 +469,12 @@ export default function LoginPage() {
               userEmail={userEmail}
               onClose={() => setShowResetPasswordModal(false)}
               onSuccess={handlePasswordResetSuccess}
+            />
+
+            {/* Forgot Password Modal */}
+            <ForgotPasswordModal
+              open={showForgotPasswordModal}
+              onOpenChange={setShowForgotPasswordModal}
             />
           </div>
         </div>
