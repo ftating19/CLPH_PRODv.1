@@ -192,6 +192,26 @@ const {
   getAssessmentStatistics
 } = require('../queries/preAssessmentResults')
 const {
+  getAllTutorPreAssessments,
+  getTutorPreAssessmentById,
+  createTutorPreAssessment,
+  updateTutorPreAssessment,
+  deleteTutorPreAssessment,
+  getTutorPreAssessmentsByProgram,
+  getTutorPreAssessmentsByYearLevel
+} = require('../queries/tutorPreAssessments')
+const {
+  getTutorPreAssessmentQuestions,
+  getTutorPreAssessmentQuestionById,
+  createTutorPreAssessmentQuestion,
+  updateTutorPreAssessmentQuestion,
+  deleteTutorPreAssessmentQuestion,
+  createTutorPreAssessmentQuestions,
+  deleteTutorPreAssessmentQuestions,
+  getTutorPreAssessmentQuestionCount,
+  updateTutorPreAssessmentQuestionOrder
+} = require('../queries/tutorPreAssessmentQuestions')
+const {
   createPostTest,
   getAllPostTests,
   getPostTestById,
@@ -2017,6 +2037,83 @@ app.delete('/api/subjects/:id', async (req, res) => {
   }
 });
 
+// Get distinct programs from subjects
+app.get('/api/programs', async (req, res) => {
+  try {
+    console.log('Fetching distinct programs from subjects');
+    
+    const pool = await db.getPool();
+    const [rows] = await pool.query(`
+      SELECT DISTINCT program 
+      FROM subjects 
+      WHERE program IS NOT NULL AND program != '' 
+      ORDER BY program ASC
+    `);
+    
+    const programs = [];
+    const uniquePrograms = new Set();
+    
+    rows.forEach(row => {
+      let program = row.program;
+      console.log(`Processing program: "${program}", type: ${typeof program}`);
+      
+      // Handle case where program might be stored as JSON array
+      try {
+        if (typeof program === 'string' && program.startsWith('[')) {
+          console.log(`Attempting to parse JSON: ${program}`);
+          const parsed = JSON.parse(program);
+          console.log(`Parsed result:`, parsed, `isArray: ${Array.isArray(parsed)}`);
+          
+          if (Array.isArray(parsed)) {
+            parsed.forEach(p => {
+              console.log(`Processing array item: "${p}"`);
+              if (p && typeof p === 'string' && !uniquePrograms.has(p)) {
+                console.log(`Adding unique program: "${p}"`);
+                uniquePrograms.add(p);
+                programs.push(p);
+              }
+            });
+          } else {
+            if (!uniquePrograms.has(program)) {
+              uniquePrograms.add(program);
+              programs.push(program);
+            }
+          }
+        } else {
+          if (!uniquePrograms.has(program)) {
+            uniquePrograms.add(program);
+            programs.push(program);
+          }
+        }
+      } catch (e) {
+        console.log(`JSON parse error: ${e.message}`);
+        // If parsing fails, treat as regular string
+        if (!uniquePrograms.has(program)) {
+          uniquePrograms.add(program);
+          programs.push(program);
+        }
+      }
+    });
+    
+    // Sort programs alphabetically
+    programs.sort();
+    
+    console.log(`✅ Found ${programs.length} distinct programs`);
+    
+    res.json({
+      success: true,
+      programs: programs,
+      total: programs.length
+    });
+  } catch (err) {
+    console.error('Error fetching programs:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
 // ===== STUDY MATERIALS (LEARNING RESOURCES) API ENDPOINTS =====
 
 // Configure multer for file uploads
@@ -3320,6 +3417,571 @@ app.delete('/api/pre-assessment-results/:resultId', async (req, res) => {
     });
   } catch (err) {
     console.error('Error deleting result:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// ===== TUTOR PRE-ASSESSMENT API ENDPOINTS =====
+
+// Get all tutor pre-assessments
+app.get('/api/tutor-pre-assessments', async (req, res) => {
+  try {
+    console.log('🔍 Fetching all tutor pre-assessments');
+    const createdBy = req.query.created_by || null;
+    
+    const pool = await db.getPool();
+    const preAssessments = await getAllTutorPreAssessments(pool, createdBy);
+    
+    console.log(`✅ Found ${preAssessments.length} tutor pre-assessments`);
+    
+    res.json({
+      success: true,
+      preAssessments: preAssessments,
+      total: preAssessments.length
+    });
+  } catch (err) {
+    console.error('Error fetching tutor pre-assessments:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get tutor pre-assessment by ID
+app.get('/api/tutor-pre-assessments/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    console.log(`🔍 Fetching tutor pre-assessment ${id}`);
+    
+    if (!id || isNaN(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid tutor pre-assessment ID'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const preAssessment = await getTutorPreAssessmentById(pool, parseInt(id));
+    
+    if (!preAssessment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tutor pre-assessment not found'
+      });
+    }
+    
+    console.log(`✅ Found tutor pre-assessment: ${preAssessment.title}`);
+    
+    res.json({
+      success: true,
+      preAssessment: preAssessment
+    });
+  } catch (err) {
+    console.error('Error fetching tutor pre-assessment by ID:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Create new tutor pre-assessment
+app.post('/api/tutor-pre-assessments', async (req, res) => {
+  try {
+    const { 
+      title, 
+      description, 
+      created_by, 
+      program, 
+      year_level, 
+      duration, 
+      duration_unit, 
+      difficulty 
+    } = req.body;
+    
+    console.log(`📝 Creating tutor pre-assessment: ${title}`);
+    
+    // Validate required fields
+    if (!title || !description || !created_by || !program || !year_level) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: title, description, created_by, program, year_level'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const result = await createTutorPreAssessment(pool, {
+      title,
+      description,
+      created_by,
+      program,
+      year_level,
+      duration: duration || 30, // default 30 minutes
+      duration_unit: duration_unit || 'minutes',
+      difficulty: difficulty || 'medium'
+    });
+    
+    console.log(`✅ Created tutor pre-assessment: ${result.id}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Tutor pre-assessment created successfully',
+      preAssessment: result
+    });
+  } catch (err) {
+    console.error('Error creating tutor pre-assessment:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Update tutor pre-assessment
+app.put('/api/tutor-pre-assessments/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { 
+      title, 
+      description, 
+      program, 
+      year_level, 
+      duration, 
+      duration_unit, 
+      difficulty 
+    } = req.body;
+    
+    console.log(`📝 Updating tutor pre-assessment ${id}`);
+    
+    if (!id || isNaN(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid tutor pre-assessment ID'
+      });
+    }
+    
+    // Validate required fields
+    if (!title || !description || !program || !year_level) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: title, description, program, year_level'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const result = await updateTutorPreAssessment(pool, parseInt(id), {
+      title,
+      description,
+      program,
+      year_level,
+      duration,
+      duration_unit,
+      difficulty
+    });
+    
+    console.log(`✅ Updated tutor pre-assessment: ${id}`);
+    
+    res.json({
+      success: true,
+      message: 'Tutor pre-assessment updated successfully',
+      preAssessment: result
+    });
+  } catch (err) {
+    console.error('Error updating tutor pre-assessment:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Delete tutor pre-assessment
+app.delete('/api/tutor-pre-assessments/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    console.log(`🗑️ Deleting tutor pre-assessment ${id}`);
+    
+    if (!id || isNaN(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid tutor pre-assessment ID'
+      });
+    }
+    
+    const pool = await db.getPool();
+    
+    // Check if assessment exists
+    const existingAssessment = await getTutorPreAssessmentById(pool, parseInt(id));
+    if (!existingAssessment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tutor pre-assessment not found'
+      });
+    }
+    
+    const result = await deleteTutorPreAssessment(pool, parseInt(id));
+    
+    if (!result.deleted) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tutor pre-assessment not found or already deleted'
+      });
+    }
+    
+    console.log(`✅ Deleted tutor pre-assessment: ${id}`);
+    
+    res.json({
+      success: true,
+      message: 'Tutor pre-assessment deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting tutor pre-assessment:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get tutor pre-assessments by program
+app.get('/api/tutor-pre-assessments/program/:program', async (req, res) => {
+  try {
+    const program = req.params.program;
+    console.log(`🔍 Fetching tutor pre-assessments for program: ${program}`);
+    
+    if (!program) {
+      return res.status(400).json({
+        success: false,
+        error: 'Program parameter is required'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const preAssessments = await getTutorPreAssessmentsByProgram(pool, program);
+    
+    console.log(`✅ Found ${preAssessments.length} tutor pre-assessments for program: ${program}`);
+    
+    res.json({
+      success: true,
+      preAssessments: preAssessments,
+      total: preAssessments.length,
+      program: program
+    });
+  } catch (err) {
+    console.error('Error fetching tutor pre-assessments by program:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get tutor pre-assessments by year level
+app.get('/api/tutor-pre-assessments/year-level/:yearLevel', async (req, res) => {
+  try {
+    const yearLevel = req.params.yearLevel;
+    console.log(`🔍 Fetching tutor pre-assessments for year level: ${yearLevel}`);
+    
+    if (!yearLevel) {
+      return res.status(400).json({
+        success: false,
+        error: 'Year level parameter is required'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const preAssessments = await getTutorPreAssessmentsByYearLevel(pool, yearLevel);
+    
+    console.log(`✅ Found ${preAssessments.length} tutor pre-assessments for year level: ${yearLevel}`);
+    
+    res.json({
+      success: true,
+      preAssessments: preAssessments,
+      total: preAssessments.length,
+      yearLevel: yearLevel
+    });
+  } catch (err) {
+    console.error('Error fetching tutor pre-assessments by year level:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// ===== TUTOR PRE-ASSESSMENT QUESTIONS API ENDPOINTS =====
+
+// Get questions for tutor pre-assessment
+app.get('/api/tutor-pre-assessment-questions/pre-assessment/:preAssessmentId', async (req, res) => {
+  try {
+    const preAssessmentId = req.params.preAssessmentId;
+    console.log(`🔍 Fetching questions for tutor pre-assessment ${preAssessmentId}`);
+    
+    if (!preAssessmentId || isNaN(preAssessmentId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid tutor pre-assessment ID'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const questions = await getTutorPreAssessmentQuestions(pool, parseInt(preAssessmentId));
+    
+    console.log(`✅ Found ${questions.length} questions for tutor pre-assessment`);
+    
+    res.json({
+      success: true,
+      questions: questions,
+      total: questions.length
+    });
+  } catch (err) {
+    console.error('Error fetching tutor pre-assessment questions:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Get tutor pre-assessment question by ID
+app.get('/api/tutor-pre-assessment-questions/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    console.log(`🔍 Fetching tutor pre-assessment question ${id}`);
+    
+    if (!id || isNaN(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid question ID'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const question = await getTutorPreAssessmentQuestionById(pool, parseInt(id));
+    
+    if (!question) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tutor pre-assessment question not found'
+      });
+    }
+    
+    console.log(`✅ Found tutor pre-assessment question: ${question.id}`);
+    
+    res.json({
+      success: true,
+      question: question
+    });
+  } catch (err) {
+    console.error('Error fetching tutor pre-assessment question by ID:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Create new tutor pre-assessment question
+app.post('/api/tutor-pre-assessment-questions', async (req, res) => {
+  try {
+    const { 
+      pre_assessment_id, 
+      question, 
+      question_type, 
+      options, 
+      correct_answer, 
+      explanation, 
+      points,
+      difficulty,
+      order_index
+    } = req.body;
+    
+    console.log(`📝 Creating question for tutor pre-assessment ${pre_assessment_id}`);
+    
+    // Validate required fields
+    if (!pre_assessment_id || !question || !question_type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: pre_assessment_id, question, question_type'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const result = await createTutorPreAssessmentQuestion(pool, {
+      pre_assessment_id,
+      question_text: question,
+      question_type,
+      options,
+      correct_answer,
+      explanation,
+      points: points || 1,
+      difficulty: difficulty || 'medium',
+      order_index: order_index || 0
+    });
+    
+    console.log(`✅ Created tutor pre-assessment question: ${result.id}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Tutor pre-assessment question created successfully',
+      question: result
+    });
+  } catch (err) {
+    console.error('Error creating tutor pre-assessment question:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Update tutor pre-assessment question
+app.put('/api/tutor-pre-assessment-questions/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { 
+      question, 
+      question_type, 
+      options, 
+      correct_answer, 
+      explanation, 
+      points,
+      difficulty,
+      order_index
+    } = req.body;
+    
+    console.log(`📝 Updating tutor pre-assessment question ${id}`);
+    
+    if (!id || isNaN(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid question ID'
+      });
+    }
+    
+    // Validate required fields
+    if (!question || !question_type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: question, question_type'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const result = await updateTutorPreAssessmentQuestion(pool, parseInt(id), {
+      question_text: question,
+      question_type,
+      options,
+      correct_answer,
+      explanation,
+      points,
+      difficulty,
+      order_index
+    });
+    
+    console.log(`✅ Updated tutor pre-assessment question: ${id}`);
+    
+    res.json({
+      success: true,
+      message: 'Tutor pre-assessment question updated successfully',
+      question: result
+    });
+  } catch (err) {
+    console.error('Error updating tutor pre-assessment question:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Delete tutor pre-assessment question
+app.delete('/api/tutor-pre-assessment-questions/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    console.log(`🗑️ Deleting tutor pre-assessment question ${id}`);
+    
+    if (!id || isNaN(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid question ID'
+      });
+    }
+    
+    const pool = await db.getPool();
+    
+    // Check if question exists
+    const existingQuestion = await getTutorPreAssessmentQuestionById(pool, parseInt(id));
+    if (!existingQuestion) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tutor pre-assessment question not found'
+      });
+    }
+    
+    const result = await deleteTutorPreAssessmentQuestion(pool, parseInt(id));
+    
+    if (!result.deleted) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tutor pre-assessment question not found or already deleted'
+      });
+    }
+    
+    console.log(`✅ Deleted tutor pre-assessment question: ${id}`);
+    
+    res.json({
+      success: true,
+      message: 'Tutor pre-assessment question deleted successfully'
+    });
+  } catch (err) {
+    console.error('Error deleting tutor pre-assessment question:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Bulk create tutor pre-assessment questions
+app.post('/api/tutor-pre-assessment-questions/bulk', async (req, res) => {
+  try {
+    const { pre_assessment_id, questions } = req.body;
+    
+    console.log(`📝 Bulk creating ${questions.length} questions for tutor pre-assessment ${pre_assessment_id}`);
+    
+    // Validate required fields
+    if (!pre_assessment_id || !questions || !Array.isArray(questions)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: pre_assessment_id and questions array'
+      });
+    }
+    
+    if (questions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Questions array cannot be empty'
+      });
+    }
+    
+    const pool = await db.getPool();
+    const result = await createTutorPreAssessmentQuestions(pool, pre_assessment_id, questions);
+    
+    console.log(`✅ Created ${result.length} tutor pre-assessment questions`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Tutor pre-assessment questions created successfully',
+      questions: result,
+      total: result.length
+    });
+  } catch (err) {
+    console.error('Error bulk creating tutor pre-assessment questions:', err);
     res.status(500).json({
       success: false,
       error: 'Internal server error'

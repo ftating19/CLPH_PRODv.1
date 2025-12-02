@@ -427,6 +427,11 @@ export default function Sidebar() {
                               Pending Post-Tests
                             </NavItem>
                           )}
+                          {userRole === "faculty" && (
+                            <NavItem href="/tutors-pre-assessment" icon={Target}>
+                              Tutors Pre-Assessment
+                            </NavItem>
+                          )}
                         </div>
                       </div>
 
