@@ -36,7 +36,7 @@ import { useSubjects } from "@/hooks/use-subjects"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { containsProfanity } from "@/lib/profanity-filter"
+import { containsProfanity, checkAndLogProfanity } from "@/lib/profanity-filter"
 
 export default function DiscussionForums() {
   const { currentUser } = useUser();
@@ -162,14 +162,17 @@ export default function DiscussionForums() {
   const handleSubmitEdit = async () => {
     if (!editingForum || !currentUser) return;
     
-    // Check for profanity
-    const hasProfanity = await containsProfanity(editTitle) || await containsProfanity(editDesc);
-    if (hasProfanity) {
-      setEditError("Your post contains inappropriate language. Please remove any offensive words.");
+    // Check for profanity and log violations
+    const titleCheck = await checkAndLogProfanity(editTitle, currentUser.user_id, 'forum_post', editingForum.forum_id);
+    const descCheck = await checkAndLogProfanity(editDesc, currentUser.user_id, 'forum_post', editingForum.forum_id);
+    
+    if (titleCheck.hasProfanity || descCheck.hasProfanity) {
+      const allDetectedWords = [...titleCheck.detectedWords, ...descCheck.detectedWords];
+      setEditError(`Your post contains inappropriate language: ${allDetectedWords.join(', ')}. Please remove any offensive words.`);
       toast({
         variant: "destructive",
-        title: "Inappropriate Content",
-        description: "Your post contains inappropriate language. Please remove any offensive words.",
+        title: "Inappropriate Content Detected",
+        description: `Foul words detected and recorded: ${allDetectedWords.join(', ')}. Please revise your content.`,
       });
       return;
     }
@@ -590,22 +593,25 @@ export default function DiscussionForums() {
                   setNewTopicLoading(true);
                   setNewTopicError("");
                   
-                  // Check for profanity
-                  const hasProfanity = await containsProfanity(newTopicTitle) || await containsProfanity(newTopicDesc);
-                  if (hasProfanity) {
-                    setNewTopicError("Your post contains inappropriate language. Please remove any offensive words.");
-                    toast({
-                      variant: "destructive",
-                      title: "Inappropriate Content",
-                      description: "Your post contains inappropriate language. Please remove any offensive words.",
-                    });
+                  const created_by = currentUser?.user_id;
+                  if (!created_by) {
+                    setNewTopicError("User not found. Please log in.");
                     setNewTopicLoading(false);
                     return;
                   }
                   
-                  const created_by = currentUser?.user_id;
-                  if (!created_by) {
-                    setNewTopicError("User not found. Please log in.");
+                  // Check for profanity and log violations
+                  const titleCheck = await checkAndLogProfanity(newTopicTitle, created_by, 'forum_post');
+                  const descCheck = await checkAndLogProfanity(newTopicDesc, created_by, 'forum_post');
+                  
+                  if (titleCheck.hasProfanity || descCheck.hasProfanity) {
+                    const allDetectedWords = [...titleCheck.detectedWords, ...descCheck.detectedWords];
+                    setNewTopicError(`Your post contains inappropriate language: ${allDetectedWords.join(', ')}. Please remove any offensive words.`);
+                    toast({
+                      variant: "destructive",
+                      title: "Inappropriate Content Detected",
+                      description: `Foul words detected and recorded: ${allDetectedWords.join(', ')}. Please revise your content.`,
+                    });
                     setNewTopicLoading(false);
                     return;
                   }
@@ -808,13 +814,19 @@ export default function DiscussionForums() {
                     className="bg-blue-600 hover:bg-blue-700"
                     disabled={!newComment.trim()}
                     onClick={async () => {
-                      // Check for profanity
-                      const hasProfanity = await containsProfanity(newComment);
-                      if (hasProfanity) {
+                      // Check for profanity and log violations
+                      const commentCheck = await checkAndLogProfanity(
+                        newComment, 
+                        currentUser.user_id, 
+                        'forum_comment', 
+                        parseInt(forum.forum_id)
+                      );
+                      
+                      if (commentCheck.hasProfanity) {
                         toast({
                           variant: "destructive",
-                          title: "Inappropriate Content",
-                          description: "Your comment contains inappropriate language. Please remove any offensive words.",
+                          title: "Inappropriate Content Detected",
+                          description: `Foul words detected and recorded: ${commentCheck.detectedWords.join(', ')}. Please revise your comment.`,
                         });
                         return;
                       }

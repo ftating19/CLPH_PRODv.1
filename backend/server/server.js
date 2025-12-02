@@ -155,6 +155,14 @@ const {
 } = require('../queries/chatMessages')
 const { getAllForums, getForumById, createForum, updateForum, deleteForum } = require('../queries/forums')
 const { getCommentsByForumId, addComment } = require('../queries/comments')
+const { 
+  logProfanityViolation, 
+  getUserViolations, 
+  getAllViolations, 
+  getUserViolationCount, 
+  getTopViolators, 
+  cleanupOldViolations 
+} = require('../queries/profanityViolations')
 const {
   getAllPreAssessments,
   getPreAssessmentById,
@@ -8162,6 +8170,149 @@ app.post('/api/forums/:id/like', async (req, res) => {
     res.json({ success: true, like_count: forum.like_count, liked });
   } catch (err) {
     console.error('Error liking/unliking forum:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ===== PROFANITY VIOLATION ENDPOINTS =====
+
+// Log a profanity violation attempt
+app.post('/api/profanity-violations', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const violationData = {
+      user_id: req.body.user_id,
+      context_type: req.body.context_type || 'general',
+      context_id: req.body.context_id || null,
+      attempted_content: req.body.attempted_content,
+      detected_words: req.body.detected_words || [],
+      user_ip: req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+      user_agent: req.headers['user-agent'],
+      severity: req.body.severity || 'medium'
+    };
+
+    const violationId = await logProfanityViolation(pool, violationData);
+    
+    res.json({ 
+      success: true, 
+      violation_id: violationId,
+      message: 'Profanity violation logged successfully' 
+    });
+  } catch (err) {
+    console.error('Error logging profanity violation:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get profanity violations for a specific user
+app.get('/api/profanity-violations/user/:userId', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const userId = req.params.userId;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const violations = await getUserViolations(pool, userId, limit, offset);
+    const violationCount = await getUserViolationCount(pool, userId);
+
+    res.json({ 
+      success: true, 
+      violations,
+      total_count: violationCount,
+      limit,
+      offset
+    });
+  } catch (err) {
+    console.error('Error fetching user violations:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Get violation count for a user
+app.get('/api/profanity-violations/user/:userId/count', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    const userId = req.params.userId;
+    const timeframe = req.query.timeframe || 'all'; // day, week, month, all
+
+    const violationCount = await getUserViolationCount(pool, userId, timeframe);
+
+    res.json({ 
+      success: true, 
+      user_id: userId,
+      timeframe,
+      violation_count: violationCount
+    });
+  } catch (err) {
+    console.error('Error fetching user violation count:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Admin endpoint: Get all profanity violations
+app.get('/api/admin/profanity-violations', async (req, res) => {
+  try {
+    // Check if user is admin (you might want to add proper admin authentication here)
+    const requestingUserId = req.query.requesting_user_id;
+    if (!requestingUserId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+
+    const pool = await db.getPool();
+    
+    // Check if requesting user is admin
+    const [userRows] = await pool.query('SELECT role FROM users WHERE user_id = ?', [requestingUserId]);
+    if (!userRows[0] || userRows[0].role?.toLowerCase() !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const violations = await getAllViolations(pool, limit, offset);
+
+    res.json({ 
+      success: true, 
+      violations,
+      limit,
+      offset
+    });
+  } catch (err) {
+    console.error('Error fetching all violations:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Admin endpoint: Get top violators
+app.get('/api/admin/profanity-violations/top-violators', async (req, res) => {
+  try {
+    // Check if user is admin
+    const requestingUserId = req.query.requesting_user_id;
+    if (!requestingUserId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+
+    const pool = await db.getPool();
+    
+    // Check if requesting user is admin
+    const [userRows] = await pool.query('SELECT role FROM users WHERE user_id = ?', [requestingUserId]);
+    if (!userRows[0] || userRows[0].role?.toLowerCase() !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const limit = parseInt(req.query.limit) || 10;
+    const timeframe = req.query.timeframe || 'month'; // day, week, month, all
+
+    const topViolators = await getTopViolators(pool, limit, timeframe);
+
+    res.json({ 
+      success: true, 
+      top_violators: topViolators,
+      timeframe,
+      limit
+    });
+  } catch (err) {
+    console.error('Error fetching top violators:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });

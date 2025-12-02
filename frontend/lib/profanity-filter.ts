@@ -140,3 +140,73 @@ export async function getProfaneWords(text: string): Promise<string[]> {
   return detected;
 }
 
+/**
+ * Log profanity violation to the server
+ * @param violationData - Data about the violation
+ * @returns Promise that resolves when violation is logged
+ */
+export async function logProfanityViolation(violationData: {
+  user_id: number;
+  context_type: 'forum_post' | 'forum_comment' | 'chat_message' | 'general';
+  context_id?: number | null;
+  attempted_content: string;
+  detected_words: string[];
+  severity?: 'low' | 'medium' | 'high';
+}): Promise<void> {
+  try {
+    const response = await fetch('http://localhost:4000/api/profanity-violations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(violationData)
+    });
+
+    if (!response.ok) {
+      console.error('Failed to log profanity violation:', response.statusText);
+    }
+  } catch (error) {
+    console.error('Error logging profanity violation:', error);
+  }
+}
+
+/**
+ * Check for profanity and log violation if found
+ * @param text - The text to check
+ * @param user_id - The user ID
+ * @param context_type - The context where profanity was attempted
+ * @param context_id - The ID of the context (forum_id, comment_id, etc.)
+ * @returns Promise that resolves to object with profanity detection result and detected words
+ */
+export async function checkAndLogProfanity(
+  text: string, 
+  user_id: number, 
+  context_type: 'forum_post' | 'forum_comment' | 'chat_message' | 'general',
+  context_id?: number | null
+): Promise<{ hasProfanity: boolean; detectedWords: string[] }> {
+  const detectedWords = await getProfaneWords(text);
+  const hasProfanity = detectedWords.length > 0;
+  
+  if (hasProfanity) {
+    // Determine severity based on number of profane words
+    let severity: 'low' | 'medium' | 'high' = 'medium';
+    if (detectedWords.length >= 5) {
+      severity = 'high';
+    } else if (detectedWords.length <= 1) {
+      severity = 'low';
+    }
+
+    // Log the violation
+    await logProfanityViolation({
+      user_id,
+      context_type,
+      context_id,
+      attempted_content: text,
+      detected_words: detectedWords,
+      severity
+    });
+  }
+  
+  return { hasProfanity, detectedWords };
+}
+
