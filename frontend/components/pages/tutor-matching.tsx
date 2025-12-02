@@ -2,6 +2,7 @@
 import BookingForm from "@/components/modals/BookingForm"
 import EnhancedBookingForm from "@/components/modals/EnhancedBookingForm"
 import PreAssessmentTestModal from "@/components/modals/PreAssessmentTestModal"
+import ApplyAsTutorModalWithAssessment from "@/components/modals/applyastutor_modal_with_assessment"
 
 import React, { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,14 +11,12 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Select,
@@ -102,9 +101,7 @@ export default function TutorMatching() {
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
   const [showSubjectPerformance, setShowSubjectPerformance] = useState<boolean>(false) // Changed to false by default
   
-  // Subject combobox state
-  const [subjectComboboxOpen, setSubjectComboboxOpen] = useState(false)
-  const [subjectSearchValue, setSubjectSearchValue] = useState("")
+
   
   // Subject filter combobox state (for main filter)
   const [subjectFilterComboboxOpen, setSubjectFilterComboboxOpen] = useState(false)
@@ -147,41 +144,9 @@ export default function TutorMatching() {
     })
   }
 
-  // Application form state
-  const [applicationForm, setApplicationForm] = useState({
-    subject_id: "",
-    specialties: "",
-    tutor_information: "",
-    class_card_image_url: ""
-  })
-  const [classCardImage, setClassCardImage] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [uploadingImage, setUploadingImage] = useState(false)
 
-  // Filter subjects based on user's program and year level
-  const filteredSubjects = subjects.filter(subject => {
-    if (!currentUser?.program || !currentUser?.year_level) {
-      return false; // Don't show any subjects if user info is incomplete
-    }
 
-    // Check if subject program matches user's program
-    let programMatch = false;
-    if (Array.isArray(subject.program)) {
-      programMatch = subject.program.includes(currentUser.program);
-    } else if (typeof subject.program === 'string') {
-      try {
-        const programArray = JSON.parse(subject.program);
-        programMatch = Array.isArray(programArray) && programArray.includes(currentUser.program);
-      } catch {
-        programMatch = subject.program === currentUser.program;
-      }
-    }
 
-    // Check if subject year level matches user's year level
-    const yearLevelMatch = !subject.year_level || subject.year_level === currentUser.year_level;
-
-    return programMatch && yearLevelMatch;
-  });
 
   // Fetch pre-assessment results and determine recommended subjects
   const fetchPreAssessmentResults = async () => {
@@ -350,175 +315,7 @@ export default function TutorMatching() {
     }
   }
 
-  // Handle class card image selection
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Error",
-        description: "Please select a valid image file (JPG, PNG, etc.)",
-        variant: "destructive"
-      })
-      return
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Error",
-        description: "Image must be less than 5MB",
-        variant: "destructive"
-      })
-      return
-    }
-
-    setClassCardImage(file)
-    
-    // Create preview
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
-    }
-    reader.readAsDataURL(file)
-  }
-
-  // Upload image to server and get URL
-  const uploadClassCardImage = async (): Promise<string | null> => {
-    if (!classCardImage) return null
-
-    try {
-      setUploadingImage(true)
-      const formData = new FormData()
-      formData.append('file', classCardImage)
-      formData.append('type', 'class_card')
-      formData.append('user_id', currentUser?.user_id.toString() || '')
-
-      const response = await fetch('http://localhost:4000/api/upload', {
-        method: 'POST',
-        body: formData
-      })
-
-      if (!response.ok) {
-        throw new Error(`Upload failed with status ${response.status}`)
-      }
-
-      const result = await response.json()
-      if (result.success && result.file_url) {
-        return result.file_url
-      } else {
-        throw new Error(result.error || 'Upload failed')
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error)
-      toast({
-        title: "Error",
-        description: "Failed to upload class card image",
-        variant: "destructive"
-      })
-      return null
-    } finally {
-      setUploadingImage(false)
-    }
-  }
-
-  const handleApplicationSubmit = async () => {
-    if (!currentUser) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to apply as a tutor",
-        variant: "destructive"
-      })
-      return
-    }
-
-    if (!applicationForm.subject_id || !applicationForm.specialties.trim() || !applicationForm.tutor_information.trim()) {
-      toast({
-        title: "Error", 
-        description: "Please fill in all required fields",
-        variant: "destructive"
-      })
-      return
-    }
-
-    if (!classCardImage) {
-      toast({
-        title: "Error",
-        description: "Please upload your class card image",
-        variant: "destructive"
-      })
-      return
-    }
-
-    const selectedSubject = filteredSubjects.find(s => s.subject_id.toString() === applicationForm.subject_id)
-    
-    // Upload image first
-    const imageUrl = await uploadClassCardImage()
-    if (!imageUrl) {
-      return // Error already shown in uploadClassCardImage
-    }
-    
-    const applicationData = {
-      user_id: currentUser.user_id,
-      name: `${currentUser.first_name} ${currentUser.middle_name ? currentUser.middle_name + ' ' : ''}${currentUser.last_name}`,
-      subject_id: parseInt(applicationForm.subject_id),
-      subject_name: selectedSubject?.subject_name || "",
-      tutor_information: applicationForm.tutor_information,
-      program: currentUser.program,
-      year_level: currentUser.year_level,
-      specialties: applicationForm.specialties,
-      class_card_image_url: imageUrl
-    }
-
-    console.log('Submitting tutor application:', applicationData)
-
-    try {
-      const response = await fetch('http://localhost:4000/api/tutor-applications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(applicationData)
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (result.success) {
-        toast({
-          title: "Application Submitted",
-          description: "Your tutor application has been submitted successfully. You will be notified once it's reviewed.",
-          variant: "default"
-        })
-
-        // Reset form and close modal
-        setApplicationForm({
-          subject_id: "",
-          specialties: "",
-          tutor_information: "",
-          class_card_image_url: ""
-        })
-        setClassCardImage(null)
-        setImagePreview(null)
-        setShowApplyModal(false)
-      } else {
-        throw new Error(result.message || 'Failed to submit application')
-      }
-
-    } catch (error) {
-      console.error('Error submitting application:', error)
-      toast({
-        title: "Error",
-        description: "Failed to submit application. Please try again.",
-        variant: "destructive"
-      })
-    }
-  }
 
   const TutorCard = ({ tutor }: { tutor: Tutor }) => {
     const isSubjectRecommended = recommendedSubjects.includes(tutor.subject_id);
@@ -838,262 +635,15 @@ export default function TutorMatching() {
           onOpenChange={setShowTestModal}
           currentUser={currentUser}
         />
-        <Dialog open={showApplyModal} onOpenChange={setShowApplyModal}>
-          <DialogTrigger asChild>
-            <Button className="bg-green-600 hover:bg-green-700">
-              <User className="w-4 h-4 mr-2" />
-              Apply as Tutor
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            <DialogHeader className="flex-shrink-0">
-              <DialogTitle>Apply to Become a Tutor</DialogTitle>
-              <DialogDescription>
-                Share your expertise and help fellow students succeed in their academic journey.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="overflow-y-auto flex-1 px-6 space-y-6">
-              {/* User Information Display */}
-              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                <h3 className="font-medium mb-3">Applicant Information</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <Label className="text-muted-foreground">Full Name</Label>
-                    <p className="font-medium">
-                      {currentUser ? `${currentUser.first_name} ${currentUser.middle_name ? currentUser.middle_name + ' ' : ''}${currentUser.last_name}` : 'Not logged in'}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Email</Label>
-                    <p className="font-medium">{currentUser?.email || 'Not logged in'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Current Program</Label>
-                    <p className="font-medium">{currentUser?.program || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Year Level</Label>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{currentUser?.year_level || 'Not specified'}</p>
-                      {(!currentUser?.year_level) && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={refreshCurrentUser}
-                          className="text-xs"
-                        >
-                          Refresh
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+        <Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowApplyModal(true)}>
+          <User className="w-4 h-4 mr-2" />
+          Apply as Tutor
+        </Button>
+        <ApplyAsTutorModalWithAssessment
+          open={showApplyModal}
+          onClose={() => setShowApplyModal(false)}
+        />
 
-              {/* Application Form */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Subject Expertise *</Label>
-                  <Popover open={subjectComboboxOpen} onOpenChange={setSubjectComboboxOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={subjectComboboxOpen}
-                        className="w-full justify-between"
-                        disabled={subjectsLoading || !!subjectsError || !currentUser?.program || !currentUser?.year_level}
-                      >
-                        {applicationForm.subject_id ? (
-                          (() => {
-                            const selectedSubject = filteredSubjects.find((subject) => subject.subject_id.toString() === applicationForm.subject_id);
-                            return selectedSubject ? `${selectedSubject.subject_code || ''} - ${selectedSubject.subject_name || ''}` : applicationForm.subject_id;
-                          })()
-                        ) : (
-                          subjectsLoading 
-                            ? "Loading subjects..." 
-                            : subjectsError 
-                              ? "Error loading subjects" 
-                              : !currentUser?.program || !currentUser?.year_level
-                                ? "Please ensure your profile has program and year level information"
-                                : filteredSubjects.length === 0
-                                  ? "No subjects available for your program and year level"
-                                  : "Search and select a subject..."
-                        )}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[400px] p-0">
-                      <Command>
-                        <CommandInput 
-                          placeholder="Search subjects..." 
-                          value={subjectSearchValue}
-                          onValueChange={setSubjectSearchValue}
-                        />
-                        <CommandList>
-                          <CommandEmpty>No subject found.</CommandEmpty>
-                          <CommandGroup>
-                            {!subjectsLoading && !subjectsError && filteredSubjects
-                              .filter((subject) => {
-                                const searchTerm = subjectSearchValue.toLowerCase()
-                                const subjectText = `${subject.subject_code} ${subject.subject_name}`.toLowerCase()
-                                return (
-                                  subject.subject_name?.toLowerCase().includes(searchTerm) ||
-                                  subject.subject_code?.toLowerCase().includes(searchTerm) ||
-                                  subjectText.includes(searchTerm)
-                                )
-                              })
-                              .sort((a, b) => (a.subject_code || '').localeCompare(b.subject_code || ''))
-                              .map((subject) => (
-                                <CommandItem
-                                  key={subject.subject_id}
-                                  value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()}
-                                  onSelect={() => {
-                                    setApplicationForm(prev => ({
-                                      ...prev, 
-                                      subject_id: subject.subject_id.toString()
-                                    }))
-                                    setSubjectComboboxOpen(false)
-                                    setSubjectSearchValue("")
-                                  }}
-                                >
-                                  <Check
-                                    className={`mr-2 h-4 w-4 ${
-                                      applicationForm.subject_id === subject.subject_id.toString() 
-                                        ? "opacity-100" 
-                                        : "opacity-0"
-                                    }`}
-                                  />
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{subject.subject_code}</span>
-                                    <span className="text-sm text-muted-foreground">{subject.subject_name}</span>
-                                  </div>
-                                </CommandItem>
-                              ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {currentUser?.program && currentUser?.year_level && filteredSubjects.length === 0 && (
-                    <p className="text-xs text-amber-600">
-                      No subjects found for {currentUser.program} - {currentUser.year_level}. Please contact admin if this seems incorrect.
-                    </p>
-                  )}
-                  {(!currentUser?.program || !currentUser?.year_level) && (
-                    <p className="text-xs text-red-600">
-                      Please update your profile with program and year level information to see available subjects.
-                    </p>
-                  )}
-                </div>
-                {/* Program selection hidden. Program is auto-filled from user profile and not shown in the modal. */}
-
-                <div className="space-y-2">
-                  <Label htmlFor="specialties">Specialties *</Label>
-                  <Textarea 
-                    id="specialties"
-                    placeholder="List your specific skills and areas of expertise (e.g., Java Programming, Algorithm Design, Data Analysis, etc.)"
-                    value={applicationForm.specialties}
-                    onChange={(e) => setApplicationForm(prev => ({...prev, specialties: e.target.value}))}
-                    rows={3}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="tutor_information">Teaching Experience & Additional Information *</Label>
-                  <Textarea 
-                    id="tutor_information"
-                    placeholder="Describe your teaching/tutoring experience, achievements, and any additional information that makes you a great tutor (e.g., tutoring experience, academic achievements, projects, etc.)"
-                    value={applicationForm.tutor_information}
-                    onChange={(e) => setApplicationForm(prev => ({...prev, tutor_information: e.target.value}))}
-                    rows={4}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="class_card">Class Card Image *</Label>
-                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer">
-                    <input
-                      id="class_card"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    <label htmlFor="class_card" className="cursor-pointer block">
-                      {imagePreview ? (
-                        <div className="space-y-2">
-                          <img 
-                            src={imagePreview} 
-                            alt="Class card preview" 
-                            className="max-h-40 mx-auto rounded"
-                          />
-                          <p className="text-sm text-green-600 font-medium">Image selected</p>
-                          <p className="text-xs text-muted-foreground">{classCardImage?.name}</p>
-                          <Button 
-                            type="button"
-                            variant="outline" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              setImagePreview(null)
-                              setClassCardImage(null)
-                            }}
-                          >
-                            Change Image
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-8l-3.172-3.172a4 4 0 00-5.656 0L28 20M8 40h32a4 4 0 004-4V12a4 4 0 00-4-4H8a4 4 0 00-4 4v24a4 4 0 004 4z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                          <div>
-                            <p className="text-sm font-medium">Click to upload your class card</p>
-                            <p className="text-xs text-muted-foreground">or drag and drop</p>
-                            <p className="text-xs text-muted-foreground mt-1">JPG, PNG, GIF up to 5MB</p>
-                          </div>
-                        </div>
-                      )}
-                    </label>
-                  </div>
-                  <p className="text-xs text-amber-600">
-                    Your class card image is required for verification and will be reviewed by faculty.
-                  </p>
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">Application Process</h3>
-                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                        Your application will be reviewed by administrators. You will be notified via email once your application is approved or if additional information is needed.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 border-t p-6 bg-gray-50 dark:bg-gray-900 flex-shrink-0">
-              <Button type="button" variant="outline" onClick={() => setShowApplyModal(false)}>
-                Cancel
-              </Button>
-              <Button 
-                type="button"
-                className="bg-green-600 hover:bg-green-700"
-                onClick={handleApplicationSubmit}
-                disabled={!currentUser || uploadingImage}
-              >
-                {uploadingImage ? "Uploading..." : "Submit Application"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
 
       <div className="flex items-center space-x-4">
