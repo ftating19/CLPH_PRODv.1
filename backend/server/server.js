@@ -1178,7 +1178,7 @@ app.put('/api/update-profile/:id', async (req, res) => {
 // Get all tutor applications (with optional status filter)
 app.get('/api/tutor-applications', async (req, res) => {
   try {
-    console.log('=== TUTOR APPLICATIONS ENDPOINT HIT ===');
+    console.log('🚨🚨🚨 UPDATED TUTOR APPLICATIONS ENDPOINT HIT 🚨🚨🚨');
     console.log('Request query:', req.query);
     
     const { status } = req.query;
@@ -1241,7 +1241,12 @@ app.get('/api/tutor-applications', async (req, res) => {
       program: app.program || '',
       year_level: app.year_level || '',
       specialties: app.specialties || '',
-      class_card_image_url: app.class_card_image_url || null
+      class_card_image_url: app.class_card_image_url || null,
+      // Include assessment fields
+      assessment_result_id: app.assessment_result_id,
+      assessment_score: app.assessment_score,
+      assessment_percentage: app.assessment_percentage,
+      assessment_passed: app.assessment_passed
     }));
 
     console.log(`✅ Found ${transformedApplications.length} tutor applications (filtered)`);
@@ -1287,7 +1292,12 @@ app.get('/api/tutor-applications/:id', async (req, res) => {
       program: application.program || '',
       year_level: application.year_level || '',
       specialties: application.specialties || '',
-      class_card_image_url: application.class_card_image_url || null
+      class_card_image_url: application.class_card_image_url || null,
+      // Include assessment fields
+      assessment_result_id: application.assessment_result_id,
+      assessment_score: application.assessment_score,
+      assessment_percentage: application.assessment_percentage,
+      assessment_passed: application.assessment_passed
     };
 
     console.log(`✅ Found tutor application ${applicationId}`);
@@ -2122,6 +2132,7 @@ app.get('/api/programs', async (req, res) => {
     });
   }
 });
+
 
 // ===== STUDY MATERIALS (LEARNING RESOURCES) API ENDPOINTS =====
 

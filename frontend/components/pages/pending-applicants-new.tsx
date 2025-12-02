@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { CheckCircle, XCircle, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Eye, Loader2 } from "lucide-react"
+import { CheckCircle, XCircle, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Eye, Loader2, Award, AlertTriangle, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function PendingApplicants() {
@@ -258,81 +258,151 @@ export default function PendingApplicants() {
   }
 
   const ApplicantCard = ({ applicant }: { applicant: (typeof applicants)[0] }) => (
-    <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
-      <CardHeader className="pb-4">
-        <div className="flex items-start space-x-4">
-          <Avatar className="w-16 h-16">
-            <AvatarImage src={applicant.avatar || "/placeholder.svg"} alt={applicant.name} />
-            <AvatarFallback className="text-lg font-semibold">
-              {applicant.name
-                .split(" ")
-                .map((n: string) => n[0])
-                .join("")}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">{applicant.name}</CardTitle>
-              <Badge variant="secondary" className="ml-2">
-                <Clock className="w-3 h-3 mr-1" />
-                {applicant.status.charAt(0).toUpperCase() + applicant.status.slice(1)}
-              </Badge>
-            </div>
-            <CardDescription className="text-base mt-1">{applicant.subject_name}</CardDescription>
-            <div className="flex items-center space-x-4 mt-2">
-              <div className="flex items-center text-sm text-muted-foreground">
-                <User className="w-4 h-4 mr-1" />
-                ID: {applicant.user_id} • {applicant.yearLevel}
+    <Card className="hover:shadow-md transition-all duration-300 border border-gray-200 hover:border-blue-300 bg-white dark:bg-gray-800">
+      <CardHeader className="pb-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-4 flex-1">
+            <Avatar className="w-14 h-14 border-2 border-gray-100">
+              <AvatarImage src={applicant.avatar || "/placeholder.svg"} alt={applicant.name} />
+              <AvatarFallback className="text-base font-semibold bg-blue-100 text-blue-700">
+                {applicant.name
+                  .split(" ")
+                  .map((n: string) => n[0])
+                  .join("")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {applicant.name}
+                  </CardTitle>
+                  <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">
+                    <Clock className="w-3 h-3 mr-1" />
+                    Pending Review
+                  </Badge>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <BookOpen className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                    {applicant.subject_name}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4 mr-1" />
-                Applied: {new Date(applicant.application_date).toLocaleDateString()}
+              
+              {/* Professional Details Row */}
+              <div className="flex items-start space-x-6 mt-3 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex items-center space-x-1">
+                  <GraduationCap className="w-4 h-4" />
+                  <span>{applicant.year_level}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>{new Date(applicant.application_date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                  })}</span>
+                </div>
+              </div>
+              
+              {/* Assessment Status */}
+              <div className="mt-3">
+                {applicant.assessment_result_id ? (
+                  <div className="flex items-start space-x-2">
+                    <div className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400">
+                      <FileText className="w-4 h-4 text-green-600" />
+                      <span>Assessment completed</span>
+                    </div>
+                    <Badge 
+                      variant={parseFloat(applicant.assessment_score) >= 70 ? "default" : "destructive"}
+                      className={parseFloat(applicant.assessment_score) >= 70
+                        ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-300" 
+                        : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300"
+                      }
+                    >
+                      {parseFloat(applicant.assessment_score) >= 70 ? (
+                        <>
+                          <Award className="w-3 h-3 mr-1" />
+                          Qualified
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          Below Threshold
+                        </>
+                      )}
+                    </Badge>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 rounded-md border border-amber-200 dark:border-amber-800">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span className="text-sm font-medium text-amber-800 dark:text-amber-200">Awaiting Assessment</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center space-x-2">
-            <BookOpen className="w-4 h-4 text-muted-foreground" />
-            <span>GPA: {applicant.gpa}</span>
+      
+      <CardContent className="pt-0">
+        {/* Program Information */}
+        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+          <div className="flex items-start space-x-3">
+            <GraduationCap className="w-5 h-5 text-gray-500 mt-0.5" />
+            <div className="flex-1 text-left">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1 text-left">Academic Program</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 text-left">{applicant.program}</p>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <GraduationCap className="w-4 h-4 text-muted-foreground" />
-            <span>{applicant.tutor_information.program}</span>
+        </div>
+
+        {/* Experience Summary */}
+        {(applicant.specialties || applicant.tutor_information) && (
+          <div className="mb-6">
+            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block text-left">
+              Teaching Experience & Qualifications
+            </Label>
+            <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-lg p-3">
+              <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 leading-relaxed text-left">
+                {applicant.specialties || applicant.tutor_information}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Subject Information */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Subject Expertise</Label>
-          <Badge variant="outline" className="text-sm">
-            {applicant.subject_name}
-          </Badge>
-        </div>
-
-        {/* Specialties */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Specialties & Experience</Label>
-          <p className="text-sm text-muted-foreground line-clamp-3">
-            {applicant.tutor_information.specialties}
-          </p>
-        </div>
-
-        <div className="flex items-center justify-end pt-4 border-t space-x-2">
-          <Button size="sm" variant="outline" onClick={() => viewDetails(applicant)}>
+        {/* Action Buttons */}
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-600 space-y-3">
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            onClick={() => viewDetails(applicant)}
+            className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 justify-start text-left"
+          >
             <Eye className="w-4 h-4 mr-2" />
-            View Details
+            View Full Details
           </Button>
-          <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" onClick={() => handleReject(applicant)}>
-            <XCircle className="w-4 h-4 mr-2" />
-            Reject
-          </Button>
-          <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleApprove(applicant)}>
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Approve
-          </Button>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => handleReject(applicant)}
+              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20"
+            >
+              <XCircle className="w-4 h-4 mr-1" />
+              Decline
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={() => handleApprove(applicant)}
+              className="bg-green-600 hover:bg-green-700 text-white shadow-sm"
+            >
+              <CheckCircle className="w-4 h-4 mr-1" />
+              Approve
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -442,6 +512,59 @@ export default function PendingApplicants() {
               <div>
                 <Label className="text-sm font-medium">Teaching Experience & Information</Label>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{currentApplicant.tutor_information || 'N/A'}</p>
+              </div>
+
+              {/* Assessment Results */}
+              <div className="border-t pt-4">
+                <Label className="text-sm font-medium mb-3 block">Pre-Assessment Results</Label>
+                {currentApplicant.assessment_result_id ? (
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <Label className="text-xs text-gray-500">Score</Label>
+                        <p className="text-lg font-semibold">{currentApplicant.assessment_score} points</p>
+                      </div>
+                      {currentApplicant.assessment_percentage && (
+                        <div>
+                          <Label className="text-xs text-gray-500">Percentage</Label>
+                          <p className="text-lg font-semibold">{parseFloat(currentApplicant.assessment_percentage).toFixed(1)}%</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Result:</span>
+                      <Badge 
+                        variant={parseFloat(currentApplicant.assessment_score) >= 70 ? "default" : "destructive"}
+                        className={parseFloat(currentApplicant.assessment_score) >= 70
+                          ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300" 
+                          : "bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-300"
+                        }
+                      >
+                        {parseFloat(currentApplicant.assessment_score) >= 70 ? (
+                          <>
+                            <Award className="w-3 h-3 mr-1" />
+                            Passed (70%+ required)
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Failed (Below 70%)
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <div className="flex items-center space-x-2">
+                      <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                      <span className="text-sm font-medium text-yellow-800 dark:text-yellow-400">Assessment Not Completed</span>
+                    </div>
+                    <p className="text-xs text-yellow-700 dark:text-yellow-500 mt-1">
+                      This applicant needs to complete the pre-assessment before approval.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Class Card Image Viewer */}

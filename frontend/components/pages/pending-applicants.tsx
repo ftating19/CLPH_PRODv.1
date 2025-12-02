@@ -233,6 +233,55 @@ export default function PendingApplicants() {
               </Badge>
             </div>
             <CardDescription className="text-base mt-1">{applicant.subject_name || 'Subject not specified'}</CardDescription>
+            
+            {/* Assessment Results - Prominent Display */}
+            {applicant.assessment_result_id ? (
+              <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Pre-Assessment</div>
+                      <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
+                        <span>{applicant.assessment_score} points</span>
+                        <span>•</span>
+                        <span>{applicant.assessment_percentage?.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <Badge 
+                    variant={applicant.assessment_passed ? "default" : "destructive"}
+                    className={applicant.assessment_passed 
+                      ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300" 
+                      : "bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-300"
+                    }
+                  >
+                    {applicant.assessment_passed ? (
+                      <>
+                        <Award className="w-3 h-3 mr-1" />
+                        Passed
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Failed
+                      </>
+                    )}
+                  </Badge>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                  <span className="text-sm font-medium text-yellow-800 dark:text-yellow-400">Assessment Pending</span>
+                </div>
+                <p className="text-xs text-yellow-700 dark:text-yellow-500 mt-1">
+                  This applicant hasn't completed the pre-assessment yet.
+                </p>
+              </div>
+            )}
+            
             <div className="flex items-center space-x-4 mt-2">
               <div className="flex items-center text-sm text-muted-foreground">
                 <User className="w-4 h-4 mr-1" />
@@ -268,56 +317,7 @@ export default function PendingApplicants() {
           </p>
         </div>
 
-        {/* Assessment Results */}
-        {applicant.assessment_result_id && (
-          <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
-            <Label className="text-sm font-medium flex items-center">
-              <FileText className="w-4 h-4 mr-1" />
-              Pre-Assessment Results
-            </Label>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="text-sm">
-                  <span className="font-medium">{applicant.assessment_score}</span>
-                  <span className="text-muted-foreground"> points</span>
-                </div>
-                <div className="text-sm">
-                  <span className="font-medium">{applicant.assessment_percentage?.toFixed(1)}%</span>
-                </div>
-              </div>
-              <Badge 
-                variant={applicant.assessment_passed ? "default" : "destructive"}
-                className={applicant.assessment_passed 
-                  ? "bg-green-100 text-green-800 border-green-200" 
-                  : "bg-red-100 text-red-800 border-red-200"
-                }
-              >
-                {applicant.assessment_passed ? (
-                  <>
-                    <Award className="w-3 h-3 mr-1" />
-                    Passed
-                  </>
-                ) : (
-                  <>
-                    <AlertTriangle className="w-3 h-3 mr-1" />
-                    Failed
-                  </>
-                )}
-              </Badge>
-            </div>
-          </div>
-        )}
-        {!applicant.assessment_result_id && (
-          <div className="space-y-2 bg-yellow-50 p-3 rounded-lg">
-            <Label className="text-sm font-medium text-yellow-800 flex items-center">
-              <AlertTriangle className="w-4 h-4 mr-1" />
-              Assessment Pending
-            </Label>
-            <p className="text-xs text-yellow-700">
-              This applicant hasn't completed the pre-assessment yet.
-            </p>
-          </div>
-        )}
+
 
         <div className="flex items-center justify-end pt-4 border-t space-x-2">
           <Button size="sm" variant="outline" onClick={() => viewDetails(applicant)}>
