@@ -6,7 +6,7 @@ require('dotenv').config({ path: '../.env' })
 
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
-const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, testEmailConnection } = require('../services/emailService')
+const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, sendFacultyTutorNotificationEmail, testEmailConnection } = require('../services/emailService')
 const { 
   getAllSubjects, 
   getSubjectById, 
@@ -1485,6 +1485,53 @@ app.put('/api/tutor-applications/:id/approve', async (req, res) => {
         } else {
           console.log(`⚠️ Failed to send approval email: ${emailResult.error}`);
         }
+
+        // Send notification email to assigned faculty
+        try {
+          console.log(`Sending faculty notification email for subject ${subject.subject_id}...`);
+          
+          if (subject.user_id) {
+            // Handle both single faculty ID and JSON array of faculty IDs
+            let facultyIds = [];
+            try {
+              // Try to parse as JSON array first
+              facultyIds = JSON.parse(subject.user_id);
+              if (!Array.isArray(facultyIds)) {
+                facultyIds = [facultyIds];
+              }
+            } catch {
+              // If parsing fails, treat as single ID
+              facultyIds = [subject.user_id];
+            }
+
+            // Send notification to each assigned faculty
+            for (const facultyId of facultyIds) {
+              const faculty = await findUserById(pool, facultyId);
+              if (faculty && faculty.role === 'Faculty') {
+                const facultyEmailResult = await sendFacultyTutorNotificationEmail(
+                  faculty.email,
+                  `${faculty.first_name} ${faculty.last_name}`,
+                  `${user.first_name} ${user.last_name}`,
+                  subject.subject_name,
+                  subject.subject_code
+                );
+                
+                if (facultyEmailResult.success) {
+                  console.log(`✅ Faculty notification sent successfully to ${faculty.email}`);
+                } else {
+                  console.log(`⚠️ Failed to send faculty notification to ${faculty.email}: ${facultyEmailResult.error}`);
+                }
+              } else {
+                console.log(`⚠️ Faculty with ID ${facultyId} not found or not a faculty member`);
+              }
+            }
+          } else {
+            console.log(`⚠️ No faculty assigned to subject ${subject.subject_name}`);
+          }
+        } catch (facultyEmailError) {
+          console.log(`⚠️ Error sending faculty notification email: ${facultyEmailError.message}`);
+          // Don't fail the approval if faculty email fails
+        }
       } else {
         console.log(`⚠️ User or subject not found for email notification`);
       }
@@ -1495,7 +1542,7 @@ app.put('/api/tutor-applications/:id/approve', async (req, res) => {
     
     res.status(200).json({ 
       success: true,
-      message: 'Tutor application approved successfully. User role updated to Tutor and approval email sent.'
+      message: 'Tutor application approved successfully. User role updated to Tutor, approval email sent, and faculty notified.'
     });
   } catch (err) {
     console.error('Error approving tutor application:', err);
