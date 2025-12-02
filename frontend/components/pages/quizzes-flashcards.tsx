@@ -250,7 +250,7 @@ export default function QuizzesFlashcards() {
                       </CardHeader>
                       <CardContent>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                          {quiz.description || 'Test your knowledge in this subject area'}
+                          {'Test your knowledge in this subject area'}
                         </p>
                         <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
                           <span className="flex items-center space-x-1">
