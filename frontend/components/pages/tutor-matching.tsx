@@ -38,7 +38,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Loader2, AlertCircle, Check, ChevronsUpDown } from "lucide-react"
+import { Star, Clock, BookOpen, Calendar, User, Search, Filter, GraduationCap, Loader2, AlertCircle, Check, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { useSubjects } from "@/hooks/use-subjects"
@@ -101,7 +101,9 @@ export default function TutorMatching() {
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
   const [showSubjectPerformance, setShowSubjectPerformance] = useState<boolean>(false) // Changed to false by default
   
-
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [tutorsPerPage] = useState(9)
   
   // Subject filter combobox state (for main filter)
   const [subjectFilterComboboxOpen, setSubjectFilterComboboxOpen] = useState(false)
@@ -282,6 +284,11 @@ export default function TutorMatching() {
       window.removeEventListener('preAssessmentSkipped', handleSkipEvent as EventListener)
     }
   }, [currentUser?.user_id])
+  
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedSubjectFilter, selectedProgramFilter, searchTerm])
 
   // Available programs (using constants)
   const programs = CICT_PROGRAMS
@@ -1226,33 +1233,172 @@ export default function TutorMatching() {
         </Card>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {loading ? (
-          <div className="col-span-full flex items-center justify-center py-12">
-            <div className="flex items-center space-x-2">
-              <Loader2 className="w-6 h-6 animate-spin" />
-              <span>Loading tutors...</span>
+      <div className="space-y-6">
+        {/* Tutors Grid */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {loading ? (
+            <div className="col-span-full flex items-center justify-center py-12">
+              <div className="flex items-center space-x-2">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span>Loading tutors...</span>
+              </div>
             </div>
-          </div>
-        ) : error ? (
-          <div className="col-span-full text-center py-12">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={fetchTutors} variant="outline">
-              Try Again
-            </Button>
-          </div>
-        ) : tutors.length === 0 ? (
-          <div className="col-span-full text-center py-12">
-            <p className="text-muted-foreground mb-4">No tutors available at the moment.</p>
-            <Button onClick={fetchTutors} variant="outline">
-              Refresh
-            </Button>
-          </div>
-        ) : (
-          filteredTutors.map((tutor) => (
-            <TutorCard key={tutor.application_id} tutor={tutor} />
-          ))
-        )}
+          ) : error ? (
+            <div className="col-span-full text-center py-12">
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={fetchTutors} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          ) : tutors.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <p className="text-muted-foreground mb-4">No tutors available at the moment.</p>
+              <Button onClick={fetchTutors} variant="outline">
+                Refresh
+              </Button>
+            </div>
+          ) : (() => {
+            // Calculate pagination
+            const totalTutors = filteredTutors.length
+            const totalPages = Math.ceil(totalTutors / tutorsPerPage)
+            const startIndex = (currentPage - 1) * tutorsPerPage
+            const endIndex = startIndex + tutorsPerPage
+            const currentTutors = filteredTutors.slice(startIndex, endIndex)
+            
+            // Reset to page 1 if current page is beyond available pages
+            if (currentPage > totalPages && totalPages > 0) {
+              setCurrentPage(1)
+              return null
+            }
+            
+            return currentTutors.length > 0 ? (
+              currentTutors.map((tutor) => (
+                <TutorCard key={tutor.application_id} tutor={tutor} />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <p className="text-muted-foreground mb-4">No tutors match your current filters.</p>
+                <Button onClick={() => {
+                  setSelectedSubjectFilter('all')
+                  setSelectedProgramFilter('all')
+                  setSearchTerm('')
+                  setCurrentPage(1)
+                }} variant="outline">
+                  Clear Filters
+                </Button>
+              </div>
+            )
+          })()}
+        </div>
+        
+        {/* Pagination Controls */}
+        {!loading && !error && tutors.length > 0 && (() => {
+          const totalTutors = filteredTutors.length
+          const totalPages = Math.ceil(totalTutors / tutorsPerPage)
+          const startIndex = (currentPage - 1) * tutorsPerPage
+          const endIndex = Math.min(startIndex + tutorsPerPage, totalTutors)
+          
+          return totalPages > 1 && (
+            <div className="flex items-center justify-between border-t pt-6">
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                <span>Showing {startIndex + 1}-{endIndex} of {totalTutors} tutors</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                
+                <div className="flex items-center space-x-1">
+                  {/* Show page numbers */}
+                  {(() => {
+                    const pages = []
+                    const showPages = 5
+                    let startPage = Math.max(1, currentPage - Math.floor(showPages / 2))
+                    let endPage = Math.min(totalPages, startPage + showPages - 1)
+                    
+                    if (endPage - startPage < showPages - 1) {
+                      startPage = Math.max(1, endPage - showPages + 1)
+                    }
+                    
+                    // First page and ellipsis
+                    if (startPage > 1) {
+                      pages.push(
+                        <Button
+                          key="1"
+                          variant={1 === currentPage ? "default" : "outline"}
+                          size="sm"
+                          className="w-10 h-10 p-0"
+                          onClick={() => setCurrentPage(1)}
+                        >
+                          1
+                        </Button>
+                      )
+                      if (startPage > 2) {
+                        pages.push(
+                          <span key="ellipsis1" className="px-2 text-muted-foreground">...</span>
+                        )
+                      }
+                    }
+                    
+                    // Current range of pages
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
+                        <Button
+                          key={i}
+                          variant={i === currentPage ? "default" : "outline"}
+                          size="sm"
+                          className="w-10 h-10 p-0"
+                          onClick={() => setCurrentPage(i)}
+                        >
+                          {i}
+                        </Button>
+                      )
+                    }
+                    
+                    // Last page and ellipsis
+                    if (endPage < totalPages) {
+                      if (endPage < totalPages - 1) {
+                        pages.push(
+                          <span key="ellipsis2" className="px-2 text-muted-foreground">...</span>
+                        )
+                      }
+                      pages.push(
+                        <Button
+                          key={totalPages}
+                          variant={totalPages === currentPage ? "default" : "outline"}
+                          size="sm"
+                          className="w-10 h-10 p-0"
+                          onClick={() => setCurrentPage(totalPages)}
+                        >
+                          {totalPages}
+                        </Button>
+                      )
+                    }
+                    
+                    return pages
+                  })()}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )
+        })()}
       </div>
         </>
       )}
