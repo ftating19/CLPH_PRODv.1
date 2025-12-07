@@ -1364,29 +1364,39 @@ app.post('/api/tutor-applications', async (req, res) => {
     
     // Send notification email to assigned faculty
     try {
-      console.log(`Sending new application notification to faculty for subject ${subject_id}...`);
+      console.log(`🔔 Sending new application notification to faculty for subject ${subject_id}...`);
       
       // Get subject details to find assigned faculty
       const subject = await getSubjectById(pool, subject_id);
+      console.log(`📚 Found subject:`, subject ? `${subject.subject_name} (${subject.subject_code})` : 'NOT FOUND');
+      console.log(`👥 Subject faculty assignment:`, subject?.user_id);
       
       if (subject && subject.user_id) {
         // Handle both single faculty ID and JSON array of faculty IDs
         let facultyIds = [];
         try {
+          console.log(`🔍 Parsing faculty IDs from:`, subject.user_id);
           // Try to parse as JSON array first
           facultyIds = JSON.parse(subject.user_id);
           if (!Array.isArray(facultyIds)) {
             facultyIds = [facultyIds];
           }
+          console.log(`📋 Parsed faculty IDs as array:`, facultyIds);
         } catch {
           // If parsing fails, treat as single ID
           facultyIds = [subject.user_id];
+          console.log(`📋 Treating as single faculty ID:`, facultyIds);
         }
 
         // Send notification to each assigned faculty
+        console.log(`👨‍🏫 Processing ${facultyIds.length} faculty member(s)...`);
         for (const facultyId of facultyIds) {
+          console.log(`🔍 Looking up faculty with ID: ${facultyId}`);
           const faculty = await findUserById(pool, facultyId);
+          console.log(`👤 Faculty found:`, faculty ? `${faculty.first_name} ${faculty.last_name} (${faculty.role})` : 'NOT FOUND');
+          
           if (faculty && faculty.role === 'Faculty') {
+            console.log(`📧 Sending notification email to ${faculty.email}...`);
             const facultyEmailResult = await sendFacultyNewApplicationNotificationEmail(
               faculty.email,
               `${faculty.first_name} ${faculty.last_name}`,
@@ -1398,10 +1408,10 @@ app.post('/api/tutor-applications', async (req, res) => {
             if (facultyEmailResult.success) {
               console.log(`✅ Faculty new application notification sent successfully to ${faculty.email}`);
             } else {
-              console.log(`⚠️ Failed to send faculty notification to ${faculty.email}: ${facultyEmailResult.error}`);
+              console.log(`❌ Failed to send faculty notification to ${faculty.email}: ${facultyEmailResult.error}`);
             }
           } else {
-            console.log(`⚠️ Faculty with ID ${facultyId} not found or not a faculty member`);
+            console.log(`⚠️ Faculty with ID ${facultyId} not found or not a faculty member (role: ${faculty?.role || 'UNKNOWN'})`);
           }
         }
       } else {

@@ -960,15 +960,18 @@ const sendFacultyNewApplicationNotificationEmail = async (facultyEmail, facultyN
     </body>
     </html>`;
 
-    const result = await sendEmail(facultyEmail, subject, htmlContent);
+    const transporter = createTransporter();
     
-    if (result.success) {
-      console.log(`✅ Faculty new application notification sent successfully to ${facultyEmail}`);
-      return { success: true };
-    } else {
-      console.log(`❌ Failed to send faculty new application notification: ${result.error}`);
-      return { success: false, error: result.error };
-    }
+    const mailOptions = {
+      from: `"CPLH Platform" <${process.env.SMTP_USER}>`,
+      to: facultyEmail,
+      subject: subject,
+      html: htmlContent
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Faculty new application notification sent successfully:', result.messageId);
+    return { success: true, messageId: result.messageId };
   } catch (error) {
     console.error('Error in sendFacultyNewApplicationNotificationEmail:', error);
     return { success: false, error: error.message };
