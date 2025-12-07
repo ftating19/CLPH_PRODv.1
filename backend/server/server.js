@@ -6,7 +6,7 @@ require('dotenv').config({ path: '../.env' })
 
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
-const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, sendFacultyTutorNotificationEmail, testEmailConnection } = require('../services/emailService')
+const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, sendFacultyTutorNotificationEmail, sendFacultyNewApplicationNotificationEmail, testEmailConnection } = require('../services/emailService')
 const { 
   getAllSubjects, 
   getSubjectById, 
@@ -1362,9 +1362,59 @@ app.post('/api/tutor-applications', async (req, res) => {
 
     console.log(`✅ Tutor application created with ID: ${result.insertId}`);
     
+    // Send notification email to assigned faculty
+    try {
+      console.log(`Sending new application notification to faculty for subject ${subject_id}...`);
+      
+      // Get subject details to find assigned faculty
+      const subject = await getSubjectById(pool, subject_id);
+      
+      if (subject && subject.user_id) {
+        // Handle both single faculty ID and JSON array of faculty IDs
+        let facultyIds = [];
+        try {
+          // Try to parse as JSON array first
+          facultyIds = JSON.parse(subject.user_id);
+          if (!Array.isArray(facultyIds)) {
+            facultyIds = [facultyIds];
+          }
+        } catch {
+          // If parsing fails, treat as single ID
+          facultyIds = [subject.user_id];
+        }
+
+        // Send notification to each assigned faculty
+        for (const facultyId of facultyIds) {
+          const faculty = await findUserById(pool, facultyId);
+          if (faculty && faculty.role === 'Faculty') {
+            const facultyEmailResult = await sendFacultyNewApplicationNotificationEmail(
+              faculty.email,
+              `${faculty.first_name} ${faculty.last_name}`,
+              name,
+              subject.subject_name,
+              subject.subject_code
+            );
+            
+            if (facultyEmailResult.success) {
+              console.log(`✅ Faculty new application notification sent successfully to ${faculty.email}`);
+            } else {
+              console.log(`⚠️ Failed to send faculty notification to ${faculty.email}: ${facultyEmailResult.error}`);
+            }
+          } else {
+            console.log(`⚠️ Faculty with ID ${facultyId} not found or not a faculty member`);
+          }
+        }
+      } else {
+        console.log(`⚠️ No faculty assigned to subject ${subject_name}`);
+      }
+    } catch (facultyEmailError) {
+      console.log(`⚠️ Error sending faculty notification email: ${facultyEmailError.message}`);
+      // Don't fail the application submission if faculty email fails
+    }
+    
     res.status(201).json({ 
       success: true,
-      message: 'Tutor application submitted successfully',
+      message: 'Tutor application submitted successfully. Faculty have been notified for review.',
       application_id: result.insertId
     });
   } catch (err) {

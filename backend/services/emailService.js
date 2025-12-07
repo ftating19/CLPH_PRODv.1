@@ -891,6 +891,90 @@ const sendFacultyTutorNotificationEmail = async (facultyEmail, facultyName, tuto
   }
 };
 
+// Send faculty notification about new tutor application submission
+const sendFacultyNewApplicationNotificationEmail = async (facultyEmail, facultyName, applicantName, subjectName, subjectCode) => {
+  try {
+    console.log(`Preparing faculty new application notification email for: ${facultyEmail}`);
+    
+    const subject = `New Tutor Application Submitted for ${subjectName}`;
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Tutor Application</title>
+        <style>
+            body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; text-align: center; padding: 30px 20px; }
+            .content { padding: 30px; }
+            .highlight { background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 5px; }
+            .footer { background-color: #f8f9fa; text-align: center; padding: 20px; border-top: 1px solid #eee; }
+            .button { display: inline-block; padding: 12px 25px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>📝 New Tutor Application</h1>
+                <p>Faculty Review Required</p>
+            </div>
+            <div class="content">
+                <p>Dear <strong>${facultyName}</strong>,</p>
+                
+                <p>A new tutor application has been submitted for one of your assigned subjects and requires your review.</p>
+                
+                <div class="highlight">
+                    <h3>📚 Application Details:</h3>
+                    <p><strong>Applicant:</strong> ${applicantName}</p>
+                    <p><strong>Subject:</strong> ${subjectName} (${subjectCode})</p>
+                    <p><strong>Status:</strong> Pending Review</p>
+                    <p><strong>Submitted:</strong> ${new Date().toLocaleDateString()}</p>
+                </div>
+                
+                <p>Please review the application at your earliest convenience. You can:</p>
+                <ul>
+                    <li>View the applicant's qualifications and submitted materials</li>
+                    <li>Review their class card and academic information</li>
+                    <li>Check their pre-assessment results (if completed)</li>
+                    <li>Approve or reject the application with feedback</li>
+                </ul>
+                
+                <div style="text-align: center; margin: 25px 0;">
+                    <a href="http://localhost:3000/pending-applicants" class="button">Review Applications</a>
+                    <a href="http://localhost:3000/admin-dashboard" class="button" style="background-color: #6366f1;">View Dashboard</a>
+                </div>
+                
+                <p>Your timely review helps maintain the quality of our tutoring program and ensures students receive the best possible support.</p>
+                
+                <p>Best regards,<br>
+                <strong>CPLH Tutoring System</strong><br>
+                Academic Support Team</p>
+            </div>
+            <div class="footer">
+                <p>This is an automated notification. Please do not reply to this email.</p>
+                <p>&copy; 2024 CPLH Tutoring System. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>`;
+
+    const result = await sendEmail(facultyEmail, subject, htmlContent);
+    
+    if (result.success) {
+      console.log(`✅ Faculty new application notification sent successfully to ${facultyEmail}`);
+      return { success: true };
+    } else {
+      console.log(`❌ Failed to send faculty new application notification: ${result.error}`);
+      return { success: false, error: result.error };
+    }
+  } catch (error) {
+    console.error('Error in sendFacultyNewApplicationNotificationEmail:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   generateTemporaryPassword,
   sendWelcomeEmail,
@@ -901,5 +985,6 @@ module.exports = {
   sendPostTestApprovalEmailToTutor,
   sendPostTestApprovalEmailToStudent,
   sendFacultyTutorNotificationEmail,
+  sendFacultyNewApplicationNotificationEmail,
   testEmailConnection
 };
