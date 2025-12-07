@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2, BookOpen, Search, Filter, GraduationCap } from "lucide-react"
+import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2, BookOpen, Search, Filter, GraduationCap, Users, UserCheck } from "lucide-react"
 import Layout from "@/components/dashboard/layout"
 import { useUser } from "@/contexts/UserContext"
 import ChatModal from "@/components/modals/ChatModal"
@@ -52,6 +52,9 @@ export default function TutorSessionPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [dateFilter, setDateFilter] = useState<string>("all")
+  const [subjectFilter, setSubjectFilter] = useState<string>("all")
+  const [ratingFilter, setRatingFilter] = useState<string>("all")
+  const [bookingTypeFilter, setBookingTypeFilter] = useState<string>("all")
 
   // State for rating modal
   const [showRatingModal, setShowRatingModal] = useState<{open: boolean, bookingId?: number}>({open: false})
@@ -544,7 +547,20 @@ export default function TutorSessionPage() {
       }
     }
 
-    return searchMatch && statusMatch && dateMatch
+    // Subject filter
+    const subjectMatch = subjectFilter === "all" || 
+      booking.subject_name?.toLowerCase() === subjectFilter.toLowerCase()
+
+    // Rating filter
+    const ratingMatch = ratingFilter === "all" || 
+      (ratingFilter === "rated" && booking.rating !== null) ||
+      (ratingFilter === "unrated" && booking.rating === null)
+
+    // Booking type filter
+    const bookingTypeMatch = bookingTypeFilter === "all" || 
+      booking.booked_by === bookingTypeFilter
+
+    return searchMatch && statusMatch && dateMatch && subjectMatch && ratingMatch && bookingTypeMatch
   })
 
   // Refetch bookings helper
@@ -664,6 +680,9 @@ export default function TutorSessionPage() {
               <Filter className="w-5 h-5 mr-2" />
               Filter Sessions
             </CardTitle>
+            <CardDescription>
+              Search and filter sessions by multiple criteria
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -712,15 +731,65 @@ export default function TutorSessionPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Second Row of Filters */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Subject Filter */}
+              <div className="sm:w-48">
+                <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subjects</SelectItem>
+                    {/* Dynamic subjects from bookings */}
+                    {Array.from(new Set(bookings.map(b => b.subject_name).filter(Boolean))).sort().map(subject => (
+                      <SelectItem key={subject} value={subject!.toLowerCase()}>{subject}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Rating Filter */}
+              <div className="sm:w-48">
+                <Select value={ratingFilter} onValueChange={setRatingFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by rating" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sessions</SelectItem>
+                    <SelectItem value="rated">Rated Sessions</SelectItem>
+                    <SelectItem value="unrated">Unrated Sessions</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Booking Type Filter */}
+              <div className="sm:w-48">
+                <Select value={bookingTypeFilter} onValueChange={setBookingTypeFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by booking type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Bookings</SelectItem>
+                    <SelectItem value="student">Student Booked</SelectItem>
+                    <SelectItem value="tutor">Tutor Booked</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* Clear Filters Button */}
-              {(searchQuery || statusFilter !== "all" || dateFilter !== "all") && (
+              {(searchQuery || statusFilter !== "all" || dateFilter !== "all" || subjectFilter !== "all" || ratingFilter !== "all" || bookingTypeFilter !== "all") && (
                 <Button 
                   variant="outline" 
                   onClick={() => {
                     setSearchQuery("")
                     setStatusFilter("all")
                     setDateFilter("all")
+                    setSubjectFilter("all")
+                    setRatingFilter("all")
+                    setBookingTypeFilter("all")
                   }}
                   className="sm:w-auto"
                 >
@@ -729,9 +798,52 @@ export default function TutorSessionPage() {
               )}
             </div>
             
-            {/* Results Count */}
-            <div className="mt-3 text-sm text-muted-foreground">
-              Showing {filteredBookings.length} of {bookings.length} sessions
+            {/* Results Count and Active Filters */}
+            <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="text-sm text-muted-foreground">
+                Showing {filteredBookings.length} of {bookings.length} sessions
+              </div>
+              
+              {/* Active Filters Display */}
+              {(searchQuery || statusFilter !== "all" || dateFilter !== "all" || subjectFilter !== "all" || ratingFilter !== "all" || bookingTypeFilter !== "all") && (
+                <div className="flex flex-wrap gap-1">
+                  {searchQuery && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Search className="w-3 h-3 mr-1" />
+                      Search: "{searchQuery}"
+                    </Badge>
+                  )}
+                  {statusFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs">
+                      Status: {statusFilter}
+                    </Badge>
+                  )}
+                  {dateFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Calendar className="w-3 h-3 mr-1" />
+                      {dateFilter}
+                    </Badge>
+                  )}
+                  {subjectFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs">
+                      <BookOpen className="w-3 h-3 mr-1" />
+                      {bookings.find(b => b.subject_name?.toLowerCase() === subjectFilter)?.subject_name}
+                    </Badge>
+                  )}
+                  {ratingFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Star className="w-3 h-3 mr-1" />
+                      {ratingFilter} sessions
+                    </Badge>
+                  )}
+                  {bookingTypeFilter !== "all" && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Users className="w-3 h-3 mr-1" />
+                      {bookingTypeFilter === "student" ? "Student Booked" : "Tutor Booked"}
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
