@@ -9534,6 +9534,195 @@ app.get('/api/tutors/:tutorId/sessions/comments', async (req, res) => {
   }
 });
 
+// System Feedback API Endpoints
+
+// Create system_feedback table if it doesn't exist
+app.get('/api/system-feedback/init-table', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    
+    const createTableQuery = `
+      CREATE TABLE IF NOT EXISTS system_feedback (
+        feedback_id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+        liked_most TEXT,
+        suggestions TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+        INDEX idx_user_id (user_id),
+        INDEX idx_rating (rating),
+        INDEX idx_created_at (created_at)
+      )
+    `;
+    
+    await pool.query(createTableQuery);
+    console.log('System feedback table initialized successfully');
+    
+    res.json({ 
+      success: true, 
+      message: 'System feedback table initialized successfully' 
+    });
+  } catch (error) {
+    console.error('Error initializing system feedback table:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to initialize system feedback table' 
+    });
+  }
+});
+
+// Submit system feedback
+app.post('/api/system-feedback', async (req, res) => {
+  try {
+    const { user_id, rating, liked_most, suggestions } = req.body;
+    
+    console.log('=== SYSTEM FEEDBACK SUBMISSION ===');
+    console.log('Request body:', req.body);
+    
+    // Validation
+    if (!user_id || !rating) {
+      return res.status(400).json({
+        success: false,
+        error: 'User ID and rating are required'
+      });
+    }
+    
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        error: 'Rating must be between 1 and 5'
+      });
+    }
+    
+    const pool = await db.getPool();
+    
+    // Check if user already submitted feedback recently (within 24 hours)
+    const [existingFeedback] = await pool.query(`
+      SELECT feedback_id, created_at 
+      FROM system_feedback 
+      WHERE user_id = ? 
+      AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `, [user_id]);
+    
+    if (existingFeedback.length > 0) {
+      return res.status(429).json({
+        success: false,
+        error: 'You can only submit feedback once per day. Please try again later.'
+      });
+    }
+    
+    // Insert new feedback
+    const [result] = await pool.query(`
+      INSERT INTO system_feedback (user_id, rating, liked_most, suggestions)
+      VALUES (?, ?, ?, ?)
+    `, [user_id, rating, liked_most || null, suggestions || null]);
+    
+    console.log('Feedback submitted successfully:', {
+      feedback_id: result.insertId,
+      user_id,
+      rating
+    });
+    
+    res.json({
+      success: true,
+      message: 'Thank you for your feedback! Your input helps us improve the platform.',
+      feedback_id: result.insertId
+    });
+    
+  } catch (error) {
+    console.error('Error submitting system feedback:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to submit feedback. Please try again.'
+    });
+  }
+});
+
+// Get system feedback statistics (for admins)
+app.get('/api/system-feedback/stats', async (req, res) => {
+  try {
+    const pool = await db.getPool();
+    
+    const [stats] = await pool.query(`
+      SELECT 
+        COUNT(*) as total_feedback,
+        AVG(rating) as average_rating,
+        COUNT(CASE WHEN rating = 5 THEN 1 END) as five_star_count,
+        COUNT(CASE WHEN rating = 4 THEN 1 END) as four_star_count,
+        COUNT(CASE WHEN rating = 3 THEN 1 END) as three_star_count,
+        COUNT(CASE WHEN rating = 2 THEN 1 END) as two_star_count,
+        COUNT(CASE WHEN rating = 1 THEN 1 END) as one_star_count,
+        COUNT(CASE WHEN liked_most IS NOT NULL AND liked_most != '' THEN 1 END) as has_positive_feedback,
+        COUNT(CASE WHEN suggestions IS NOT NULL AND suggestions != '' THEN 1 END) as has_suggestions
+      FROM system_feedback
+    `);
+    
+    const [recentFeedback] = await pool.query(`
+      SELECT 
+        sf.feedback_id,
+        sf.rating,
+        sf.liked_most,
+        sf.suggestions,
+        sf.created_at,
+        CONCAT(u.first_name, ' ', u.last_name) as user_name,
+        u.role
+      FROM system_feedback sf
+      LEFT JOIN users u ON sf.user_id = u.user_id
+      ORDER BY sf.created_at DESC
+      LIMIT 10
+    `);
+    
+    res.json({
+      success: true,
+      stats: stats[0],
+      recent_feedback: recentFeedback
+    });
+    
+  } catch (error) {
+    console.error('Error fetching system feedback stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch feedback statistics'
+    });
+  }
+});
+
+// Get user's feedback history
+app.get('/api/system-feedback/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const pool = await db.getPool();
+    
+    const [userFeedback] = await pool.query(`
+      SELECT 
+        feedback_id,
+        rating,
+        liked_most,
+        suggestions,
+        created_at
+      FROM system_feedback
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+    `, [userId]);
+    
+    res.json({
+      success: true,
+      feedback: userFeedback
+    });
+    
+  } catch (error) {
+    console.error('Error fetching user feedback:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user feedback'
+    });
+  }
+});
+
 async function start() {
   try {
     await db.connect()
