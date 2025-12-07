@@ -97,6 +97,8 @@ export default function EditUserModal({ user, isOpen, onClose, onUserUpdated }: 
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-role': currentUser?.role || '',
+          'x-user-id': currentUser?.user_id ? String(currentUser.user_id) : '',
         },
         body: JSON.stringify(formData),
       });
