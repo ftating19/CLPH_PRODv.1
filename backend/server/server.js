@@ -1343,6 +1343,26 @@ app.post('/api/tutor-applications', async (req, res) => {
     // Get a database connection
     const pool = await db.getPool();
 
+    // Check if user already has a pending application
+    console.log(`🔍 Checking for existing pending applications for user ${user_id}...`);
+    const existingApplications = await getTutorApplicationsByStatus(pool, 'pending');
+    const userPendingApplication = existingApplications.find(app => app.user_id === user_id);
+    
+    if (userPendingApplication) {
+      console.log(`⚠️ User ${user_id} already has a pending application (ID: ${userPendingApplication.application_id})`);
+      return res.status(409).json({ 
+        error: 'You already have a pending tutor application. Please wait for it to be reviewed before submitting a new one.',
+        existingApplication: {
+          application_id: userPendingApplication.application_id,
+          subject_name: userPendingApplication.subject_name,
+          application_date: userPendingApplication.application_date,
+          status: userPendingApplication.status
+        }
+      });
+    }
+    
+    console.log(`✅ No pending applications found for user ${user_id}. Proceeding with new application...`);
+
     // Create the application
     const result = await createTutorApplication(pool, {
       user_id,
