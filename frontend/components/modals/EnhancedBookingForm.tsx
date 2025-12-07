@@ -45,7 +45,8 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
   const { toast } = useToast()
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]) // Changed to array for multiple selection
-  const [availability, setAvailability] = useState<AvailabilityData[]>([])
+  const [availability, setAvailability] = useState<AvailabilityData[]>([]) 
+  const [bookingDetails, setBookingDetails] = useState<Map<string, any>>(new Map())
   const [loading, setLoading] = useState(false)
   const [navigatingMonth, setNavigatingMonth] = useState(false)
   const [bookingLoading, setBookingLoading] = useState(false)
@@ -113,12 +114,15 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
       
       console.log('=== FETCHING AVAILABILITY ===')
       console.log('Tutor ID:', tutor.user_id)
+      console.log('Current User ID:', currentUser?.user_id)
       console.log('Date Range:', startDate, 'to', endDate)
-      console.log('Request URL:', `http://localhost:4000/api/tutors/${tutor.user_id}/availability?startDate=${startDate}&endDate=${endDate}`)
       
-      const response = await fetch(
-        `http://localhost:4000/api/tutors/${tutor.user_id}/availability?startDate=${startDate}&endDate=${endDate}`
-      )
+      const studentId = currentUser?.user_id
+      const requesterId = currentUser?.user_id // Include requester ID for conflict checking
+      const url = `http://localhost:4000/api/tutors/${tutor.user_id}/availability?startDate=${startDate}&endDate=${endDate}&studentId=${studentId}&requesterId=${requesterId}`
+      console.log('Request URL:', url)
+      
+      const response = await fetch(url)
       
       console.log('Response status:', response.status)
       
@@ -133,6 +137,76 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
 
       if (data.success) {
         setAvailability(data.availability)
+        
+        // Process booking details for display
+        const bookingDetailsMap = new Map<string, any>()
+        if (data.existingBookings && Array.isArray(data.existingBookings)) {
+          console.log('=== PROCESSING EXISTING BOOKINGS ===')
+          console.log('Total bookings found:', data.existingBookings.length)
+          
+          data.existingBookings.forEach((booking: any) => {
+            console.log('Booking details:', {
+              id: booking.booking_id,
+              status: booking.status,
+              conflict_type: booking.conflict_type,
+              student_id: booking.student_id,
+              tutor_id: booking.tutor_id,
+              current_user_id: currentUser?.user_id,
+              time: booking.preferred_time
+            })
+            
+            // Include both 'accepted' and 'booked' status for conflicts
+            if (booking.status?.toLowerCase() === 'accepted' || booking.status?.toLowerCase() === 'booked') {
+              const bookingDate = new Date(booking.start_date)
+              const dateStr = bookingDate.toISOString().split('T')[0]
+              const timeSlot = booking.preferred_time
+              
+              if (timeSlot) {
+                const normalizedSlot = timeSlot.replace(' - ', '-')
+                const slotKey = `${dateStr}_${normalizedSlot}`
+                
+                console.log('Processing booking slot:', {
+                  original_time: timeSlot,
+                  normalized_slot: normalizedSlot,
+                  slot_key: slotKey,
+                  conflict_type: booking.conflict_type
+                })
+                
+                // Determine conflict type and appropriate messaging
+                let conflictInfo = {
+                  studentName: booking.student_name,
+                  tutorName: booking.tutor_name, 
+                  studentId: booking.student_id,
+                  tutorId: booking.tutor_id,
+                  status: booking.status,
+                  conflictType: booking.conflict_type || 'tutor_conflict'
+                }
+                
+                // Add specific messaging based on conflict type
+                if (booking.conflict_type === 'requester_conflict') {
+                  console.log('Found requester conflict for current user:', currentUser?.user_id)
+                  // The requester (current user) has a booking at this time
+                  if (booking.tutor_id === currentUser?.user_id) {
+                    conflictInfo.message = 'You are tutoring at this time'
+                    conflictInfo.isRequesterTutor = true
+                  } else if (booking.student_id === currentUser?.user_id) {
+                    conflictInfo.message = 'You have a session at this time'
+                    conflictInfo.isRequesterStudent = true
+                  }
+                } else if (booking.conflict_type === 'tutor_conflict') {
+                  conflictInfo.message = 'Tutor is booked'
+                } else if (booking.conflict_type === 'student_conflict') {
+                  conflictInfo.message = 'Student is booked'
+                }
+                
+                console.log('Adding conflict info to map:', conflictInfo)
+                bookingDetailsMap.set(slotKey, conflictInfo)
+              }
+            }
+          })
+        }
+        setBookingDetails(bookingDetailsMap)
+        
         console.log('Available days:', data.availability.filter((day: any) => day.slots.length > 0).length)
         console.log('Existing bookings:', data.existingBookings)
       } else {
@@ -173,6 +247,31 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
     
     return () => clearTimeout(timeoutId)
   }, [dateRange])
+
+  // Helper function to get booking details for a specific slot
+  const getSlotBookingDetails = (date: Date, slot: string) => {
+    const dateStr = date.toISOString().split('T')[0]
+    const normalizedSlot = slot.replace(' - ', '-')
+    const slotKey = `${dateStr}_${normalizedSlot}`
+    return bookingDetails.get(slotKey)
+  }
+
+  // Helper function to check if a time slot is booked
+  const isTimeSlotBooked = (date: Date, slot: string): boolean => {
+    const details = getSlotBookingDetails(date, slot)
+    const isBooked = details !== undefined
+    
+    if (isBooked) {
+      console.log('Time slot is booked:', {
+        date: date.toISOString().split('T')[0],
+        slot: slot,
+        conflict_type: details?.conflictType,
+        is_requester_conflict: details?.conflictType === 'requester_conflict'
+      })
+    }
+    
+    return isBooked
+  }
 
   // Check if a time slot is in the past for today's date
   const isTimeSlotInPast = (date: Date, timeSlot: string): boolean => {
@@ -271,6 +370,21 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
     // Note: Students can book the same tutor multiple times for different time slots
     if (tutor.user_id === currentUser.user_id) {
       setStatus("You cannot book yourself as a tutor.")
+      return
+    }
+
+    // Check for requester conflicts on selected time slots
+    const conflictedSlots = selectedTimeSlots.filter(slot => {
+      const details = getSlotBookingDetails(selectedDate, slot)
+      return details && details.conflictType === 'requester_conflict'
+    })
+
+    if (conflictedSlots.length > 0) {
+      const conflictedTimes = conflictedSlots.map(slot => 
+        timeSlots.find(s => s.slot === slot)?.label || slot
+      ).join(', ')
+      
+      setStatus(`You cannot book these time slots because you already have sessions scheduled: ${conflictedTimes}`)
       return
     }
 
@@ -631,9 +745,12 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                       const isAvailable = availableSlots.includes(slot.slot)
                       const isSelected = selectedTimeSlots.includes(slot.slot)
                       const isPastTime = selectedDate ? isTimeSlotInPast(selectedDate, slot.slot) : false
+                      const isBooked = selectedDate ? isTimeSlotBooked(selectedDate, slot.slot) : false
+                      const bookingDetails = selectedDate ? getSlotBookingDetails(selectedDate, slot.slot) : null
+                      const isRequesterConflict = bookingDetails?.conflictType === 'requester_conflict'
 
                       const handleTimeSlotClick = () => {
-                        if (!isAvailable) return
+                        if (!isAvailable || isBooked) return
                         
                         setSelectedTimeSlots(prev => {
                           if (prev.includes(slot.slot)) {
@@ -651,15 +768,19 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                           key={slot.slot}
                           variant={isSelected ? "default" : "outline"}
                           className={`w-full h-14 justify-between text-left transition-all duration-200 ${
-                            !isAvailable 
+                            !isAvailable || isBooked
                               ? isPastTime
                                 ? "opacity-40 cursor-not-allowed bg-red-50 border-red-200 text-red-400" 
+                                : isBooked && isRequesterConflict
+                                ? "opacity-50 cursor-not-allowed bg-orange-50 border-orange-200 text-orange-500"
+                                : isBooked
+                                ? "opacity-50 cursor-not-allowed bg-blue-50 border-blue-200 text-blue-400"
                                 : "opacity-50 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
                               : isSelected 
                               ? "bg-blue-600 text-white shadow-lg transform scale-[1.02] border-blue-600" 
                               : "hover:bg-blue-50 hover:border-blue-300 hover:shadow-md border-gray-300"
                           }`}
-                          disabled={!isAvailable}
+                          disabled={!isAvailable || isBooked}
                           onClick={handleTimeSlotClick}
                         >
                           <div className="flex items-center space-x-3">
@@ -670,9 +791,13 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                                 ? "bg-green-400" 
                                 : isPastTime
                                 ? "bg-red-300"
+                                : isBooked && isRequesterConflict
+                                ? "bg-orange-400"
+                                : isBooked
+                                ? "bg-blue-300"
                                 : "bg-gray-300"
                             }`}></div>
-                            <div>
+                            <div className="flex-1">
                               <div className="font-medium">{slot.label}</div>
                               <div className={`text-xs ${
                                 isSelected 
@@ -680,14 +805,48 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
                                   : isAvailable 
                                   ? "text-gray-500" 
                                   : isPastTime 
-                                  ? "text-red-400" 
+                                  ? "text-red-400"
+                                  : isBooked && isRequesterConflict
+                                  ? "text-orange-400"
+                                  : isBooked
+                                  ? "text-blue-400" 
                                   : "text-gray-400"
                               }`}>
-                                {isPastTime ? "Past time" : "60 minute session"}
+                                {isBooked ? (() => {
+                                  const details = selectedDate ? getSlotBookingDetails(selectedDate, slot.slot) : null
+                                  if (details) {
+                                    return (
+                                      <div className="text-xs">
+                                        {details.conflictType === 'requester_conflict' ? (
+                                          <div>
+                                            <div className="font-medium text-orange-600">
+                                              {details.message || 'You are busy'}
+                                            </div>
+                                            {details.isRequesterTutor ? (
+                                              <div className="text-gray-500">Student: {details.studentName}</div>
+                                            ) : (
+                                              <div className="text-gray-500">Tutor: {details.tutorName}</div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <div>
+                                            <div className="font-medium text-blue-600">
+                                              {details.message || 'Booked'}
+                                            </div>
+                                            <div className="text-gray-500">Student: {details.studentName}</div>
+                                            <div className="text-gray-500">Tutor: {details.tutorName}</div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  }
+                                  return 'Booked'
+                                })() : isPastTime ? "Past time" : "60 minute session"}
                               </div>
                             </div>
                           </div>
                           {isSelected && <CheckCircle2 className="w-5 h-5" />}
+                          {isBooked && <Clock className={`w-5 h-5 ${isRequesterConflict ? 'text-orange-500' : 'text-blue-500'}`} />}
                           {!isAvailable && (
                             <span className={`text-xs font-medium ${isPastTime ? "text-red-400" : "text-gray-400"}`}>
                               {isPastTime ? "Expired" : "Booked"}

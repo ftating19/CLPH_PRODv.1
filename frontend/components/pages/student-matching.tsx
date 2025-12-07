@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { Separator } from "@/components/ui/separator"
 import {
   Dialog,
   DialogContent,
@@ -22,10 +24,863 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { User, Calendar, Mail, Search, Filter, GraduationCap, Loader2, MessageSquare } from "lucide-react"
+import { User, Calendar, Mail, Search, Filter, GraduationCap, Loader2, MessageSquare, Clock, CheckCircle2, AlertCircle, MapPin, BookOpen, Star, Calendar as CalendarIcon, XCircle } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
 import { CICT_PROGRAMS } from "@/lib/constants"
+import { format, addDays, startOfDay, endOfDay } from "date-fns"
+
+// Student Booking Form Component
+interface StudentBookingFormProps {
+  student: Student
+  currentUser: any
+  onClose: () => void
+}
+
+interface TimeSlot {
+  slot: string
+  available: boolean
+  label: string
+  startTime: string
+  endTime: string
+}
+
+interface AvailabilityData {
+  date: string
+  slots: string[]
+  dayName: string
+}
+
+function StudentBookingForm({ student, currentUser, onClose }: StudentBookingFormProps) {
+  const { toast } = useToast()
+  const [selectedDate, setSelectedDate] = useState<Date>()
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([])
+  const [availability, setAvailability] = useState<AvailabilityData[]>([])
+  const [expiredBookings, setExpiredBookings] = useState<Map<string, Set<string>>>(new Map())
+  const [ongoingBookings, setOngoingBookings] = useState<Map<string, Set<string>>>(new Map())
+  const [bookingDetails, setBookingDetails] = useState<Map<string, any>>(new Map())
+  const [loading, setLoading] = useState(false)
+  const [navigatingMonth, setNavigatingMonth] = useState(false)
+  const [bookingLoading, setBookingLoading] = useState(false)
+  const [status, setStatus] = useState("")
+  const [dateRange, setDateRange] = useState({
+    start: startOfDay(new Date()),
+    end: endOfDay(addDays(new Date(), 60))
+  })
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date())
+  
+  // Define time slots with enhanced structure
+  const timeSlots: TimeSlot[] = [
+    { slot: '09:00-10:00', available: false, label: '9:00 AM - 10:00 AM', startTime: '09:00', endTime: '10:00' },
+    { slot: '10:00-11:00', available: false, label: '10:00 AM - 11:00 AM', startTime: '10:00', endTime: '11:00' },
+    { slot: '11:00-12:00', available: false, label: '11:00 AM - 12:00 PM', startTime: '11:00', endTime: '12:00' },
+    { slot: '12:00-13:00', available: false, label: '12:00 PM - 1:00 PM', startTime: '12:00', endTime: '13:00' },
+    { slot: '13:00-14:00', available: false, label: '1:00 PM - 2:00 PM', startTime: '13:00', endTime: '14:00' },
+    { slot: '14:00-15:00', available: false, label: '2:00 PM - 3:00 PM', startTime: '14:00', endTime: '15:00' },
+    { slot: '15:00-16:00', available: false, label: '3:00 PM - 4:00 PM', startTime: '15:00', endTime: '16:00' },
+    { slot: '16:00-17:00', available: false, label: '4:00 PM - 5:00 PM', startTime: '16:00', endTime: '17:00' },
+  ]
+
+  // Handle month navigation - fetch availability for new month
+  const handleMonthChange = async (month: Date) => {
+    console.log(`📅 Calendar navigated to: ${format(month, 'MMMM yyyy')}`)
+    setCurrentCalendarMonth(month)
+    setNavigatingMonth(true)
+    
+    if (!student?.user_id) {
+      setNavigatingMonth(false)
+      return
+    }
+
+    // Calculate the date range for the new month (and a buffer around it)
+    const bufferStart = new Date(month.getFullYear(), month.getMonth() - 1, 1)
+    const bufferEnd = new Date(month.getFullYear(), month.getMonth() + 2, 0)
+    
+    // Only expand dateRange if the new month is outside our current range
+    const needsExpansion = bufferStart < dateRange.start || bufferEnd > dateRange.end
+    
+    if (needsExpansion) {
+      const newStart = bufferStart < dateRange.start ? bufferStart : dateRange.start
+      const newEnd = bufferEnd > dateRange.end ? bufferEnd : dateRange.end
+      
+      console.log(`📅 Expanding date range for month navigation: ${format(newStart, 'yyyy-MM-dd')} to ${format(newEnd, 'yyyy-MM-dd')}`)
+      
+      // Use a timeout to prevent interfering with calendar navigation
+      setTimeout(() => {
+        setDateRange({ start: newStart, end: newEnd })
+        setTimeout(() => setNavigatingMonth(false), 500)
+      }, 100)
+    } else {
+      setTimeout(() => setNavigatingMonth(false), 100)
+    }
+  }
+
+  // Fetch student availability (check existing bookings to prevent conflicts)
+  const fetchAvailability = async () => {
+    if (!student?.user_id) return
+
+    try {
+      setLoading(true)
+      const startDate = format(dateRange.start, 'yyyy-MM-dd')
+      const endDate = format(dateRange.end, 'yyyy-MM-dd')
+      
+      // Check ALL existing bookings for both the current tutor AND the target student to prevent conflicts
+      const tutorId = currentUser?.user_id
+      const studentId = student?.user_id
+      
+      console.log('=== FETCHING AVAILABILITY FOR BOTH TUTOR AND STUDENT ===')
+      console.log('Tutor ID:', tutorId)
+      console.log('Student ID:', studentId) 
+      console.log('Checking availability for student:', student.first_name, student.last_name)
+      console.log('Date Range:', startDate, 'to', endDate)
+      
+      // Fetch both tutor's existing bookings and student's existing bookings
+      const [tutorResponse, studentResponse] = await Promise.all([
+        fetch(`http://localhost:4000/api/sessions?tutor_id=${tutorId}`),
+        fetch(`http://localhost:4000/api/sessions?user_id=${studentId}`)
+      ])
+      
+      if (!tutorResponse.ok || !studentResponse.ok) {
+        throw new Error(`HTTP ${tutorResponse.status} or ${studentResponse.status}`)
+      }
+      
+      const [tutorData, studentData] = await Promise.all([
+        tutorResponse.json(),
+        studentResponse.json()
+      ])
+      
+      // Combine both datasets for comprehensive conflict checking
+      const combinedBookings = [
+        ...(tutorData.success ? tutorData.sessions || [] : []),
+        ...(studentData.success ? studentData.sessions || [] : [])
+      ]
+      
+      // Remove duplicates (same booking might appear in both datasets)
+      const uniqueBookings = combinedBookings.reduce((acc: any[], current: any) => {
+        const exists = acc.find(booking => booking.booking_id === current.booking_id)
+        if (!exists) {
+          acc.push(current)
+        }
+        return acc
+      }, [])
+      
+      const data = { success: true, sessions: uniqueBookings }
+      console.log('Combined bookings data received:', data)
+      
+      if (data.success) {
+        // Process existing bookings to determine availability
+        const existingBookings = data.sessions || []
+        const unavailableDates = new Set<string>()
+        const unavailableSlots = new Map<string, Set<string>>()
+        const expiredSlots = new Map<string, Set<string>>() // Track expired bookings
+        const ongoingSlots = new Map<string, Set<string>>() // Track ongoing (accepted) sessions
+        const bookingDetails = new Map<string, any>() // Track booking details (student/tutor names)
+
+        existingBookings.forEach((booking: any) => {
+          if (booking.start_date) {
+            const bookingDate = format(new Date(booking.start_date), 'yyyy-MM-dd')
+            const timeSlot = booking.preferred_time
+            const status = booking.status?.toLowerCase()
+            
+            if (timeSlot) {
+              const normalizedSlot = timeSlot.replace(' - ', '-')
+              
+              // Check if booking is expired (pending but past end time)
+              if (['pending', 'pending_student_approval'].includes(status)) {
+                try {
+                  const [startTime, endTime] = normalizedSlot.split('-')
+                  const [endHours, endMinutes] = endTime.split(':').map(Number)
+                  const slotEndTime = new Date(booking.start_date)
+                  slotEndTime.setHours(endHours, endMinutes, 0, 0)
+                  
+                  const today = new Date()
+                  if (today > slotEndTime) {
+                    // This is an expired booking (pending but past end time)
+                    if (!expiredSlots.has(bookingDate)) {
+                      expiredSlots.set(bookingDate, new Set())
+                    }
+                    expiredSlots.get(bookingDate)?.add(normalizedSlot)
+                  }
+                } catch (error) {
+                  console.error('Error checking expired booking:', error)
+                }
+              }
+              
+              // Track ongoing (accepted) sessions separately
+              if (status === 'accepted') {
+                if (!ongoingSlots.has(bookingDate)) {
+                  ongoingSlots.set(bookingDate, new Set())
+                }
+                ongoingSlots.get(bookingDate)?.add(normalizedSlot)
+                
+                // Store booking details for display
+                const slotKey = `${bookingDate}_${normalizedSlot}`
+                bookingDetails.set(slotKey, {
+                  studentName: booking.student_name,
+                  tutorName: booking.tutor_name,
+                  studentId: booking.student_id,
+                  tutorId: booking.tutor_id,
+                  status: booking.status
+                })
+              }
+              
+              // Mark as unavailable if active, accepted, pending, or pending approval
+              if (['active', 'accepted', 'pending', 'pending_student_approval'].includes(status)) {
+                if (!unavailableSlots.has(bookingDate)) {
+                  unavailableSlots.set(bookingDate, new Set())
+                }
+                unavailableSlots.get(bookingDate)?.add(normalizedSlot)
+              }
+            }
+          }
+        })
+
+        // Store expired, ongoing slots, and booking details for later use
+        setExpiredBookings(expiredSlots)
+        setOngoingBookings(ongoingSlots)
+        setBookingDetails(bookingDetails)
+
+        // Create availability data for the date range
+        const availabilityData: AvailabilityData[] = []
+        const current = new Date(dateRange.start)
+        const end = new Date(dateRange.end)
+
+        while (current <= end) {
+          const dateStr = format(current, 'yyyy-MM-dd')
+          const dayName = format(current, 'EEEE')
+          const unavailableForDay = unavailableSlots.get(dateStr) || new Set()
+          
+          // All time slots are available except those already booked
+          const availableSlots = timeSlots
+            .map(slot => slot.slot)
+            .filter(slot => !unavailableForDay.has(slot))
+          
+          availabilityData.push({
+            date: dateStr,
+            slots: availableSlots,
+            dayName
+          })
+          
+          current.setDate(current.getDate() + 1)
+        }
+
+        setAvailability(availabilityData)
+        console.log('Available days:', availabilityData.filter(day => day.slots.length > 0).length)
+      } else {
+        console.error('Failed to fetch bookings: No sessions data')
+        // Provide default availability if API fails
+        const defaultAvailability: AvailabilityData[] = []
+        const current = new Date(dateRange.start)
+        const end = new Date(dateRange.end)
+
+        while (current <= end) {
+          const dateStr = format(current, 'yyyy-MM-dd')
+          const dayName = format(current, 'EEEE')
+          
+          defaultAvailability.push({
+            date: dateStr,
+            slots: timeSlots.map(slot => slot.slot),
+            dayName
+          })
+          
+          current.setDate(current.getDate() + 1)
+        }
+        
+        setAvailability(defaultAvailability)
+      }
+    } catch (error) {
+      console.error('Error fetching availability:', error)
+      toast({
+        title: "Connection Error",
+        description: "Unable to load availability. Please check your connection.",
+        variant: "destructive",
+        duration: 4000,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Load availability when component mounts or when student changes
+  useEffect(() => {
+    fetchAvailability()
+  }, [student?.user_id])
+  
+  // Load availability when dateRange changes (with debounce)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchAvailability()
+    }, 300)
+    
+    return () => clearTimeout(timeoutId)
+  }, [dateRange])
+
+  // Check if a time slot is in the past for today's date
+  const isTimeSlotInPast = (date: Date, timeSlot: string): boolean => {
+    const today = new Date()
+    const selectedDate = new Date(date)
+    
+    // Only check for past time if the selected date is today
+    if (selectedDate.toDateString() !== today.toDateString()) {
+      return false
+    }
+    
+    try {
+      // Parse time slot (e.g., "09:00-10:00")
+      const [startTime] = timeSlot.split('-')
+      const [hours, minutes] = startTime.split(':').map(Number)
+      
+      // Create a date object for the time slot
+      const slotTime = new Date(selectedDate)
+      slotTime.setHours(hours, minutes, 0, 0)
+      
+      // Add a 30-minute buffer to allow booking slightly in advance
+      const bufferTime = new Date(today.getTime() + (30 * 60 * 1000))
+      
+      return slotTime < bufferTime
+    } catch (error) {
+      console.error('Error parsing time slot:', error)
+      return false
+    }
+  }
+
+  // Check if a time slot is expired (booked but not accepted and past end time)
+  const isTimeSlotExpired = (date: Date, timeSlot: string): boolean => {
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd')
+      const normalizedSlot = timeSlot.replace(' - ', '-')
+      
+      // Check if this specific date/time slot is in our expired bookings
+      const expiredSlotsForDate = expiredBookings.get(dateStr)
+      return expiredSlotsForDate ? expiredSlotsForDate.has(normalizedSlot) : false
+      
+    } catch (error) {
+      console.error('Error checking expired time slot:', error)
+      return false
+    }
+  }
+
+  // Check if a time slot is booked (accepted session)
+  const isTimeSlotBooked = (date: Date, timeSlot: string): boolean => {
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd')
+      const normalizedSlot = timeSlot.replace(' - ', '-')
+      
+      // Check if this specific date/time slot is in our booked sessions
+      const bookedSlotsForDate = ongoingBookings.get(dateStr)
+      return bookedSlotsForDate ? bookedSlotsForDate.has(normalizedSlot) : false
+      
+    } catch (error) {
+      console.error('Error checking booked time slot:', error)
+      return false
+    }
+  }
+
+  // Get booking details for a specific slot
+  const getSlotBookingDetails = (date: Date, timeSlot: string): any => {
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd')
+      const normalizedSlot = timeSlot.replace(' - ', '-')
+      const slotKey = `${dateStr}_${normalizedSlot}`
+      
+      return bookingDetails.get(slotKey) || null
+      
+    } catch (error) {
+      console.error('Error getting booking details:', error)
+      return null
+    }
+  }
+
+  // Get available slots for selected date
+  const getAvailableSlotsForDate = (date: Date): string[] => {
+    const dateStr = format(date, 'yyyy-MM-dd')
+    const dayAvailability = availability.find(a => a.date === dateStr)
+    
+    if (dayAvailability) {
+      // If we have explicit data for this date, use it
+      const slots = dayAvailability.slots
+      return slots.filter(slot => !isTimeSlotInPast(date, slot) && !isTimeSlotExpired(date, slot))
+    } else {
+      // For dates without explicit data, provide default slots
+      const isPastDate = date < startOfDay(new Date())
+      
+      if (isPastDate) {
+        return [] // No slots for past dates
+      }
+      
+      // Provide default time slots for any future date
+      const defaultSlots = timeSlots.map(slot => slot.slot)
+      
+      // Filter out past time and expired slots for today's date
+      return defaultSlots.filter(slot => !isTimeSlotInPast(date, slot) && !isTimeSlotExpired(date, slot))
+    }
+  }
+
+  // Check if a date has available slots
+  const hasAvailableSlots = (date: Date): boolean => {
+    const availableSlots = getAvailableSlotsForDate(date)
+    return availableSlots.length > 0
+  }
+
+  // Handle date selection
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date)
+    setSelectedTimeSlots([]) // Reset time slot selections
+  }
+
+  const handleBooking = async () => {
+    if (!selectedDate || selectedTimeSlots.length === 0) {
+      setStatus("Please select a date and time slot.")
+      return
+    }
+
+    setBookingLoading(true)
+    setStatus("")
+    
+    try {
+      const bookingDate = format(selectedDate, 'yyyy-MM-dd')
+      
+      // Create multiple bookings for each selected time slot
+      const bookingPromises = selectedTimeSlots.map(async (timeSlot) => {
+        const [startTime, endTime] = timeSlot.split('-')
+        
+        const response = await fetch("http://localhost:4000/api/sessions/tutor-booking", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tutor_id: currentUser.user_id,
+            student_id: student.user_id,
+            preferred_dates: [bookingDate, bookingDate],
+            preferred_time: `${startTime} - ${endTime}`
+          })
+        })
+        
+        return await response.json()
+      })
+      
+      const results = await Promise.all(bookingPromises)
+      const successfulBookings = results.filter(result => result.success)
+      
+      if (successfulBookings.length > 0) {
+        const timeSlotLabels = selectedTimeSlots.map(slot => 
+          timeSlots.find(s => s.slot === slot)?.label || slot
+        ).join(', ')
+        
+        toast({
+          title: "Booking Request Sent! 🎉",
+          description: `Your session request${selectedTimeSlots.length > 1 ? 's have' : ' has'} been sent to ${student.first_name} for ${format(selectedDate, 'MMMM dd')} at ${timeSlotLabels}. They will receive a notification to approve or decline.`,
+          duration: 5000,
+        })
+        setTimeout(() => { onClose() }, 1500)
+      } else {
+        setStatus("Booking request failed. Please try again.")
+      }
+    } catch (error) {
+      console.error('Booking error:', error)
+      setStatus("Booking request failed. Please try again.")
+    } finally {
+      setBookingLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-8 max-w-6xl mx-auto">
+      {/* Professional Header Section */}
+      <div className="relative bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl p-6 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+              <User className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Book a Student</h2>
+              <p className="text-green-100">Send a tutoring session request to a student</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm text-green-100">Session with</div>
+            <div className="text-xl font-semibold">{student.first_name} {student.last_name}</div>
+            <div className="text-sm text-green-200">{student.program}</div>
+          </div>
+        </div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+        <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full -ml-10 -mb-10"></div>
+      </div>
+
+      {/* Student Information Card */}
+      <Card className="border-2 border-gray-100 dark:border-gray-800 shadow-sm">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Student Name</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">{student.first_name} {student.last_name}</div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                <GraduationCap className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Program</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">{student.program}</div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
+                <Mail className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Email</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">{student.email}</div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Status</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">{student.status} Student</div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Booking Interface */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        
+        {/* Calendar Section */}
+        <div className="xl:col-span-2">
+          <Card className="h-full border-2 border-gray-100 dark:border-gray-800 shadow-sm">
+            <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                    <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Select Date</CardTitle>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Choose your preferred session date</p>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {loading || navigatingMonth ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="relative">
+                    <div className="w-12 h-12 border-4 border-green-200 dark:border-green-800 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin"></div>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 mt-4">
+                    {navigatingMonth ? 'Loading calendar...' : 'Loading availability...'}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <CalendarComponent
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={handleDateSelect}
+                    disabled={(date) => date < startOfDay(new Date())}
+                    modifiers={{
+                      available: (date: Date) => hasAvailableSlots(date) && date >= dateRange.start,
+                      unavailable: (date: Date) => !hasAvailableSlots(date) && date >= dateRange.start,
+                    }}
+                    modifiersStyles={{
+                      available: {
+                        backgroundColor: '#dcfce7',
+                        color: '#166534',
+                        fontWeight: 'bold'
+                      },
+                      unavailable: {
+                        backgroundColor: '#fecaca',
+                        color: '#dc2626',
+                        opacity: 0.6,
+                        textDecoration: 'line-through'
+                      }
+                    }}
+                    onMonthChange={handleMonthChange}
+                    className="rounded-lg border-2 border-gray-200 shadow-inner bg-white"
+                    initialFocus
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Time Slots Section */}
+        <div className="xl:col-span-1">
+          <Card className="h-full border-2 border-gray-100 dark:border-gray-800 shadow-sm">
+            <CardHeader className="border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Available Times</CardTitle>
+                  {selectedDate ? (
+                    <div className="mt-1">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {format(selectedDate, 'EEEE, MMMM dd')} - Click to select multiple slots
+                      </p>
+                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-green-400 dark:bg-green-500"></div>
+                          <span>Available</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-400"></div>
+                          <span>Selected</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+                          <span>Booked</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-red-300"></div>
+                          <span>Past time</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          <span>Expired</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                          <span>Booked</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600 mt-1">Select a date first</p>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {!selectedDate ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Clock className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-600 font-medium mb-2">Choose a Date</p>
+                  <p className="text-sm text-gray-500">Select a date from the calendar to see available time slots</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(() => {
+                    const availableSlots = getAvailableSlotsForDate(selectedDate)
+                    
+                    if (availableSlots.length === 0) {
+                      return (
+                        <div className="text-center py-12">
+                          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertCircle className="w-8 h-8 text-red-500" />
+                          </div>
+                          <p className="text-gray-600 font-medium mb-2">No Available Slots</p>
+                          <p className="text-sm text-gray-500">This student is fully booked for this date. Please choose another date.</p>
+                        </div>
+                      )
+                    }
+
+                    return timeSlots.map((slot) => {
+                      const isAvailable = availableSlots.includes(slot.slot)
+                      const isSelected = selectedTimeSlots.includes(slot.slot)
+                      const isPastTime = selectedDate ? isTimeSlotInPast(selectedDate, slot.slot) : false
+                      const isExpired = selectedDate ? isTimeSlotExpired(selectedDate, slot.slot) : false
+                      const isBooked = selectedDate ? isTimeSlotBooked(selectedDate, slot.slot) : false
+
+                      const handleTimeSlotClick = () => {
+                        if (!isAvailable || isPastTime || isExpired || isBooked) return
+                        
+                        setSelectedTimeSlots(prev => {
+                          if (prev.includes(slot.slot)) {
+                            // Remove if already selected
+                            return prev.filter(s => s !== slot.slot)
+                          } else {
+                            // Add to selection
+                            return [...prev, slot.slot]
+                          }
+                        })
+                      }
+
+                      return (
+                        <Button
+                          key={slot.slot}
+                          variant={isSelected ? "default" : "outline"}
+                          disabled={!isAvailable || isPastTime || isExpired || isBooked}
+                          className={`w-full justify-start text-left p-4 h-auto transition-all duration-200 ${
+                            !isAvailable || isPastTime || isExpired || isBooked
+                              ? 'opacity-50 cursor-not-allowed bg-gray-100 border-gray-200'
+                              : isSelected 
+                                ? 'bg-green-600 hover:bg-green-700 border-green-600 text-white shadow-md transform scale-105' 
+                                : 'hover:border-green-300 hover:bg-green-50'
+                          }`}
+                          onClick={handleTimeSlotClick}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex-1">
+                              <div className="font-medium">{slot.label}</div>
+                              <div className={`text-sm ${
+                                !isAvailable || isPastTime || isExpired || isBooked
+                                  ? 'text-gray-400'
+                                  : isSelected ? 'text-green-100' : 'text-gray-500'
+                              }`}>
+                                {isBooked ? (() => {
+                                  const details = selectedDate ? getSlotBookingDetails(selectedDate, slot.slot) : null
+                                  if (details) {
+                                    return (
+                                      <div className="text-xs">
+                                        <div className="font-medium text-blue-600">Booked</div>
+                                        <div className="text-gray-500">Student: {details.studentName}</div>
+                                        <div className="text-gray-500">Tutor: {details.tutorName}</div>
+                                      </div>
+                                    )
+                                  }
+                                  return 'Booked'
+                                })() : isExpired ? 'Expired' : isPastTime ? 'Past time' : !isAvailable ? 'Already booked' : '1 hour session'}
+                              </div>
+                            </div>
+                            {isSelected && <CheckCircle2 className="w-5 h-5" />}
+                            {(!isAvailable && !isPastTime && !isExpired && !isBooked) && <XCircle className="w-5 h-5 text-gray-400" />}
+                            {isExpired && <XCircle className="w-5 h-5 text-red-400" />}
+                            {isBooked && <Clock className="w-5 h-5 text-blue-500" />}
+                          </div>
+                        </Button>
+                      )
+                    })
+                  })()}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Booking Summary */}
+      {selectedDate && selectedTimeSlots.length > 0 && (
+        <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-green-900">Session Details</h3>
+                  <p className="text-green-700">Review your booking request ({selectedTimeSlots.length} session{selectedTimeSlots.length > 1 ? 's' : ''})</p>
+                </div>
+              </div>
+            </div>
+            
+            <Separator className="my-4 bg-green-200" />
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+              <div className="bg-white/50 p-4 rounded-lg">
+                <div className="font-medium text-green-900 mb-1">Student</div>
+                <div className="text-green-800">{student.first_name} {student.last_name}</div>
+                <div className="text-green-600 text-xs mt-1">{student.program}</div>
+              </div>
+              <div className="bg-white/50 p-4 rounded-lg">
+                <div className="font-medium text-green-900 mb-1">Date</div>
+                <div className="text-green-800">{selectedDate ? format(selectedDate, 'EEEE') : ''}</div>
+                <div className="text-green-600 text-xs mt-1">{selectedDate ? format(selectedDate, 'MMMM dd, yyyy') : ''}</div>
+              </div>
+              <div className="bg-white/50 p-4 rounded-lg">
+                <div className="font-medium text-green-900 mb-1">Time Slots</div>
+                <div className="text-green-800 space-y-1">
+                  {selectedTimeSlots.map(slot => (
+                    <div key={slot} className="text-sm">
+                      {timeSlots.find(s => s.slot === slot)?.label}
+                    </div>
+                  ))}
+                </div>
+                <div className="text-green-600 text-xs mt-1">{selectedTimeSlots.length} × 60 minutes</div>
+              </div>
+              <div className="bg-white/50 p-4 rounded-lg">
+                <div className="font-medium text-green-900 mb-1">Status</div>
+                <div className="text-green-800">Request Pending</div>
+                <div className="text-green-600 text-xs mt-1">Awaits student approval</div>
+              </div>
+            </div>
+            
+            <div className="mt-6 bg-white/70 rounded-lg p-4">
+              <h4 className="font-medium text-green-900 mb-2">Important Notes:</h4>
+              <div className="text-sm text-green-800 space-y-1">
+                <p>• This will send a booking request to {student.first_name} {student.last_name}</p>
+                <p>• The student will receive a notification to accept or decline your request</p>
+                <p>• You will be notified once the student responds to your request</p>
+                <p>• Multiple time slots will create separate session requests</p>
+              </div>
+            </div>
+
+            <div className="flex space-x-4 mt-6">
+              <Button 
+                variant="outline" 
+                onClick={onClose} 
+                disabled={bookingLoading}
+                className="px-8 py-3 border-2 border-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleBooking} 
+                disabled={!selectedDate || selectedTimeSlots.length === 0 || bookingLoading}
+                className="px-8 py-3 bg-green-600 hover:bg-green-700 shadow-lg transform hover:scale-105 transition-all duration-200"
+              >
+                {bookingLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Sending Request...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>Send {selectedTimeSlots.length > 0 ? `${selectedTimeSlots.length} ` : ''}Booking Request{selectedTimeSlots.length > 1 ? 's' : ''}</span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Status Message */}
+      {status && (
+        <Card className={`border-2 ${
+          status.includes('successfully') || status.includes('sent')
+            ? 'border-green-200 bg-green-50' 
+            : 'border-red-200 bg-red-50'
+        }`}>
+          <CardContent className="p-4">
+            <div className={`flex items-center space-x-3 ${
+              status.includes('successfully') || status.includes('sent') ? 'text-green-800' : 'text-red-800'
+            }`}>
+              {status.includes('successfully') || status.includes('sent') ? (
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
+              ) : (
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              )}
+              <div>
+                <div className="font-medium">{status}</div>
+                {(status.includes('successfully') || status.includes('sent')) && (
+                  <div className="text-sm text-green-600 mt-1">
+                    The student will be notified and can accept or decline your request.
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
 
 // TypeScript interface for student data
 interface Student {
@@ -56,6 +911,8 @@ export default function StudentMatching() {
   const [programFilter, setProgramFilter] = useState("all")
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [showContactModal, setShowContactModal] = useState(false)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [selectedStudentForBooking, setSelectedStudentForBooking] = useState<Student | null>(null)
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 9
@@ -271,6 +1128,11 @@ export default function StudentMatching() {
     setShowContactModal(true)
   }
 
+  const handleBookStudent = (student: Student) => {
+    setSelectedStudentForBooking(student)
+    setShowBookingModal(true)
+  }
+
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
@@ -422,6 +1284,16 @@ export default function StudentMatching() {
             >
               View Profile
             </Button>
+            {currentUser?.role?.toLowerCase() === 'tutor' && (
+              <Button 
+                size="sm" 
+                className="bg-green-600 hover:bg-green-700" 
+                onClick={() => handleBookStudent(student)}
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Book Student
+              </Button>
+            )}
             <Button 
               size="sm" 
               className="bg-blue-600 hover:bg-blue-700" 
@@ -694,6 +1566,30 @@ export default function StudentMatching() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Student Booking Modal */}
+      <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0">
+          <DialogHeader className="px-8 pt-8 pb-4">
+            <DialogTitle className="text-2xl font-bold">Professional Tutoring Session Request</DialogTitle>
+            <DialogDescription className="text-lg text-gray-600">
+              Send a booking request to {selectedStudentForBooking?.first_name} {selectedStudentForBooking?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="px-8 pb-8">
+            {selectedStudentForBooking && (
+              <StudentBookingForm 
+                student={selectedStudentForBooking}
+                currentUser={currentUser}
+                onClose={() => {
+                  setShowBookingModal(false)
+                  setSelectedStudentForBooking(null)
+                }}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

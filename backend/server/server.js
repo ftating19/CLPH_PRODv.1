@@ -7110,10 +7110,12 @@ app.get('/api/bookings', async (req, res) => {
 app.get('/api/tutors/:tutorId/availability', async (req, res) => {
   try {
     const { tutorId } = req.params;
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, studentId, requesterId } = req.query;
 
     console.log('=== AVAILABILITY REQUEST ===');
     console.log('Tutor ID:', tutorId);
+    console.log('Student ID:', studentId);
+    console.log('Requester ID:', requesterId);
     console.log('Date Range:', startDate, 'to', endDate);
     console.log('Request URL params:', req.query);
 
@@ -7126,17 +7128,92 @@ app.get('/api/tutors/:tutorId/availability', async (req, res) => {
 
     const pool = await db.getPool();
     
-    // Get all existing bookings for the tutor within the date range (all statuses to prevent rebooking)
-    const [existingBookings] = await pool.query(`
-      SELECT booking_id, start_date, end_date, preferred_time, status, student_name, created_at
-      FROM bookings 
-      WHERE tutor_id = ? 
-      AND (
-        (DATE(start_date) <= DATE(?) AND DATE(end_date) >= DATE(?)) OR
-        (DATE(start_date) >= DATE(?) AND DATE(start_date) <= DATE(?))
-      )
-      ORDER BY start_date, preferred_time
-    `, [tutorId, endDate, startDate, startDate, endDate]);
+    // Get all existing bookings that could conflict:
+    // 1. All bookings involving the target tutor (tutor conflicts)
+    // 2. If studentId provided, all bookings involving that student (student conflicts)
+    // 3. If requesterId provided, all bookings involving the requester as tutor or student (requester conflicts)
+    let existingBookings = [];
+    let allBookingQueries = [];
+    
+    // Always check target tutor conflicts
+    allBookingQueries.push({
+      query: `
+        SELECT b.booking_id, b.start_date, b.end_date, b.preferred_time, b.status, 
+               COALESCE(CONCAT(s.first_name, ' ', s.last_name), 'Unknown') as student_name, 
+               COALESCE(CONCAT(t.first_name, ' ', t.last_name), 'Unknown') as tutor_name,
+               b.student_id, b.tutor_id, b.created_at, b.booked_by, 'tutor_conflict' as conflict_type
+        FROM bookings b
+        LEFT JOIN users s ON b.student_id = s.user_id
+        LEFT JOIN users t ON b.tutor_id = t.user_id
+        WHERE b.tutor_id = ? 
+        AND (
+          (DATE(b.start_date) <= DATE(?) AND DATE(b.end_date) >= DATE(?)) OR
+          (DATE(b.start_date) >= DATE(?) AND DATE(b.start_date) <= DATE(?))
+        )
+        ORDER BY b.start_date, b.preferred_time
+      `,
+      params: [tutorId, endDate, startDate, startDate, endDate]
+    });
+    
+    if (studentId) {
+      // Check student conflicts when studentId is provided
+      allBookingQueries.push({
+        query: `
+          SELECT b.booking_id, b.start_date, b.end_date, b.preferred_time, b.status, 
+                 COALESCE(CONCAT(s.first_name, ' ', s.last_name), 'Unknown') as student_name, 
+                 COALESCE(CONCAT(t.first_name, ' ', t.last_name), 'Unknown') as tutor_name,
+                 b.student_id, b.tutor_id, b.created_at, b.booked_by, 'student_conflict' as conflict_type
+          FROM bookings b
+          LEFT JOIN users s ON b.student_id = s.user_id
+          LEFT JOIN users t ON b.tutor_id = t.user_id
+          WHERE b.student_id = ? 
+          AND (
+            (DATE(b.start_date) <= DATE(?) AND DATE(b.end_date) >= DATE(?)) OR
+            (DATE(b.start_date) >= DATE(?) AND DATE(b.start_date) <= DATE(?))
+          )
+          ORDER BY b.start_date, b.preferred_time
+        `,
+        params: [studentId, endDate, startDate, startDate, endDate]
+      });
+    }
+    
+    if (requesterId && requesterId !== tutorId) {
+      // Check requester conflicts when requesterId is provided (e.g., tutor booking another tutor)
+      // Only skip if requester is the same as the target tutor (self-booking)
+      allBookingQueries.push({
+        query: `
+          SELECT b.booking_id, b.start_date, b.end_date, b.preferred_time, b.status, 
+                 COALESCE(CONCAT(s.first_name, ' ', s.last_name), 'Unknown') as student_name, 
+                 COALESCE(CONCAT(t.first_name, ' ', t.last_name), 'Unknown') as tutor_name,
+                 b.student_id, b.tutor_id, b.created_at, b.booked_by, 'requester_conflict' as conflict_type
+          FROM bookings b
+          LEFT JOIN users s ON b.student_id = s.user_id
+          LEFT JOIN users t ON b.tutor_id = t.user_id
+          WHERE (b.student_id = ? OR b.tutor_id = ?)
+          AND (
+            (DATE(b.start_date) <= DATE(?) AND DATE(b.end_date) >= DATE(?)) OR
+            (DATE(b.start_date) >= DATE(?) AND DATE(b.start_date) <= DATE(?))
+          )
+          ORDER BY b.start_date, b.preferred_time
+        `,
+        params: [requesterId, requesterId, endDate, startDate, startDate, endDate]
+      });
+    }
+    
+    // Execute all booking queries
+    for (const queryObj of allBookingQueries) {
+      const [results] = await pool.query(queryObj.query, queryObj.params);
+      existingBookings.push(...results);
+    }
+    
+    // Remove duplicates based on booking_id
+    existingBookings = existingBookings.reduce((acc, current) => {
+      const exists = acc.find(booking => booking.booking_id === current.booking_id);
+      if (!exists) {
+        acc.push(current);
+      }
+      return acc;
+    }, []);
 
     console.log('=== EXISTING BOOKINGS FOUND ===');
     console.log('Total bookings:', existingBookings.length);
@@ -7263,10 +7340,17 @@ app.get('/api/tutors/:tutorId/availability', async (req, res) => {
       totalDays: availableSlots.length,
       tutorId: parseInt(tutorId),
       existingBookings: existingBookings.map(booking => ({
-        id: booking.booking_id,
-        dates: `${booking.start_date} - ${booking.end_date}`,
-        time: booking.preferred_time,
-        status: booking.status
+        booking_id: booking.booking_id,
+        start_date: booking.start_date,
+        end_date: booking.end_date,
+        preferred_time: booking.preferred_time,
+        status: booking.status,
+        student_name: booking.student_name,
+        tutor_name: booking.tutor_name,
+        student_id: booking.student_id,
+        tutor_id: booking.tutor_id,
+        conflict_type: booking.conflict_type,
+        booked_by: booking.booked_by
       }))
     });
 
@@ -7352,7 +7436,7 @@ app.post('/api/sessions', async (req, res) => {
       tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time
     });
 
-    const booking_id = await createSession({ tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time });
+    const booking_id = await createSession({ tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, booked_by: 'student' });
     console.log('Session created successfully with booking_id:', booking_id);
 
     res.status(201).json({ success: true, booking_id });
@@ -7362,13 +7446,168 @@ app.post('/api/sessions', async (req, res) => {
   }
 })
 
+// API endpoint: Tutor books a student (reverse booking)
+app.post('/api/sessions/tutor-booking', async (req, res) => {
+  try {
+    const { student_id, tutor_id, preferred_dates, preferred_time } = req.body;
+
+    console.log('Tutor booking request:', { student_id, tutor_id, preferred_dates, preferred_time });
+
+    // Input validation
+    if (!student_id || !tutor_id || !preferred_dates || !preferred_time) {
+      return res.status(400).json({ success: false, error: 'Missing or invalid required fields' });
+    }
+
+    // preferred_dates: [startDate, endDate]
+    const [start_date, end_date] = preferred_dates;
+
+    // Fetch tutor_name and student_name from the users table
+    const pool = await db.getPool();
+    const [[tutor]] = await pool.query('SELECT CONCAT(first_name, " ", last_name) AS name FROM users WHERE user_id = ?', [tutor_id]);
+    const [[student]] = await pool.query('SELECT CONCAT(first_name, " ", last_name) AS name FROM users WHERE user_id = ?', [student_id]);
+
+    const tutor_name = tutor ? tutor.name : 'Unknown Tutor';
+    const student_name = student ? student.name : 'Unknown Student';
+
+    console.log('Creating tutor-initiated session with details:', {
+      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time
+    });
+
+    const booking_id = await createSession({ 
+      tutor_id, 
+      tutor_name, 
+      student_id, 
+      student_name, 
+      start_date, 
+      end_date, 
+      preferred_time, 
+      booked_by: 'tutor',
+      status: 'pending_student_approval'  // Special status for tutor-initiated bookings
+    });
+    
+    console.log('Tutor-initiated session created successfully with booking_id:', booking_id);
+
+    res.status(201).json({ 
+      success: true, 
+      booking_id,
+      message: 'Booking request sent to student. Waiting for student approval.'
+    });
+  } catch (err) {
+    console.error('Error creating tutor-initiated session:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+})
+
+// API endpoint: Student accepts tutor booking request
+app.put('/api/sessions/:booking_id/accept', async (req, res) => {
+  try {
+    const { booking_id } = req.params;
+    const { student_id } = req.body;
+
+    console.log(`Student ${student_id} accepting booking ${booking_id}`);
+
+    const pool = await db.getPool();
+    
+    // Verify the booking exists and is pending student approval
+    const [booking] = await pool.query(
+      'SELECT * FROM bookings WHERE booking_id = ? AND student_id = ? AND status = "pending_student_approval"',
+      [booking_id, student_id]
+    );
+
+    if (booking.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Booking not found or not pending approval' 
+      });
+    }
+
+    // Update booking status to active
+    await pool.query(
+      'UPDATE bookings SET status = "active" WHERE booking_id = ?',
+      [booking_id]
+    );
+
+    console.log(`✅ Booking ${booking_id} accepted by student`);
+
+    res.json({ 
+      success: true,
+      message: 'Booking request accepted successfully!'
+    });
+  } catch (err) {
+    console.error('Error accepting booking:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+})
+
+// API endpoint: Student rejects tutor booking request
+app.put('/api/sessions/:booking_id/reject', async (req, res) => {
+  try {
+    const { booking_id } = req.params;
+    const { student_id, rejection_reason } = req.body;
+
+    console.log(`Student ${student_id} rejecting booking ${booking_id}`);
+
+    const pool = await db.getPool();
+    
+    // Verify the booking exists and is pending student approval
+    const [booking] = await pool.query(
+      'SELECT * FROM bookings WHERE booking_id = ? AND student_id = ? AND status = "pending_student_approval"',
+      [booking_id, student_id]
+    );
+
+    if (booking.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Booking not found or not pending approval' 
+      });
+    }
+
+    // Update booking status to rejected and add rejection reason
+    await pool.query(
+      'UPDATE bookings SET status = "rejected", remarks = ? WHERE booking_id = ?',
+      [rejection_reason || 'Student rejected the booking request', booking_id]
+    );
+
+    console.log(`❌ Booking ${booking_id} rejected by student`);
+
+    res.json({ 
+      success: true,
+      message: 'Booking request rejected.'
+    });
+  } catch (err) {
+    console.error('Error rejecting booking:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+})
+
 // API endpoint: Get sessions for a student or tutor
 app.get('/api/sessions', async (req, res) => {
   try {
-    const { user_id } = req.query;
+    const { user_id, tutor_id } = req.query;
     const pool = await db.getPool();
     let sessions = [];
-    if (user_id) {
+    
+    if (tutor_id) {
+      // Show sessions for specific tutor only (for availability checking)
+      const query = `
+        SELECT 
+          b.*,
+          t.subject_id,
+          s.subject_name,
+          s.subject_code
+        FROM bookings b
+        LEFT JOIN tutors t ON b.tutor_id = t.user_id
+        LEFT JOIN subjects s ON t.subject_id = s.subject_id
+        WHERE b.tutor_id = ?
+      `;
+      const [result] = await pool.query(query, [tutor_id]);
+      sessions = result;
+      if (sessions.length === 0) {
+        console.log(`No sessions found for tutor_id: ${tutor_id}`);
+      } else {
+        console.log(`Found ${sessions.length} sessions for tutor_id: ${tutor_id}`);
+      }
+    } else if (user_id) {
       // Only show sessions for this user (student or tutor) with subject information from tutors table
       const query = `
         SELECT 

@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2, BookOpen, Search, Filter } from "lucide-react"
+import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2, BookOpen, Search, Filter, GraduationCap } from "lucide-react"
 import Layout from "@/components/dashboard/layout"
 import { useUser } from "@/contexts/UserContext"
 import ChatModal from "@/components/modals/ChatModal"
@@ -40,6 +40,7 @@ interface Booking {
   subject_id?: number
   subject_name?: string
   subject_code?: string
+  booked_by?: 'student' | 'tutor'
 }
 
 export default function TutorSessionPage() {
@@ -277,6 +278,45 @@ export default function TutorSessionPage() {
       }
     } catch {
       // Optionally show error toast
+    }
+  }
+
+  // Handle student response to tutor booking requests
+  const handleStudentResponse = async (booking_id: number, action: 'accept' | 'reject') => {
+    try {
+      const endpoint = action === 'accept' ? 'accept' : 'reject'
+      const response = await fetch(`http://localhost:4000/api/sessions/${booking_id}/${endpoint}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          student_id: currentUser?.user_id,
+          rejection_reason: action === 'reject' ? 'Student declined the booking request' : undefined
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        // Refresh data from server immediately to ensure consistency
+        await fetchBookings()
+        
+        toast({
+          title: action === 'accept' ? "Session Accepted! ✅" : "Request Declined",
+          description: action === 'accept' 
+            ? "You've successfully accepted the tutoring session. The tutor will be notified."
+            : "You've declined the tutoring request. The tutor will be notified.",
+          duration: 5000,
+        })
+      } else {
+        throw new Error(data.error || `Failed to ${action} session`)
+      }
+    } catch (error) {
+      console.error(`Error ${action}ing session:`, error)
+      toast({
+        title: "Error",
+        description: `Failed to ${action} the session request. Please try again.`,
+        variant: "destructive"
+      })
     }
   }
 
@@ -593,6 +633,8 @@ export default function TutorSessionPage() {
           return { variant: 'secondary' as const, bg: 'bg-blue-100 text-blue-800', icon: CheckCircle, label: 'Accepted' }
         case 'declined':
           return { variant: 'destructive' as const, bg: 'bg-red-100 text-red-800', icon: XCircle, label: 'Declined' }
+        case 'pending_student_approval':
+          return { variant: 'outline' as const, bg: 'bg-blue-100 text-blue-800', icon: User, label: 'Awaiting Student Response' }
         default:
           return { variant: 'outline' as const, bg: 'bg-yellow-100 text-orange-800', icon: Clock, label: 'Pending' }
       }
@@ -647,6 +689,7 @@ export default function TutorSessionPage() {
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="pending_student_approval">Awaiting Student Response</SelectItem>
                     <SelectItem value="accepted">Accepted</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -741,6 +784,27 @@ export default function TutorSessionPage() {
                           </CardDescription>
                         </div>
                         <StatusBadge status={booking.status} isExpired={isSessionExpired(booking)} />
+                        {/* Booking Source Indicator */}
+                        <Badge 
+                          variant="secondary" 
+                          className={`text-xs ${booking.booked_by === 'tutor' 
+                            ? 'bg-purple-100 text-purple-700 border-purple-200' 
+                            : 'bg-blue-100 text-blue-700 border-blue-200'
+                          }`}
+                          title={`This session was booked by the ${booking.booked_by === 'tutor' ? 'tutor' : 'student'}`}
+                        >
+                          {booking.booked_by === 'tutor' ? (
+                            <>
+                              <GraduationCap className="w-3 h-3 mr-1" />
+                              Tutor Initiated
+                            </>
+                          ) : (
+                            <>
+                              <User className="w-3 h-3 mr-1" />
+                              Student Booked
+                            </>
+                          )}
+                        </Badge>
                       </div>
                       <div className="flex items-center space-x-4 mt-2">
                         <div className="flex items-center text-sm text-muted-foreground">
@@ -815,9 +879,9 @@ export default function TutorSessionPage() {
 
                   <div className="flex flex-col items-end pt-4 border-t">
                     <div className="flex flex-wrap gap-2 justify-end w-full">
-                      {/* Chat Button - Only for accepted sessions for tutor and student */}
+                      {/* Chat Button - Only for accepted/active sessions for tutor and student */}
                       {((currentUser?.user_id === booking.tutor_id) || (currentUser?.user_id === booking.student_id)) && 
-                       (booking.status === "Accepted" || booking.status === "accepted") && 
+                       (booking.status === "Accepted" || booking.status === "accepted" || booking.status === "active") && 
                        !isSessionExpired(booking) && (
                         <Button 
                           size="sm"
@@ -842,9 +906,9 @@ export default function TutorSessionPage() {
                         </Button>
                       )}
 
-                      {/* Select Post-test Template Button - Only for tutors in accepted sessions without completed post-tests */}
+                      {/* Select Post-test Template Button - Only for tutors in accepted/active sessions without completed post-tests */}
                       {currentUser?.user_id === booking.tutor_id && 
-                       (booking.status === "Accepted" || booking.status === "accepted") && 
+                       (booking.status === "Accepted" || booking.status === "accepted" || booking.status === "active") && 
                        !isSessionExpired(booking) && 
                        (!postTestResults[booking.booking_id] || postTestResults[booking.booking_id].length === 0) && (
                         <Button 
@@ -875,9 +939,9 @@ export default function TutorSessionPage() {
                         </Button>
                       )}
 
-                      {/* Take Post-test Button - Only for students in accepted sessions with available post-tests */}
+                      {/* Take Post-test Button - Only for students in accepted/active sessions with available post-tests */}
                       {currentUser?.user_id === booking.student_id && 
-                       (booking.status === "Accepted" || booking.status === "accepted") && 
+                       (booking.status === "Accepted" || booking.status === "accepted" || booking.status === "active") && 
                        !isSessionExpired(booking) && 
                        availablePostTests[booking.booking_id] && 
                        availablePostTests[booking.booking_id].length > 0 && (
@@ -945,9 +1009,33 @@ export default function TutorSessionPage() {
                         </>
                       )}
 
-                      {/* Tutor Mark Complete Button - Only for accepted sessions that haven't expired */}
+                      {/* Student Accept/Reject Buttons - Only for tutor-initiated booking requests */}
+                      {currentUser?.user_id === booking.student_id && 
+                       booking.status === "pending_student_approval" && 
+                       !isSessionExpired(booking) && (
+                        <>
+                          <Button 
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleStudentResponse(booking.booking_id, 'accept')}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Accept Request
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => handleStudentResponse(booking.booking_id, 'reject')}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Decline Request
+                          </Button>
+                        </>
+                      )}
+
+                      {/* Tutor Mark Complete Button - Only for accepted/active sessions that haven't expired */}
                       {currentUser?.user_id === booking.tutor_id && 
-                       (booking.status === "Accepted" || booking.status === "accepted") && 
+                       (booking.status === "Accepted" || booking.status === "accepted" || booking.status === "active") && 
                        !isSessionExpired(booking) && (
                         <Button 
                           size="sm"
@@ -958,9 +1046,9 @@ export default function TutorSessionPage() {
                         </Button>
                       )}
 
-                      {/* Student Mark Complete Button - Only for accepted sessions that haven't expired */}
+                      {/* Student Mark Complete Button - Only for accepted/active sessions that haven't expired */}
                       {currentUser?.user_id === booking.student_id && 
-                       (booking.status === "Accepted" || booking.status === "accepted") && 
+                       (booking.status === "Accepted" || booking.status === "accepted" || booking.status === "active") && 
                        !isSessionExpired(booking) && (
                         <Button 
                           size="sm"
