@@ -12,7 +12,10 @@ import {
   Activity,
   UserCheck,
   Settings,
-  BarChart3
+  BarChart3,
+  Star,
+  TrendingUp,
+  MessageCircle
 } from "lucide-react"
 
 export default function AdminDashboard() {
@@ -21,6 +24,8 @@ export default function AdminDashboard() {
   const [studentCount, setStudentCount] = useState<number | null>(null);
   const [tutorCount, setTutorCount] = useState<number | null>(null);
   const [facultyCount, setFacultyCount] = useState<number | null>(null);
+  const [feedbackStats, setFeedbackStats] = useState<any>(null);
+  const [recentFeedback, setRecentFeedback] = useState<any[]>([]);
   useEffect(() => {
     // Only fetch counts when we know the current user (and ideally only for admins)
     if (!currentUser) return
@@ -74,6 +79,17 @@ export default function AdminDashboard() {
         console.error('Error fetching tutors for admin dashboard:', err)
         setTutorCount(null);
       });
+
+    // Fetch feedback statistics
+    fetch("http://localhost:4000/api/system-feedback/stats", { headers })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setFeedbackStats(data.stats);
+          setRecentFeedback(data.recent_feedback || []);
+        }
+      })
+      .catch((err) => console.error("Error fetching feedback stats:", err));
   }, [currentUser]);
 
   return (
@@ -157,6 +173,168 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* System Feedback Overview */}
+      <div className="grid gap-4 md:grid-cols-4 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Feedback</CardTitle>
+            <MessageCircle className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {feedbackStats === null ? "..." : feedbackStats.total_feedback || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              User feedback submissions
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
+            <Star className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {feedbackStats === null 
+                ? "..." 
+                : feedbackStats.average_rating 
+                ? `${parseFloat(feedbackStats.average_rating).toFixed(1)}★`
+                : "N/A"
+              }
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Out of 5 stars
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">5-Star Reviews</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {feedbackStats === null ? "..." : feedbackStats.five_star_count || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Excellent ratings received
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">With Suggestions</CardTitle>
+            <Settings className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {feedbackStats === null ? "..." : feedbackStats.has_suggestions || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Feedback with improvements
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2 mb-6">
+        {/* Recent Feedback */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Feedback</CardTitle>
+            <CardDescription>Latest user feedback and ratings</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4 max-h-80 overflow-y-auto">
+              {recentFeedback.length === 0 ? (
+                <p className="text-center text-gray-500 py-4">No feedback submitted yet</p>
+              ) : (
+                recentFeedback.map((feedback) => (
+                  <div key={feedback.feedback_id} className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`w-4 h-4 ${
+                                star <= feedback.rating 
+                                  ? "fill-yellow-400 text-yellow-400" 
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="font-semibold">{feedback.rating}/5</span>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {new Date(feedback.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    
+                    <div className="text-sm">
+                      <strong>{feedback.user_name}</strong> ({feedback.role})
+                    </div>
+                    
+                    {feedback.liked_most && (
+                      <div className="text-sm">
+                        <span className="text-green-600 font-medium">Liked: </span>
+                        <span className="text-gray-700">{feedback.liked_most}</span>
+                      </div>
+                    )}
+                    
+                    {feedback.suggestions && (
+                      <div className="text-sm">
+                        <span className="text-blue-600 font-medium">Suggestions: </span>
+                        <span className="text-gray-700">{feedback.suggestions}</span>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Rating Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Rating Distribution</CardTitle>
+            <CardDescription>Breakdown of star ratings</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {feedbackStats ? (
+              <div className="space-y-3">
+                {[5, 4, 3, 2, 1].map((rating) => {
+                  const count = feedbackStats[`${rating === 5 ? 'five' : rating === 4 ? 'four' : rating === 3 ? 'three' : rating === 2 ? 'two' : 'one'}_star_count`] || 0;
+                  const percentage = feedbackStats.total_feedback > 0 ? (count / feedbackStats.total_feedback * 100) : 0;
+                  
+                  return (
+                    <div key={rating} className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1 w-16">
+                        <span className="text-sm font-medium">{rating}</span>
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      </div>
+                      <div className="flex-1 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <span className="text-sm text-gray-600 w-12 text-right">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center text-gray-500 py-4">Loading rating distribution...</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2 mb-6">
         {/* Manage Uploaded Resources */}
         <Card>
@@ -249,6 +427,10 @@ export default function AdminDashboard() {
             <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
               <BarChart3 className="h-6 w-6" />
               <span className="text-sm">View Reports</span>
+            </Button>
+            <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2" onClick={() => window.location.href = '/admin-feedback'}>
+              <Star className="h-6 w-6" />
+              <span className="text-sm">Manage Feedback</span>
             </Button>
           </div>
         </CardContent>

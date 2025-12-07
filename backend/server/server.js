@@ -9645,6 +9645,15 @@ app.post('/api/system-feedback', async (req, res) => {
 // Get system feedback statistics (for admins)
 app.get('/api/system-feedback/stats', async (req, res) => {
   try {
+    // Check if user has admin role
+    const userRole = req.headers['x-user-role'];
+    if (!userRole || userRole.toLowerCase() !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. Admin privileges required.'
+      });
+    }
+
     const pool = await db.getPool();
     
     const [stats] = await pool.query(`
