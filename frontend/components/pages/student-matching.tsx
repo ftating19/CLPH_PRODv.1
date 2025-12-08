@@ -1177,7 +1177,6 @@ export default function StudentMatching() {
       <CardHeader className="pb-4">
         <div className="flex items-start space-x-4">
           <Avatar className="w-16 h-16">
-            <AvatarImage src="/placeholder-user.jpg" alt={`${student.first_name} ${student.last_name}`} />
             <AvatarFallback className="text-lg font-semibold bg-blue-100 text-blue-600">
               {getInitials(student.first_name, student.last_name)}
             </AvatarFallback>
@@ -1532,9 +1531,8 @@ export default function StudentMatching() {
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-3">
               <Avatar className="w-12 h-12">
-                <AvatarImage src="/placeholder.svg" alt={selectedStudent?.first_name || 'Student'} />
-                <AvatarFallback className="text-lg font-semibold">
-                  {selectedStudent?.first_name?.charAt(0)}{selectedStudent?.last_name?.charAt(0)}
+                <AvatarFallback className="text-lg font-semibold bg-green-100 text-green-600">
+                  {getInitials(selectedStudent?.first_name || '', selectedStudent?.last_name || '')}
                 </AvatarFallback>
               </Avatar>
               <div>
@@ -1679,7 +1677,6 @@ export default function StudentMatching() {
             <div className="space-y-4">
               <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src="/placeholder-user.jpg" alt={`${selectedStudent.first_name} ${selectedStudent.last_name}`} />
                   <AvatarFallback className="bg-blue-100 text-blue-600 text-lg">
                     {getInitials(selectedStudent.first_name, selectedStudent.last_name)}
                   </AvatarFallback>

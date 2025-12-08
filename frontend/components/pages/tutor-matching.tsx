@@ -44,6 +44,18 @@ import { useToast } from "@/hooks/use-toast"
 import { useSubjects } from "@/hooks/use-subjects"
 import { CICT_PROGRAMS } from "@/lib/constants"
 
+// Helper function to generate initials from name
+const getInitials = (name: string): string => {
+  if (!name) return '??'
+  return name
+    .split(' ')
+    .filter(part => part.length > 0)
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
 // TypeScript interface for tutor data
 interface Tutor {
   application_id: number
@@ -429,11 +441,8 @@ export default function TutorMatching() {
         <CardHeader className="pb-4">
           <div className="flex items-start space-x-4">
             <Avatar className="w-16 h-16">
-              <AvatarImage src="/placeholder.svg" alt={tutor.name || 'Tutor'} />
-              <AvatarFallback className="text-lg font-semibold">
-                {tutor.name
-                  ? tutor.name.split(" ").map((n) => n[0]).join("")
-                  : 'T'}
+              <AvatarFallback className="text-lg font-semibold bg-blue-100 text-blue-600">
+                {getInitials(tutor.name)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
@@ -1514,11 +1523,8 @@ export default function TutorMatching() {
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-3">
               <Avatar className="w-12 h-12">
-                <AvatarImage src="/placeholder.svg" alt={selectedTutor?.name || 'Tutor'} />
-                <AvatarFallback className="text-lg font-semibold">
-                  {selectedTutor?.name
-                    ? selectedTutor.name.split(" ").map((n) => n[0]).join("")
-                    : 'T'}
+                <AvatarFallback className="text-lg font-semibold bg-green-100 text-green-600">
+                  {getInitials(selectedTutor?.name || '')}
                 </AvatarFallback>
               </Avatar>
               <div>
