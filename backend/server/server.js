@@ -6,7 +6,7 @@ require('dotenv').config({ path: '../.env' })
 
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
-const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, sendFacultyTutorNotificationEmail, sendFacultyNewApplicationNotificationEmail, testEmailConnection } = require('../services/emailService')
+const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, sendFacultyTutorNotificationEmail, sendFacultyNewApplicationNotificationEmail, sendQuizApprovalEmail, sendFlashcardApprovalEmail, testEmailConnection } = require('../services/emailService')
 const { 
   getAllSubjects, 
   getSubjectById, 
@@ -113,6 +113,13 @@ const {
   updateMaterialRating, 
   searchStudyMaterials 
 } = require('../queries/studyMaterials')
+const { 
+  getMaterialAverageRating,
+  getUserMaterialRating,
+  upsertMaterialRating,
+  deleteMaterialRating,
+  getMaterialRatingsWithComments
+} = require('../queries/materialRatings')
 const { 
   getAllPendingMaterials, 
   getPendingMaterialById, 
@@ -4713,6 +4720,26 @@ app.put('/api/pending-quizzes/:id/approve', async (req, res) => {
       console.log(`✅ Also approved and transferred ${approvedFlashcards.length} related flashcards for sub_id: ${groupSubId}`);
     }
 
+    // Send approval email to the quiz creator
+    try {
+      console.log(`Sending quiz approval email to ${pendingQuiz.creator_email}...`);
+      
+      const emailResult = await sendQuizApprovalEmail(
+        pendingQuiz.creator_email,
+        pendingQuiz.created_by_name,
+        pendingQuiz.title,
+        'Admin'
+      );
+      
+      if (emailResult.success) {
+        console.log(`✅ Quiz approval email sent successfully`);
+      } else {
+        console.log(`⚠️ Failed to send quiz approval email: ${emailResult.error}`);
+      }
+    } catch (emailError) {
+      console.log(`⚠️ Error sending quiz approval email: ${emailError.message}`);
+    }
+
     res.json({
       success: true,
       message: 'Quiz and related flashcards approved successfully',
@@ -5208,6 +5235,26 @@ app.put('/api/pending-flashcards/:id/approve', async (req, res) => {
 
     console.log(`✅ Approved and transferred ${approvedFlashcards.length} flashcards for group sub_id: ${groupSubId}, removed from pending table`);
 
+    // Send approval email to the flashcard creator
+    try {
+      console.log(`Sending flashcard approval email to ${pendingFlashcard.creator_email}...`);
+      
+      const emailResult = await sendFlashcardApprovalEmail(
+        pendingFlashcard.creator_email,
+        pendingFlashcard.created_by_name,
+        pendingFlashcard.title || 'Flashcard Set',
+        'Admin'
+      );
+      
+      if (emailResult.success) {
+        console.log(`✅ Flashcard approval email sent successfully`);
+      } else {
+        console.log(`⚠️ Failed to send flashcard approval email: ${emailResult.error}`);
+      }
+    } catch (emailError) {
+      console.log(`⚠️ Error sending flashcard approval email: ${emailError.message}`);
+    }
+
     res.json({
       success: true,
       message: `Approved ${approvedFlashcards.length} flashcards in the group`,
@@ -5605,6 +5652,169 @@ app.delete('/api/quizzes/:id', async (req, res) => {
     });
   } catch (err) {
     console.error('Error deleting quiz:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// ========== MATERIAL RATING ENDPOINTS ==========
+
+// Get average rating for a material
+app.get('/api/materials/:id/rating', async (req, res) => {
+  try {
+    const materialId = parseInt(req.params.id);
+    
+    if (!materialId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid material ID' 
+      });
+    }
+
+    const pool = await db.getPool();
+    const ratingData = await getMaterialAverageRating(pool, materialId);
+    
+    res.json({
+      success: true,
+      ...ratingData
+    });
+  } catch (err) {
+    console.error('Error fetching material rating:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Get user's rating for a material
+app.get('/api/materials/:id/rating/:userId', async (req, res) => {
+  try {
+    const materialId = parseInt(req.params.id);
+    const userId = parseInt(req.params.userId);
+    
+    if (!materialId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid material ID or user ID' 
+      });
+    }
+
+    const pool = await db.getPool();
+    const userRating = await getUserMaterialRating(pool, materialId, userId);
+    
+    res.json({
+      success: true,
+      userRating: userRating
+    });
+  } catch (err) {
+    console.error('Error fetching user material rating:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Rate a material
+app.post('/api/materials/:id/rating', async (req, res) => {
+  try {
+    const materialId = parseInt(req.params.id);
+    const { userId, rating, comment } = req.body;
+    
+    if (!materialId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Material ID and user ID are required' 
+      });
+    }
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Rating must be between 1 and 5' 
+      });
+    }
+
+    const pool = await db.getPool();
+    
+    // Check if material exists
+    const material = await getStudyMaterialById(pool, materialId);
+    if (!material) {
+      return res.status(404).json({
+        success: false,
+        error: 'Material not found'
+      });
+    }
+
+    await upsertMaterialRating(pool, materialId, userId, rating, comment || null);
+    
+    // Get updated average rating
+    const updatedRating = await getMaterialAverageRating(pool, materialId);
+    
+    // Update the studymaterials table with the new average
+    await updateMaterialRating(pool, materialId, updatedRating.average_rating);
+    
+    res.json({
+      success: true,
+      message: 'Rating submitted successfully',
+      ...updatedRating
+    });
+  } catch (err) {
+    console.error('Error rating material:', err);
+    
+    if (err.message.includes('completion')) {
+      return res.status(400).json({
+        success: false,
+        error: err.message
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error' 
+    });
+  }
+});
+
+// Delete user's rating for a material
+app.delete('/api/materials/:id/rating/:userId', async (req, res) => {
+  try {
+    const materialId = parseInt(req.params.id);
+    const userId = parseInt(req.params.userId);
+    
+    if (!materialId || !userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid material ID or user ID' 
+      });
+    }
+
+    const pool = await db.getPool();
+    const deleted = await deleteMaterialRating(pool, materialId, userId);
+    
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: 'Rating not found'
+      });
+    }
+
+    // Get updated average rating
+    const updatedRating = await getMaterialAverageRating(pool, materialId);
+    
+    // Update the studymaterials table with the new average
+    await updateMaterialRating(pool, materialId, updatedRating.average_rating);
+    
+    res.json({
+      success: true,
+      message: 'Rating deleted successfully',
+      ...updatedRating
+    });
+  } catch (err) {
+    console.error('Error deleting material rating:', err);
     res.status(500).json({ 
       success: false,
       error: 'Internal server error' 

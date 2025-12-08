@@ -36,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { StarRating } from "@/components/ui/star-rating"
 import { useSubjects } from "@/hooks/use-subjects"
 import { useStudyMaterials } from "@/hooks/use-study-materials"
 import { useUser } from "@/contexts/UserContext"
@@ -111,6 +112,14 @@ export default function LearningResources() {
     subject: "",
     file: null as File | null
   })
+
+  // Rating state
+  const [materialRatings, setMaterialRatings] = useState<Record<number, {
+    averageRating: number;
+    totalRatings: number;
+    userRating: number | null;
+    userComment: string | null;
+  }>>({})
 
   // Handle search
   const handleSearch = async (value: string) => {
@@ -226,6 +235,89 @@ export default function LearningResources() {
       setUploading(false)
     }
   }
+
+  // Fetch material ratings
+  const fetchMaterialRatings = async (materialId: number) => {
+    try {
+      const [avgResponse, userResponse] = await Promise.all([
+        fetch(`http://localhost:4000/api/materials/${materialId}/rating`),
+        currentUser ? fetch(`http://localhost:4000/api/materials/${materialId}/rating/${currentUser.user_id}`) : Promise.resolve(null)
+      ])
+
+      const avgData = await avgResponse.json()
+      const userData = userResponse ? await userResponse.json() : null
+
+      if (avgData.success) {
+        setMaterialRatings(prev => ({
+          ...prev,
+          [materialId]: {
+            averageRating: avgData.average_rating || 0,
+            totalRatings: avgData.total_ratings || 0,
+            userRating: userData?.success && userData.userRating ? userData.userRating.rating : null,
+            userComment: userData?.success && userData.userRating ? userData.userRating.comment : null
+          }
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching material ratings:', error)
+    }
+  }
+
+  // Handle material rating
+  const handleRateMaterial = async (materialId: number, rating: number, comment?: string) => {
+    if (!currentUser) {
+      alert('Please log in to rate materials')
+      return
+    }
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/materials/${materialId}/rating`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: currentUser.user_id,
+          rating,
+          comment: comment || null
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        // Update the material ratings state
+        setMaterialRatings(prev => ({
+          ...prev,
+          [materialId]: {
+            averageRating: data.average_rating || 0,
+            totalRatings: data.total_ratings || 0,
+            userRating: rating,
+            userComment: comment || null
+          }
+        }))
+        
+        // Refresh materials to get updated ratings
+        await refreshMaterials()
+      } else {
+        alert(data.error || 'Failed to submit rating')
+      }
+    } catch (error) {
+      console.error('Error rating material:', error)
+      alert('Failed to submit rating')
+    }
+  }
+
+  // Load ratings for all materials when materials change
+  useEffect(() => {
+    if (materials && materials.length > 0) {
+      materials.forEach(material => {
+        if (!materialRatings[material.material_id]) {
+          fetchMaterialRatings(material.material_id)
+        }
+      })
+    }
+  }, [materials, currentUser])
 
   return (
     <div className="space-y-6">
@@ -465,7 +557,21 @@ export default function LearningResources() {
                     <div className="text-sm text-muted-foreground">
                       <p>Uploaded by {material.uploaded_by_name}</p>
                       <p>{material.download_count} downloads • {material.view_count} views</p>
-                      {material.rating > 0 && <p>Rating: {material.rating}/5.0</p>}
+                    </div>
+                    
+                    {/* Star Rating Component */}
+                    <div className="flex items-center space-x-2">
+                      <StarRating
+                        rating={materialRatings[material.material_id]?.averageRating || material.rating || 0}
+                        totalRatings={materialRatings[material.material_id]?.totalRatings || 0}
+                        userRating={materialRatings[material.material_id]?.userRating}
+                        userComment={materialRatings[material.material_id]?.userComment}
+                        onRate={(rating, comment) => handleRateMaterial(material.material_id, rating, comment)}
+                        readonly={!currentUser}
+                        size="sm"
+                        showCount={true}
+                        allowComments={true}
+                      />
                     </div>
                   </div>
 

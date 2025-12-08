@@ -978,6 +978,126 @@ const sendFacultyNewApplicationNotificationEmail = async (facultyEmail, facultyN
   }
 };
 
+// Send quiz approval email
+const sendQuizApprovalEmail = async (userEmail, userName, quizTitle, reviewerName = 'Admin') => {
+  const subject = 'Quiz Approved - CPLH Platform';
+  
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Quiz Approved</title>
+    </head>
+    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #2563eb; margin-bottom: 10px;">🎉 Quiz Approved!</h1>
+        <div style="width: 60px; height: 4px; background: linear-gradient(90deg, #2563eb, #10b981); margin: 0 auto; border-radius: 2px;"></div>
+      </div>
+      
+      <div style="background: #f8fafc; border-radius: 12px; padding: 25px; margin: 20px 0; border: 1px solid #e2e8f0;">
+        <p style="font-size: 16px; margin-bottom: 15px;"><strong>Dear ${userName},</strong></p>
+        
+        <p style="font-size: 16px; margin-bottom: 20px;">
+          Great news! Your quiz <strong>"${quizTitle}"</strong> has been reviewed and approved by ${reviewerName}.
+        </p>
+        
+        <div style="background: #dcfce7; border: 1px solid #16a34a; border-radius: 8px; padding: 15px; margin: 20px 0;">
+          <h4 style="color: #15803d; margin-top: 0;">✅ What happens next?</h4>
+          <ul style="color: #15803d; margin: 0; padding-left: 20px;">
+            <li>Your quiz is now live and available to students</li>
+            <li>Students can access it through the quiz section</li>
+            <li>You can track quiz attempts and performance</li>
+            <li>Thank you for contributing quality content!</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <p style="color: #6b7280; font-size: 14px;">Keep creating excellent educational content!</p>
+      </div>
+    </body>
+    </html>`;
+
+  const transporter = createTransporter();
+  
+  const mailOptions = {
+    from: `"CPLH Platform" <${process.env.SMTP_USER}>`,
+    to: userEmail,
+    subject: subject,
+    html: htmlContent
+  };
+
+  try {
+    const result = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Error sending quiz approval email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Send flashcard approval email
+const sendFlashcardApprovalEmail = async (userEmail, userName, flashcardTitle, reviewerName = 'Admin') => {
+  const subject = 'Flashcard Set Approved - CPLH Platform';
+  
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Flashcard Set Approved</title>
+    </head>
+    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #2563eb; margin-bottom: 10px;">🎉 Flashcard Set Approved!</h1>
+        <div style="width: 60px; height: 4px; background: linear-gradient(90deg, #2563eb, #10b981); margin: 0 auto; border-radius: 2px;"></div>
+      </div>
+      
+      <div style="background: #f8fafc; border-radius: 12px; padding: 25px; margin: 20px 0; border: 1px solid #e2e8f0;">
+        <p style="font-size: 16px; margin-bottom: 15px;"><strong>Dear ${userName},</strong></p>
+        
+        <p style="font-size: 16px; margin-bottom: 20px;">
+          Excellent! Your flashcard set <strong>"${flashcardTitle}"</strong> has been reviewed and approved by ${reviewerName}.
+        </p>
+        
+        <div style="background: #dcfce7; border: 1px solid #16a34a; border-radius: 8px; padding: 15px; margin: 20px 0;">
+          <h4 style="color: #15803d; margin-top: 0;">✅ What happens next?</h4>
+          <ul style="color: #15803d; margin: 0; padding-left: 20px;">
+            <li>Your flashcard set is now live and available to students</li>
+            <li>Students can access it through the flashcards section</li>
+            <li>You can track study progress and engagement</li>
+            <li>Thank you for creating valuable learning materials!</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <p style="color: #6b7280; font-size: 14px;">Keep creating amazing educational content!</p>
+      </div>
+    </body>
+    </html>`;
+
+  const transporter = createTransporter();
+  
+  const mailOptions = {
+    from: `"CPLH Platform" <${process.env.SMTP_USER}>`,
+    to: userEmail,
+    subject: subject,
+    html: htmlContent
+  };
+
+  try {
+    const result = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Error sending flashcard approval email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   generateTemporaryPassword,
   sendWelcomeEmail,
@@ -989,5 +1109,7 @@ module.exports = {
   sendPostTestApprovalEmailToStudent,
   sendFacultyTutorNotificationEmail,
   sendFacultyNewApplicationNotificationEmail,
+  sendQuizApprovalEmail,
+  sendFlashcardApprovalEmail,
   testEmailConnection
 };
