@@ -954,16 +954,16 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
         <Card className={`border-2 ${
           status.includes('successful') 
             ? 'border-green-200 bg-green-50' 
-            : 'border-red-200 bg-red-50'
+            : 'border-blue-200 bg-blue-50'
         }`}>
           <CardContent className="p-4">
             <div className={`flex items-center space-x-3 ${
-              status.includes('successful') ? 'text-green-800' : 'text-red-800'
+              status.includes('successful') ? 'text-green-800' : 'text-blue-800'
             }`}>
               {status.includes('successful') ? (
                 <CheckCircle2 className="w-6 h-6 text-green-600" />
               ) : (
-                <AlertCircle className="w-6 h-6 text-red-600" />
+                <AlertCircle className="w-6 h-6 text-blue-600" />
               )}
               <div>
                 <div className="font-medium">{status}</div>
