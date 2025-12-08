@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import EditProfileModal from "../modals/editprofile_modal"
 import ApplyAsTutorModalWithAssessment from "../modals/applyastutor_modal_with_assessment"
 import { useUser } from "@/contexts/UserContext"
+import { useToast } from "@/hooks/use-toast"
 
 interface MenuItem {
   label: string
@@ -35,6 +36,7 @@ import { useRouter } from "next/navigation"
 export default function Profile01() {
   const router = useRouter();
   const { currentUser, updateCurrentUser, refreshCurrentUser, isLoading: contextLoading } = useUser();
+  const { toast } = useToast();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -166,13 +168,52 @@ export default function Profile01() {
     return name.charAt(0).toUpperCase();
   };
 
+  // Check for existing application before opening modal
+  const handleApplyAsTutor = async () => {
+    if (!currentUser) {
+      toast({
+        title: 'Login Required',
+        description: 'You must be logged in to apply as a tutor.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/tutor-applications/user/${currentUser.user_id}`);
+      const result = await response.json();
+      
+      if (result.success && result.applications && result.applications.length > 0) {
+        // User has existing applications
+        const pendingApps = result.applications.filter((app: any) => app.status === 'pending');
+        if (pendingApps.length > 0) {
+          const app = pendingApps[0];
+          toast({
+            title: 'Application Already Pending',
+            description: `You already have a pending application for ${app.subject_name} submitted on ${app.application_date ? new Date(app.application_date).toLocaleDateString() : 'a previous date'}. Please wait for it to be reviewed.`,
+            variant: 'destructive',
+            duration: 6000,
+          });
+          return;
+        }
+      }
+      
+      // No pending applications, open the modal
+      setShowApplyTutorModal(true);
+    } catch (error) {
+      console.error('Error checking existing applications:', error);
+      // If check fails, still allow opening the modal
+      setShowApplyTutorModal(true);
+    }
+  };
+
   const menuItems: MenuItem[] = [
     {
       label: "Apply as Tutor",
       href: "#",
       icon: <UserPlus className="w-4 h-4" />,
       external: false,
-      onClick: () => setShowApplyTutorModal(true),
+      onClick: handleApplyAsTutor,
     },
     {
       label: "Edit Profile",

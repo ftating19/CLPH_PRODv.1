@@ -245,32 +245,16 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
         
         onClose();
       } else {
-        // Handle specific error cases
-        if (response.status === 409) {
-          // User has pending application
-          const existingApp = result.existingApplication;
-          toast({
-            title: 'Application Already Pending',
-            description: `You already have a pending application for ${existingApp?.subject_name || 'a subject'} submitted on ${existingApp?.application_date ? new Date(existingApp.application_date).toLocaleDateString() : 'a previous date'}. Please wait for it to be reviewed.`,
-            variant: 'destructive',
-            duration: 6000,
-          });
-        } else {
-          throw new Error(result.error || 'Application submission failed');
-        }
+        throw new Error(result.error || 'Application submission failed');
       }
 
     } catch (error) {
       console.error('Error submitting application:', error);
-      
-      // Don't show generic error if we already handled specific cases above  
-      if (error.message && !error.message.includes('Application Already Pending')) {
-        toast({
-          title: 'Error',
-          description: error.message || 'An error occurred while submitting your application. Please try again.',
-          variant: 'destructive',
-        });
-      }
+      toast({
+        title: 'Error',
+        description: error.message || 'An error occurred while submitting your application. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }

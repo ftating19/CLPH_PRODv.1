@@ -669,6 +669,45 @@ export default function TutorMatching() {
       });
   }, [tutors, currentUser?.user_id, selectedSubjectFilter, selectedProgramFilter, userRole, userProgram, searchTerm, recommendedSubjects]);
 
+  // Check for existing application before opening modal
+  const handleApplyAsTutor = async () => {
+    if (!currentUser) {
+      toast({
+        title: 'Login Required',
+        description: 'You must be logged in to apply as a tutor.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/tutor-applications/user/${currentUser.user_id}`);
+      const result = await response.json();
+      
+      if (result.success && result.applications && result.applications.length > 0) {
+        // User has existing applications
+        const pendingApps = result.applications.filter((app: any) => app.status === 'pending');
+        if (pendingApps.length > 0) {
+          const app = pendingApps[0];
+          toast({
+            title: 'Application Already Pending',
+            description: `You already have a pending application for ${app.subject_name} submitted on ${app.application_date ? new Date(app.application_date).toLocaleDateString() : 'a previous date'}. Please wait for it to be reviewed.`,
+            variant: 'destructive',
+            duration: 6000,
+          });
+          return;
+        }
+      }
+      
+      // No pending applications, open the modal
+      setShowApplyModal(true);
+    } catch (error) {
+      console.error('Error checking existing applications:', error);
+      // If check fails, still allow opening the modal
+      setShowApplyModal(true);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -683,7 +722,7 @@ export default function TutorMatching() {
           onOpenChange={setShowTestModal}
           currentUser={currentUser}
         />
-        <Button className="bg-green-600 hover:bg-green-700" onClick={() => setShowApplyModal(true)}>
+        <Button className="bg-green-600 hover:bg-green-700" onClick={handleApplyAsTutor}>
           <User className="w-4 h-4 mr-2" />
           Apply as Tutor
         </Button>
