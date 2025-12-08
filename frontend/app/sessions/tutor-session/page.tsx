@@ -443,8 +443,12 @@ export default function TutorSessionPage() {
           console.error('Error fetching template assignments:', err)
         }
         
-        if (currentUser.role?.toLowerCase() === 'student') {
-          // Use student-specific endpoint for students
+        // Determine if current user is the student in this specific booking
+        const booking = bookings.find(b => b.booking_id === bookingId)
+        const isStudentInThisBooking = booking && currentUser.user_id === booking.student_id
+        
+        if (isStudentInThisBooking) {
+          // Use student-specific endpoint when user is the student in this booking
           response = await fetch(`http://localhost:4000/api/post-tests/student/${currentUser.user_id}`)
         } else {
           // Use booking-based query for tutors or other roles
@@ -458,7 +462,7 @@ export default function TutorSessionPage() {
           let postTests = data.postTests || [];
           
           // Filter by booking_id if using student endpoint
-          if (currentUser.role?.toLowerCase() === 'student') {
+          if (isStudentInThisBooking) {
             postTests = postTests.filter((pt: any) => pt.booking_id === bookingId && pt.test_status === 'available');
           }
           
@@ -592,25 +596,21 @@ export default function TutorSessionPage() {
         // Fetch unread message counts for all bookings
         fetchAllUnreadCounts(data.sessions)
         
-        // Fetch post-tests for each booking for students
-        if (currentUser?.role?.toLowerCase() === 'student') {
-          data.sessions.forEach((booking: Booking) => {
-            if ((booking.status === 'Accepted' || booking.status === 'accepted') && 
-                currentUser.user_id === booking.student_id) {
+        // Fetch post-tests and results for each booking based on user's role in that specific booking
+        data.sessions.forEach((booking: Booking) => {
+          if (booking.status === 'Accepted' || booking.status === 'accepted') {
+            // If current user is the student in this booking (regardless of their overall role)
+            if (currentUser.user_id === booking.student_id) {
               fetchPostTestsForBooking(booking.booking_id)
-              fetchPostTestResults(booking.booking_id) // Also fetch results for students
+              fetchPostTestResults(booking.booking_id)
             }
-          })
-        }
-        
-        // Fetch post-test results for tutors
-        if (currentUser?.role?.toLowerCase() === 'tutor') {
-          data.sessions.forEach((booking: Booking) => {
+            
+            // If current user is the tutor in this booking (regardless of their overall role)
             if (currentUser.user_id === booking.tutor_id) {
               fetchPostTestResults(booking.booking_id)
             }
-          })
-        }
+          }
+        })
       } else {
         setBookings([])
       }
