@@ -990,7 +990,7 @@ export default function StudentMatching() {
       
       if (data.success) {
         setStudents(data.students || [])
-        setFilteredStudents(data.students || [])
+        // Don't set filteredStudents here - let the filtering useEffect handle it
       } else {
         throw new Error('Failed to fetch students')
       }
@@ -998,7 +998,7 @@ export default function StudentMatching() {
       console.error('Error fetching students:', err)
       setError('Failed to load students. Please try again later.')
       setStudents([])
-      setFilteredStudents([])
+      // Don't set filteredStudents here - let the filtering useEffect handle it
     } finally {
       setLoading(false)
     }
@@ -1457,14 +1457,7 @@ export default function StudentMatching() {
       </div>
 
       {/* Students Grid */}
-      {loading ? (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="flex items-center space-x-2">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <span>Loading students...</span>
-          </div>
-        </div>
-      ) : filteredStudents.length === 0 ? (
+      {filteredStudents.length === 0 ? (
         <div className="text-center py-12">
           <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
