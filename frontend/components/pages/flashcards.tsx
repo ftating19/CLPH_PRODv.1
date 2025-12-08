@@ -580,13 +580,17 @@ export default function Flashcards() {
           duration: 2000
         })
       } else {
-        throw new Error('Failed to rate flashcard set')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to rate flashcard set' }))
+        throw new Error(errorData.error || 'Failed to rate flashcard set')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rating flashcard set:', error)
+      const errorMessage = error.message.includes('complete all flashcards') 
+        ? error.message 
+        : "Failed to rate flashcard set. Please try again."
       toast({
         title: "Error",
-        description: "Failed to rate flashcard set. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       })
     }
@@ -1251,7 +1255,7 @@ export default function Flashcards() {
               userRating={userSetRatings[set.sub_id] || null}
               userComment={userSetComments[set.sub_id] || null}
               onRate={(rating, comment) => handleRateFlashcardSet(set.sub_id, rating, comment)}
-              readonly={!currentUser?.user_id || set.is_pending}
+              readonly={!currentUser?.user_id || set.is_pending || set.progress < 100}
               size="md"
               showCount={true}
             />

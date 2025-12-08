@@ -497,7 +497,7 @@ export default function LearningResources() {
 
       {/* Upload Modal */}
       <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="max-w-2xl">
           <form onSubmit={handleUploadSubmit}>
             <DialogHeader>
               <DialogTitle>Upload Learning Resource</DialogTitle>

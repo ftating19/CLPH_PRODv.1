@@ -5692,6 +5692,20 @@ app.post('/api/quizzes/:id/rating', async (req, res) => {
     }
     
     const pool = await db.getPool();
+    
+    // Check if user has completed the quiz before allowing rating
+    const [attempts] = await pool.query(
+      'SELECT * FROM quizattempts WHERE quizzes_id = ? AND user_id = ?',
+      [quizId, user_id]
+    );
+    
+    if (attempts.length === 0) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'You must complete this quiz before rating it' 
+      });
+    }
+    
     await upsertQuizRating(pool, quizId, user_id, rating, comment || null);
     
     // Get updated average rating
@@ -6776,6 +6790,38 @@ app.post('/api/flashcards/set/:subId/rating', async (req, res) => {
     }
     
     const pool = await db.getPool();
+    
+    // Check if user has completed the entire flashcard set before allowing rating
+    // Get total cards in the set
+    const [totalCards] = await pool.query(
+      'SELECT COUNT(*) as total_cards FROM flashcards WHERE sub_id = ?',
+      [subId]
+    );
+    
+    if (totalCards[0].total_cards === 0) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Flashcard set not found or empty' 
+      });
+    }
+    
+    // Check if user has completed all cards in the set
+    const [completedCards] = await pool.query(`
+      SELECT COUNT(*) as completed_cards
+      FROM flashcardprogress fp
+      INNER JOIN flashcards f ON fp.flashcard_id = f.flashcard_id
+      WHERE f.sub_id = ? AND fp.user_id = ? AND fp.status = 'completed'
+    `, [subId, user_id]);
+    
+    if (completedCards[0].completed_cards < totalCards[0].total_cards) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'You must complete all flashcards in this set before rating it',
+        completed: completedCards[0].completed_cards,
+        total: totalCards[0].total_cards
+      });
+    }
+    
     const result = await rateFlashcardSet(pool, subId, user_id, rating, comment || null);
     
     // Get updated average rating
@@ -6846,6 +6892,20 @@ app.post('/api/flashcards/:id/rating', async (req, res) => {
     }
     
     const pool = await db.getPool();
+    
+    // Check if user has completed this specific flashcard before allowing rating
+    const [progress] = await pool.query(
+      'SELECT status FROM flashcardprogress WHERE flashcard_id = ? AND user_id = ?',
+      [flashcardId, user_id]
+    );
+    
+    if (progress.length === 0 || progress[0].status !== 'completed') {
+      return res.status(403).json({ 
+        success: false,
+        error: 'You must complete this flashcard before rating it' 
+      });
+    }
+    
     await upsertFlashcardRating(pool, flashcardId, user_id, rating, comment || null);
     
     // Get updated average rating

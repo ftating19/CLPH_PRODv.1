@@ -463,13 +463,17 @@ export default function Quizzes() {
           duration: 2000
         })
       } else {
-        throw new Error('Failed to rate quiz')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to rate quiz' }))
+        throw new Error(errorData.error || 'Failed to rate quiz')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rating quiz:', error)
+      const errorMessage = error.message.includes('complete this quiz') 
+        ? error.message 
+        : "Failed to rate quiz. Please try again."
       toast({
         title: "Error",
-        description: "Failed to rate quiz. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       })
     }
@@ -1569,7 +1573,7 @@ export default function Quizzes() {
             userRating={userRatings[quiz.id] || null}
             userComment={userComments[quiz.id] || null}
             onRate={(rating, comment) => handleRateQuiz(quiz.id, rating, comment)}
-            readonly={!currentUser?.user_id || quiz.is_pending}
+            readonly={!currentUser?.user_id || quiz.is_pending || quiz.completedTimes === 0}
             size="md"
             showCount={true}
           />
