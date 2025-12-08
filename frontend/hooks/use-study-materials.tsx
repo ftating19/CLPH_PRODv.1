@@ -56,8 +56,8 @@ export function useStudyMaterials() {
 
       if (result.success) {
         toast({
-          title: "Success",
-          description: "Study material uploaded successfully",
+          title: "Upload Submitted",
+          description: "Your file has been uploaded and is pending review. You will be notified once it's approved.",
           variant: "default"
         })
         
