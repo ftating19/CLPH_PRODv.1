@@ -1198,17 +1198,19 @@ export default function StudentMatching() {
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
       <CardHeader className="pb-4">
         <div className="flex items-start space-x-4">
-          <Avatar className="w-16 h-16">
-            <AvatarFallback className="text-lg font-semibold bg-blue-100 text-blue-600">
+          <Avatar className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
+            <AvatarFallback className="text-sm sm:text-lg font-semibold bg-blue-100 text-blue-600">
               {getInitials(student.first_name, student.last_name)}
             </AvatarFallback>
           </Avatar>
-              <div className="flex-1">
-            <div className="flex items-center justify-between">
-                <CardTitle className="text-xl">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-lg sm:text-xl break-words">
                   {student.first_name} {student.middle_name ? `${student.middle_name} ` : ""}{student.last_name}
                 </CardTitle>
-              <div className="flex items-center gap-2">
+              </div>
+              <div className="flex items-center gap-1 flex-wrap flex-shrink-0">
                 {/* Tutor view: show assessment-based badges */}
                 {currentUser && (currentUser.role || '').toLowerCase() === 'tutor' && (() => {
                   const assessment = studentAssessmentMap[student.user_id]
@@ -1217,7 +1219,7 @@ export default function StudentMatching() {
 
                   if (subjId == null) {
                     return (
-                      <Badge variant="outline" className="ml-2 bg-gray-50 text-gray-700 border-gray-200">
+                      <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
                         No Subject
                       </Badge>
                     )
@@ -1225,7 +1227,7 @@ export default function StudentMatching() {
 
                   if (pct === null || pct === undefined) {
                     return (
-                      <Badge variant="outline" className="ml-2 bg-gray-50 text-gray-700 border-gray-200">
+                      <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
                         No Assessment
                       </Badge>
                     )
@@ -1233,7 +1235,7 @@ export default function StudentMatching() {
 
                   if (typeof pct === 'number' && pct < 82.5) {
                     return (
-                      <Badge variant="default" className="ml-2 bg-green-600">
+                      <Badge variant="default" className="bg-green-600 text-xs">
                         Recommended
                       </Badge>
                     )
@@ -1241,7 +1243,7 @@ export default function StudentMatching() {
 
                   if (typeof pct === 'number' && pct < 90) {
                     return (
-                      <Badge variant="outline" className="ml-2 bg-amber-100 border-amber-300 text-amber-800">
+                      <Badge variant="outline" className="bg-amber-100 border-amber-300 text-amber-800 text-xs">
                         Suggested
                       </Badge>
                     )
@@ -1283,14 +1285,14 @@ export default function StudentMatching() {
                 })()}
               </div>
             )}
-            <div className="flex items-center space-x-4 mt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:space-x-4 mt-2">
               <div className="flex items-center text-sm text-muted-foreground">
-                <User className="w-4 h-4 mr-1" />
-                ID: {student.user_id}
+                <User className="w-4 h-4 mr-1 flex-shrink-0" />
+                <span className="break-all">ID: {student.user_id}</span>
               </div>
               <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4 mr-1" />
-                Joined: {formatDate(student.created_at)}
+                <Calendar className="w-4 h-4 mr-1 flex-shrink-0" />
+                <span>Joined: {formatDate(student.created_at)}</span>
               </div>
             </div>
           </div>
@@ -1300,18 +1302,18 @@ export default function StudentMatching() {
         {/* Email Information */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Contact Email</Label>
-          <div className="flex items-center space-x-2">
-            <Mail className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm truncate">{student.email}</span>
+          <div className="flex items-center space-x-2 min-w-0">
+            <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm truncate min-w-0">{student.email}</span>
           </div>
         </div>
 
         {/* Program */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Academic Program</Label>
-          <div className="flex items-center space-x-2">
-            <GraduationCap className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm">{student.program}</span>
+          <div className="flex items-center space-x-2 min-w-0">
+            <GraduationCap className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm break-words">{student.program}</span>
           </div>
         </div>
 
@@ -1323,11 +1325,12 @@ export default function StudentMatching() {
           </Badge>
         </div>
 
-        <div className="flex items-center justify-end pt-4 border-t">
-          <div className="flex space-x-2">
+        <div className="pt-4 border-t">
+          <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
             <Button 
               size="sm" 
               variant="outline" 
+              className="w-full sm:w-auto"
               onClick={() => {
                 setSelectedStudent(student)
                 setShowProfileModal(true)
@@ -1338,7 +1341,7 @@ export default function StudentMatching() {
             {currentUser?.role?.toLowerCase() === 'tutor' && (
               <Button 
                 size="sm" 
-                className="bg-green-600 hover:bg-green-700" 
+                className="bg-green-600 hover:bg-green-700 w-full sm:w-auto" 
                 onClick={() => handleBookStudent(student)}
               >
                 <Calendar className="w-4 h-4 mr-2" />
@@ -1347,7 +1350,7 @@ export default function StudentMatching() {
             )}
             <Button 
               size="sm" 
-              className="bg-blue-600 hover:bg-blue-700" 
+              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto" 
               onClick={() => handleContactStudent(student)}
             >
               <MessageSquare className="w-4 h-4 mr-2" />
@@ -1397,7 +1400,7 @@ export default function StudentMatching() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-3">
@@ -1442,7 +1445,7 @@ export default function StudentMatching() {
       </div>
 
       {/* Search and Filter Controls */}
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -1454,11 +1457,11 @@ export default function StudentMatching() {
             />
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
           {/* Program Filter - Only show for admins */}
           {userRole === "admin" && (
             <Select value={programFilter} onValueChange={setProgramFilter}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Filter by program" />
               </SelectTrigger>
@@ -1472,7 +1475,7 @@ export default function StudentMatching() {
               </SelectContent>
             </Select>
           )}
-          <Button variant="outline" onClick={fetchStudents}>
+          <Button variant="outline" onClick={fetchStudents} className="w-full sm:w-auto">
             Refresh
           </Button>
         </div>
@@ -1493,7 +1496,7 @@ export default function StudentMatching() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
             {paginatedStudents.map((student) => (
               <StudentCard key={student.user_id} student={student} />
             ))}
@@ -1501,11 +1504,11 @@ export default function StudentMatching() {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="mt-8 flex items-center justify-between">
-              <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400 order-2 sm:order-1">
                 Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 order-1 sm:order-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1515,14 +1518,19 @@ export default function StudentMatching() {
                   Previous
                 </Button>
                 
-                <div className="flex items-center space-x-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <div className="flex items-center space-x-1 max-w-xs overflow-x-auto">
+                  {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => {
+                    if (totalPages <= 10) return i + 1;
+                    if (currentPage <= 5) return i + 1;
+                    if (currentPage > totalPages - 5) return totalPages - 9 + i;
+                    return currentPage - 4 + i;
+                  }).map((page) => (
                     <Button
                       key={page}
                       variant={currentPage === page ? "default" : "outline"}
                       size="sm"
                       onClick={() => setCurrentPage(page)}
-                      className={`w-10 h-8 ${
+                      className={`min-w-[2.5rem] h-8 px-2 flex-shrink-0 ${
                         currentPage === page 
                           ? "bg-blue-600 text-white hover:bg-blue-700" 
                           : "hover:bg-gray-100"
@@ -1651,15 +1659,16 @@ export default function StudentMatching() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end space-x-3 pt-4 border-t">
+              <div className="flex flex-col sm:flex-row gap-2 sm:justify-end pt-4 border-t">
                 <Button
                   variant="outline"
+                  className="order-last sm:order-first w-full sm:w-auto"
                   onClick={() => setShowProfileModal(false)}
                 >
                   Close
                 </Button>
                 <Button
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                   onClick={() => {
                     setShowProfileModal(false)
                     handleContactStudent(selectedStudent)
@@ -1670,7 +1679,7 @@ export default function StudentMatching() {
                 </Button>
                 {currentUser?.role?.toLowerCase() === 'tutor' && (
                   <Button
-                    className="bg-green-600 hover:bg-green-700"
+                    className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
                     onClick={() => {
                       setShowProfileModal(false)
                       handleBookStudent(selectedStudent)
@@ -1715,11 +1724,12 @@ export default function StudentMatching() {
               <div className="space-y-3">
                 <div>
                   <label className="text-sm font-medium">Email Address</label>
-                  <div className="flex items-center space-x-2 mt-1">
+                  <div className="flex flex-col sm:flex-row gap-2 mt-1">
                     <Input value={selectedStudent.email} readOnly className="flex-1" />
                     <Button 
                       size="sm" 
                       variant="outline"
+                      className="w-full sm:w-auto"
                       onClick={() => {
                         navigator.clipboard.writeText(selectedStudent.email)
                         toast({
@@ -1733,7 +1743,7 @@ export default function StudentMatching() {
                   </div>
                 </div>
                 
-                <div className="flex space-x-2 pt-4">
+                <div className="flex flex-col sm:flex-row gap-2 pt-4">
                   <Button 
                     className="flex-1"
                     onClick={() => {
@@ -1747,6 +1757,7 @@ export default function StudentMatching() {
                   </Button>
                   <Button 
                     variant="outline" 
+                    className="w-full sm:w-auto"
                     onClick={() => setShowContactModal(false)}
                   >
                     Close
