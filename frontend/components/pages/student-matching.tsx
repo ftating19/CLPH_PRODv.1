@@ -911,8 +911,35 @@ export default function StudentMatching() {
   const [programFilter, setProgramFilter] = useState("all")
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [showContactModal, setShowContactModal] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [selectedStudentForBooking, setSelectedStudentForBooking] = useState<Student | null>(null)
+
+  // Fix z-index for all modals to appear above sidebar (sidebar has z-70)
+  useEffect(() => {
+    const isAnyModalOpen = showBookingModal || showProfileModal || showContactModal
+    
+    if (isAnyModalOpen) {
+      // Use a timer to ensure the dialog elements are rendered
+      const timer = setTimeout(() => {
+        const overlay = document.querySelector('[data-radix-dialog-overlay]') as HTMLElement
+        const content = document.querySelector('[data-radix-dialog-content]') as HTMLElement
+        
+        if (overlay) overlay.style.zIndex = '75'
+        if (content) content.style.zIndex = '80'
+      }, 10)
+
+      return () => {
+        clearTimeout(timer)
+        // Reset z-index when modal closes
+        const overlay = document.querySelector('[data-radix-dialog-overlay]') as HTMLElement
+        const content = document.querySelector('[data-radix-dialog-content]') as HTMLElement
+        
+        if (overlay) overlay.style.zIndex = ''
+        if (content) content.style.zIndex = ''
+      }
+    }
+  }, [showBookingModal, showProfileModal, showContactModal])
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 9
@@ -1280,7 +1307,10 @@ export default function StudentMatching() {
             <Button 
               size="sm" 
               variant="outline" 
-              onClick={() => setSelectedStudent(student)}
+              onClick={() => {
+                setSelectedStudent(student)
+                setShowProfileModal(true)
+              }}
             >
               View Profile
             </Button>
@@ -1496,9 +1526,149 @@ export default function StudentMatching() {
         </>
       )}
 
+      {/* Student Profile Modal */}
+      <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" style={{ zIndex: 80 }}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-3">
+              <Avatar className="w-12 h-12">
+                <AvatarImage src="/placeholder.svg" alt={selectedStudent?.first_name || 'Student'} />
+                <AvatarFallback className="text-lg font-semibold">
+                  {selectedStudent?.first_name?.charAt(0)}{selectedStudent?.last_name?.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="text-xl font-bold">{selectedStudent?.first_name} {selectedStudent?.last_name}</h2>
+                <p className="text-muted-foreground">{selectedStudent?.program}</p>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          {selectedStudent && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                  <div className="mt-1">
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      Active Student
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Student ID</Label>
+                  <p className="mt-1 text-sm">{selectedStudent.user_id}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                  <div className="mt-1 flex items-center space-x-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-sm">{selectedStudent.email}</p>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Joined Date</Label>
+                  <p className="mt-1 text-sm">{formatDate(selectedStudent.created_at)}</p>
+                </div>
+              </div>
+
+              {/* Academic Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Academic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Program</Label>
+                    <div className="mt-1 flex items-center space-x-2">
+                      <GraduationCap className="w-4 h-4 text-muted-foreground" />
+                      <p className="text-sm">{selectedStudent.program}</p>
+                    </div>
+                  </div>
+                  {(selectedStudent as any).year_level && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Year Level</Label>
+                      <p className="mt-1 text-sm">{(selectedStudent as any).year_level}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pre-Assessment Results - Only show to tutors */}
+              {currentUser?.role?.toLowerCase() === 'tutor' && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Pre-Assessment Results</h3>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    {!studentAssessmentMap[selectedStudent.user_id] ? (
+                      <p className="text-sm text-muted-foreground">No assessment data available</p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {Object.entries(studentAssessmentMap[selectedStudent.user_id]).map(([sid, info]: [string, any]) => (
+                          <div key={sid} className="flex items-center justify-between p-3 bg-white dark:bg-gray-700 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                              <BookOpen className="w-4 h-4 text-blue-600" />
+                              <span className="text-sm font-medium">{info.name || `Subject ${sid}`}</span>
+                            </div>
+                            <div className="text-sm font-semibold">
+                              {info.score}%
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Contact Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Contact Information</h3>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Mail className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium text-blue-900 dark:text-blue-100">Email Address</span>
+                  </div>
+                  <p className="text-sm text-blue-800 dark:text-blue-200 ml-7">{selectedStudent.email}</p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowProfileModal(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => {
+                    setShowProfileModal(false)
+                    handleContactStudent(selectedStudent)
+                  }}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Contact
+                </Button>
+                {currentUser?.role?.toLowerCase() === 'tutor' && (
+                  <Button
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => {
+                      setShowProfileModal(false)
+                      handleBookStudent(selectedStudent)
+                    }}
+                  >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Book Session
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Contact Student Modal */}
       <Dialog open={showContactModal} onOpenChange={setShowContactModal}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px]" style={{ zIndex: 80 }}>
           <DialogHeader>
             <DialogTitle>Contact Student</DialogTitle>
             <DialogDescription>
@@ -1571,7 +1741,10 @@ export default function StudentMatching() {
 
       {/* Student Booking Modal */}
       <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>
-        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0">
+        <DialogContent 
+          className="max-w-7xl max-h-[95vh] overflow-y-auto p-0" 
+          style={{ zIndex: 80 }}
+        >
           <DialogHeader className="px-8 pt-8 pb-4">
             <DialogTitle className="text-2xl font-bold">Professional Tutoring Session Request</DialogTitle>
             <DialogDescription className="text-lg text-gray-600">

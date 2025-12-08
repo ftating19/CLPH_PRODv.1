@@ -301,6 +301,32 @@ export default function TutorMatching() {
     setCurrentPage(1)
   }, [selectedSubjectFilter, selectedProgramFilter, searchTerm])
 
+  // Fix z-index for all modals to appear above sidebar (sidebar has z-70)
+  useEffect(() => {
+    const isAnyModalOpen = showBookingModal || showProfileModal || showRatingsModal || showApplyModal || showTestModal
+    
+    if (isAnyModalOpen) {
+      // Use a timer to ensure the dialog elements are rendered
+      const timer = setTimeout(() => {
+        const overlay = document.querySelector('[data-radix-dialog-overlay]') as HTMLElement
+        const content = document.querySelector('[data-radix-dialog-content]') as HTMLElement
+        
+        if (overlay) overlay.style.zIndex = '75'
+        if (content) content.style.zIndex = '80'
+      }, 10)
+
+      return () => {
+        clearTimeout(timer)
+        // Reset z-index when modal closes
+        const overlay = document.querySelector('[data-radix-dialog-overlay]') as HTMLElement
+        const content = document.querySelector('[data-radix-dialog-content]') as HTMLElement
+        
+        if (overlay) overlay.style.zIndex = ''
+        if (content) content.style.zIndex = ''
+      }
+    }
+  }, [showBookingModal, showProfileModal, showRatingsModal, showApplyModal, showTestModal])
+
   // Available programs (using constants)
   const programs = CICT_PROGRAMS
 
@@ -1420,7 +1446,10 @@ export default function TutorMatching() {
 
       {/* Booking Modal */}
       <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>
-        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0">
+        <DialogContent 
+          className="max-w-7xl max-h-[95vh] overflow-y-auto p-0" 
+          style={{ zIndex: 80 }}
+        >
           <DialogHeader className="px-8 pt-8 pb-4">
             <DialogTitle className="text-2xl font-bold">Professional Tutoring Session</DialogTitle>
             <DialogDescription className="text-lg text-gray-600">
@@ -1439,7 +1468,10 @@ export default function TutorMatching() {
 
       {/* Profile Modal */}
       <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] overflow-y-auto" 
+          style={{ zIndex: 80 }}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-3">
               <Avatar className="w-12 h-12">
@@ -1655,7 +1687,10 @@ export default function TutorMatching() {
       
       {/* Ratings Modal */}
       <Dialog open={showRatingsModal} onOpenChange={setShowRatingsModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] overflow-y-auto" 
+          style={{ zIndex: 80 }}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-3">
               <Star className="w-6 h-6 text-yellow-500" />
