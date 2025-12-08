@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award } from "lucide-react"
 import Layout from "@/components/dashboard/layout"
 import { useUser } from "@/contexts/UserContext"
+import { useToast } from "@/hooks/use-toast"
 
 // Updated booking data structure
 interface Booking {
@@ -26,6 +27,7 @@ export default function TutorSessionPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const { currentUser } = useUser()
+  const { toast } = useToast()
 
   // State for rating modal
   const [showRatingModal, setShowRatingModal] = useState<{open: boolean, bookingId?: number}>({open: false})
@@ -63,9 +65,31 @@ export default function TutorSessionPage() {
       const data = await res.json()
       if (data.success) {
         setBookings(prev => prev.map(b => b.booking_id === booking_id ? { ...b, status: "Completed" } : b))
+        toast({
+          title: "Session Completed",
+          description: "The session has been successfully marked as completed.",
+          variant: "default"
+        })
+      } else if (data.requiresRating) {
+        toast({
+          title: "⏳ Student Rating Required",
+          description: "Please ask the student to rate this session first. A reminder has been sent to them.",
+          variant: "default",
+          duration: 4000
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to complete session. Please try again.",
+          variant: "destructive"
+        })
       }
-    } catch {
-      // Optionally show error toast
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Network error. Please check your connection and try again.",
+        variant: "destructive"
+      })
     }
   }
 

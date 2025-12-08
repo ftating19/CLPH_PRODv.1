@@ -6,7 +6,7 @@ require('dotenv').config({ path: '../.env' })
 
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
-const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, sendFacultyTutorNotificationEmail, sendFacultyNewApplicationNotificationEmail, sendQuizApprovalEmail, sendFlashcardApprovalEmail, testEmailConnection } = require('../services/emailService')
+const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, sendFacultyTutorNotificationEmail, sendFacultyNewApplicationNotificationEmail, sendQuizApprovalEmail, sendFlashcardApprovalEmail, sendRatingReminderEmail, testEmailConnection } = require('../services/emailService')
 const { 
   getAllSubjects, 
   getSubjectById, 
@@ -8080,7 +8080,55 @@ app.put('/api/sessions/:booking_id/rating', async (req, res) => {
       if (!booking_id || !status) {
         return res.status(400).json({ success: false, error: 'Missing booking_id or status' });
       }
+      
       const pool = await db.getPool();
+      
+      // If trying to mark as completed, check if student has rated the session
+      if (status.toLowerCase() === 'completed') {
+        const [[booking]] = await pool.query(
+          `SELECT b.rating, b.start_date, b.end_date, b.preferred_time, 
+                  s.email as student_email, s.first_name as student_name, s.last_name as student_last,
+                  t.first_name as tutor_name, t.last_name as tutor_last
+           FROM bookings b
+           JOIN users s ON b.student_id = s.user_id
+           JOIN users t ON b.tutor_id = t.user_id
+           WHERE b.booking_id = ?`,
+          [booking_id]
+        );
+        
+        if (!booking) {
+          return res.status(404).json({ success: false, error: 'Booking not found' });
+        }
+        
+        // If no rating exists, prevent completion and send email in background
+        if (!booking.rating) {
+          const studentFullName = `${booking.student_name} ${booking.student_last}`;
+          const tutorFullName = `${booking.tutor_name} ${booking.tutor_last}`;
+          const sessionDate = new Date(booking.start_date).toLocaleDateString();
+          const sessionTime = booking.preferred_time || 'TBD';
+          
+          // Send response immediately without waiting for email
+          const responseData = { 
+            success: false, 
+            error: 'Student must rate the session before it can be completed. A reminder email has been sent to the student.',
+            requiresRating: true
+          };
+          
+          // Send email asynchronously in background (don't await)
+          sendRatingReminderEmail(
+            booking.student_email,
+            studentFullName,
+            tutorFullName,
+            sessionDate,
+            sessionTime
+          ).catch(error => {
+            console.error('Background email sending failed:', error);
+          });
+          
+          return res.status(400).json(responseData);
+        }
+      }
+      
       const [result] = await pool.query('UPDATE bookings SET status = ? WHERE booking_id = ?', [status, booking_id]);
       if (result.affectedRows === 0) {
         return res.status(404).json({ success: false, error: 'Booking not found' });

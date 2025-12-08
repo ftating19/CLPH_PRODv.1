@@ -1098,6 +1098,81 @@ const sendFlashcardApprovalEmail = async (userEmail, userName, flashcardTitle, r
   }
 };
 
+// Send rating reminder email to student
+const sendRatingReminderEmail = async (studentEmail, studentName, tutorName, sessionDate, sessionTime) => {
+  try {
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: `"CPLH Platform" <${process.env.SMTP_USER}>`,
+      to: studentEmail,
+      subject: 'Please Rate Your Tutoring Session - CPLH Platform',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Rate Your Session</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .header { text-align: center; margin-bottom: 30px; }
+            .logo { font-size: 28px; font-weight: bold; color: #2563eb; margin-bottom: 10px; }
+            .content { line-height: 1.6; color: #333; }
+            .session-details { background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb; }
+            .cta-button { display: inline-block; background-color: #2563eb; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="logo">CPLH Platform</div>
+              <h2 style="color: #2563eb; margin: 0;">Rate Your Tutoring Session</h2>
+            </div>
+            
+            <div class="content">
+              <p>Dear ${studentName},</p>
+              
+              <p>We hope your tutoring session was helpful! Your tutor is waiting to complete the session, but we need your feedback first.</p>
+              
+              <div class="session-details">
+                <h3 style="margin-top: 0; color: #2563eb;">Session Details</h3>
+                <p><strong>Tutor:</strong> ${tutorName}</p>
+                <p><strong>Date:</strong> ${sessionDate}</p>
+                <p><strong>Time:</strong> ${sessionTime}</p>
+              </div>
+              
+              <p>Please take a moment to rate your session and provide feedback. Your rating helps us maintain high-quality tutoring services and helps other students make informed choices.</p>
+              
+              <div style="text-align: center;">
+                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/sessions" class="cta-button">Rate My Session</a>
+              </div>
+              
+              <p><em>Note: Your tutor cannot mark the session as completed until you provide a rating. This ensures quality feedback for all our tutoring services.</em></p>
+              
+              <p>Thank you for using CPLH Platform!</p>
+            </div>
+            
+            <div class="footer">
+              <p>This is an automated message from CPLH Platform.<br>
+              If you have any questions, please contact our support team.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Rating reminder email sent successfully:', result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Error sending rating reminder email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   generateTemporaryPassword,
   sendWelcomeEmail,
@@ -1111,5 +1186,6 @@ module.exports = {
   sendFacultyNewApplicationNotificationEmail,
   sendQuizApprovalEmail,
   sendFlashcardApprovalEmail,
+  sendRatingReminderEmail,
   testEmailConnection
 };

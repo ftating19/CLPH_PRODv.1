@@ -220,9 +220,31 @@ export default function TutorSessionPage() {
       const data = await res.json()
       if (data.success) {
         setBookings(prev => prev.map(b => b.booking_id === booking_id ? { ...b, status: "Completed" } : b))
+        toast({
+          title: "Session Completed",
+          description: "The session has been successfully marked as completed.",
+          variant: "default"
+        })
+      } else if (data.requiresRating) {
+        toast({
+          title: "⏳ Student Rating Required",
+          description: "Please ask the student to rate this session first. A reminder has been sent to them.",
+          variant: "default",
+          duration: 4000
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to complete session. Please try again.",
+          variant: "destructive"
+        })
       }
-    } catch {
-      // Optionally show error toast
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Network error. Please check your connection and try again.",
+        variant: "destructive"
+      })
     }
   }
 

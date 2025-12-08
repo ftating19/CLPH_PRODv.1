@@ -1457,7 +1457,14 @@ export default function StudentMatching() {
       </div>
 
       {/* Students Grid */}
-      {filteredStudents.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading students...</span>
+          </div>
+        </div>
+      ) : filteredStudents.length === 0 ? (
         <div className="text-center py-12">
           <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
