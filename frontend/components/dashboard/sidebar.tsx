@@ -138,6 +138,165 @@ export default function Sidebar() {
     )
   }
 
+  function PendingQuizzesNavItem({
+    href,
+    icon: Icon,
+    children,
+  }: {
+    href: string
+    icon: any
+    children: React.ReactNode
+  }) {
+    const [pendingCount, setPendingCount] = useState<number | undefined>(undefined)
+    const { currentUser } = useUser();
+
+    useEffect(() => {
+      let isMounted = true;
+      fetch("http://localhost:4000/api/pending-quizzes?status=pending")
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted) {
+            if (Array.isArray(data.quizzes)) {
+              const count = data.quizzes.filter((q: any) => q.status === "pending").length;
+              setPendingCount(count)
+            } else {
+              setPendingCount(0)
+            }
+          }
+        })
+        .catch(() => {
+          if (isMounted) setPendingCount(undefined)
+        })
+      return () => { isMounted = false }
+    }, [currentUser])
+
+    return (
+      <Link
+        href={href}
+        onClick={handleNavigation}
+        className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors`}
+      >
+        <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
+        <span className="flex items-center gap-2">
+          {children}
+          {pendingCount !== undefined && pendingCount > 0 && (
+            <span className="inline-flex items-center justify-center bg-red-500 text-white rounded-full min-w-[20px] h-5 text-xs font-bold ml-2">
+              {pendingCount}
+            </span>
+          )}
+        </span>
+      </Link>
+    )
+  }
+
+  function PendingFlashcardsNavItem({
+    href,
+    icon: Icon,
+    children,
+  }: {
+    href: string
+    icon: any
+    children: React.ReactNode
+  }) {
+    const [pendingCount, setPendingCount] = useState<number | undefined>(undefined)
+    const { currentUser } = useUser();
+
+    useEffect(() => {
+      let isMounted = true;
+      fetch("http://localhost:4000/api/pending-flashcards?status=pending")
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted) {
+            if (Array.isArray(data.flashcards)) {
+              // Group flashcards by sub_id and count unique groups
+              const subIdGroups = new Set();
+              data.flashcards.forEach((f: any) => {
+                if (f.status === "pending") {
+                  subIdGroups.add(f.sub_id);
+                }
+              });
+              setPendingCount(subIdGroups.size)
+            } else {
+              setPendingCount(0)
+            }
+          }
+        })
+        .catch(() => {
+          if (isMounted) setPendingCount(undefined)
+        })
+      return () => { isMounted = false }
+    }, [currentUser])
+
+    return (
+      <Link
+        href={href}
+        onClick={handleNavigation}
+        className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors`}
+      >
+        <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
+        <span className="flex items-center gap-2">
+          {children}
+          {pendingCount !== undefined && pendingCount > 0 && (
+            <span className="inline-flex items-center justify-center bg-red-500 text-white rounded-full min-w-[20px] h-5 text-xs font-bold ml-2">
+              {pendingCount}
+            </span>
+          )}
+        </span>
+      </Link>
+    )
+  }
+
+  function PendingPostTestsNavItem({
+    href,
+    icon: Icon,
+    children,
+  }: {
+    href: string
+    icon: any
+    children: React.ReactNode
+  }) {
+    const [pendingCount, setPendingCount] = useState<number | undefined>(undefined)
+    const { currentUser } = useUser();
+
+    useEffect(() => {
+      let isMounted = true;
+      fetch("http://localhost:4000/api/pending-post-tests?status=pending")
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted) {
+            if (Array.isArray(data.postTests)) {
+              const count = data.postTests.filter((p: any) => p.status === "pending").length;
+              setPendingCount(count)
+            } else {
+              setPendingCount(0)
+            }
+          }
+        })
+        .catch(() => {
+          if (isMounted) setPendingCount(undefined)
+        })
+      return () => { isMounted = false }
+    }, [currentUser])
+
+    return (
+      <Link
+        href={href}
+        onClick={handleNavigation}
+        className={`flex items-center px-3 py-2 text-sm rounded-md transition-colors`}
+      >
+        <Icon className="h-4 w-4 mr-3 flex-shrink-0" />
+        <span className="flex items-center gap-2">
+          {children}
+          {pendingCount !== undefined && pendingCount > 0 && (
+            <span className="inline-flex items-center justify-center bg-red-500 text-white rounded-full min-w-[20px] h-5 text-xs font-bold ml-2">
+              {pendingCount}
+            </span>
+          )}
+        </span>
+      </Link>
+    )
+  }
+
   function TutorSessionNavItem({
     href,
     icon: Icon,
@@ -413,19 +572,19 @@ export default function Sidebar() {
                             </PendingMaterialsNavItem>
                           )}
                           {userRole === "faculty" && (
-                            <NavItem href="/pending-quizzes" icon={Brain}>
+                            <PendingQuizzesNavItem href="/pending-quizzes" icon={Brain}>
                               Pending Quizzes
-                            </NavItem>
+                            </PendingQuizzesNavItem>
                           )}
                           {userRole === "faculty" && (
-                            <NavItem href="/pending-flashcards" icon={Layers}>
+                            <PendingFlashcardsNavItem href="/pending-flashcards" icon={Layers}>
                               Pending Flashcards
-                            </NavItem>
+                            </PendingFlashcardsNavItem>
                           )}
                           {userRole === "faculty" && (
-                            <NavItem href="/pending-post-tests" icon={FileText}>
+                            <PendingPostTestsNavItem href="/pending-post-tests" icon={FileText}>
                               Pending Post-Tests
-                            </NavItem>
+                            </PendingPostTestsNavItem>
                           )}
                           {userRole === "faculty" && (
                             <NavItem href="/tutors-pre-assessment" icon={Target}>
