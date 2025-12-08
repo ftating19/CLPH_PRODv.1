@@ -990,7 +990,7 @@ export default function StudentMatching() {
       
       if (data.success) {
         setStudents(data.students || [])
-        // Don't set filteredStudents here - let the filtering useEffect handle it
+        setFilteredStudents(data.students || [])
       } else {
         throw new Error('Failed to fetch students')
       }
@@ -998,7 +998,7 @@ export default function StudentMatching() {
       console.error('Error fetching students:', err)
       setError('Failed to load students. Please try again later.')
       setStudents([])
-      // Don't set filteredStudents here - let the filtering useEffect handle it
+      setFilteredStudents([])
     } finally {
       setLoading(false)
     }
