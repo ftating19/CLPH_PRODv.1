@@ -944,7 +944,7 @@ export default function StudentMatching() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 9
   
-  const { currentUser } = useUser()
+  const { currentUser, isLoading: userLoading } = useUser()
   const { toast } = useToast()
 
   // Get user role from context, default to 'student' if not available
@@ -990,7 +990,7 @@ export default function StudentMatching() {
       
       if (data.success) {
         setStudents(data.students || [])
-        setFilteredStudents(data.students || [])
+        // Don't set filteredStudents here - let the filtering effect handle it
       } else {
         throw new Error('Failed to fetch students')
       }
@@ -1007,7 +1007,7 @@ export default function StudentMatching() {
   // Fetch tutor profile (to get subject) and then fetch assessments for students if current user is a tutor
   useEffect(() => {
     const loadTutorAndAssessments = async () => {
-      if (!currentUser || (currentUser.role || '').toLowerCase() !== 'tutor') return;
+      if (userLoading || !currentUser || (currentUser.role || '').toLowerCase() !== 'tutor') return;
 
       try {
         // Get tutor record for current user
@@ -1074,14 +1074,36 @@ export default function StudentMatching() {
     }
 
     loadTutorAndAssessments()
-  }, [currentUser, students])
+  }, [currentUser, students, userLoading])
 
   useEffect(() => {
     fetchStudents()
   }, [])
 
+  // Initialize filteredStudents when students load and user data is ready
+  useEffect(() => {
+    if (!userLoading && students.length > 0 && filteredStudents.length === 0) {
+      // Initial load - apply filtering immediately
+      setFilteredStudents(students)
+    }
+  }, [students, userLoading, filteredStudents.length])
+
   // Filter students based on search and program filter
   useEffect(() => {
+    // Don't filter while user data is still loading
+    if (userLoading) {
+      console.log('Filtering skipped - user still loading')
+      return
+    }
+    
+    console.log('Filtering students:', {
+      students: students.length,
+      userRole,
+      userProgram,
+      searchTerm,
+      programFilter
+    })
+    
     let filtered = students
 
     // Program-based access control
@@ -1110,11 +1132,11 @@ export default function StudentMatching() {
     }
 
     setFilteredStudents(filtered)
-  }, [searchTerm, programFilter, students, userRole, userProgram])
+  }, [searchTerm, programFilter, students, userRole, userProgram, userLoading])
 
   // Sort filteredStudents so that, for tutors, students who need help in the tutor's subject appear first
   useEffect(() => {
-    if (!currentUser || (currentUser.role || '').toLowerCase() !== 'tutor') return
+    if (userLoading || !currentUser || (currentUser.role || '').toLowerCase() !== 'tutor') return
 
     // Try to determine tutor's subject from tutors API
     const sortForTutor = async () => {
@@ -1145,7 +1167,7 @@ export default function StudentMatching() {
     }
 
     sortForTutor()
-  }, [currentUser, studentAssessmentMap])
+  }, [currentUser, studentAssessmentMap, userLoading])
 
   // Get unique programs for filter - only for admins
   const programs = userRole === "admin" ? allPrograms : []
@@ -1337,12 +1359,12 @@ export default function StudentMatching() {
     </Card>
   )
 
-  if (loading) {
+  if (loading || userLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center space-x-2">
           <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading students...</span>
+          <span>{userLoading ? "Loading user data..." : "Loading students..."}</span>
         </div>
       </div>
     )
@@ -1457,7 +1479,7 @@ export default function StudentMatching() {
       </div>
 
       {/* Students Grid */}
-      {filteredStudents.length === 0 ? (
+      {filteredStudents.length === 0 && !userLoading ? (
         <div className="text-center py-12">
           <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
