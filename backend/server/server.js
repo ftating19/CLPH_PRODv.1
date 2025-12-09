@@ -1,6 +1,7 @@
 const express = require('express')
 const cors = require('cors')
-require('dotenv').config()
+const path = require('path')
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 
 // ...imports only, no app initialization or routes here...
 
@@ -266,7 +267,6 @@ const {
 } = require('../queries/pendingPostTestQuestions')
 
 const multer = require('multer')
-const path = require('path')
 const fs = require('fs')
 
 const app = express()
