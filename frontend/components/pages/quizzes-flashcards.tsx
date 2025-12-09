@@ -413,7 +413,7 @@ export default function QuizzesFlashcards() {
                       <p className="text-lg font-medium mb-2">
                         {showAnswer ? sampleFlashcards[currentCard].back : sampleFlashcards[currentCard].front}
                       </p>
-                      <p className="text-sm text-gray-500">{showAnswer ? "Definition" : "Click to reveal answer"}</p>
+                      <p className="text-sm text-gray-500">{showAnswer ? <><span className="text-green-600 bg-green-100 px-2 py-1 rounded font-semibold">Definition</span></> : "Click to reveal answer"}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
@@ -422,7 +422,7 @@ export default function QuizzesFlashcards() {
                       Previous
                     </Button>
                     <Button onClick={() => setShowAnswer(!showAnswer)}>
-                      {showAnswer ? "Show Question" : "Show Answer"}
+                      {showAnswer ? <><span className="text-blue-600 font-semibold">Show Question</span></> : <><span className="text-green-600 font-semibold">Show Answer</span></>}
                     </Button>
                     <Button variant="outline" onClick={nextCard} disabled={currentCard === sampleFlashcards.length - 1}>
                       Next

@@ -490,12 +490,12 @@ export default function PendingFlashcards() {
                                 </Label>
                               </div>
                               <div>
-                                <Label className="text-xs text-muted-foreground">Question</Label>
-                                <p className="text-sm font-medium">{card.question}</p>
+                                <Label className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded inline-block">Question</Label>
+                                <p className="text-sm font-medium mt-1">{card.question}</p>
                               </div>
                               <div>
-                                <Label className="text-xs text-muted-foreground">Answer</Label>
-                                <p className="text-sm">{card.answer}</p>
+                                <Label className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-1 rounded inline-block">Answer</Label>
+                                <p className="text-sm mt-1">{card.answer}</p>
                               </div>
                             </div>
                           </CardContent>
@@ -507,12 +507,12 @@ export default function PendingFlashcards() {
                       <CardContent className="pt-4">
                         <div className="space-y-3">
                           <div>
-                            <Label className="text-xs text-muted-foreground">Question</Label>
-                            <p className="text-sm font-medium">{currentFlashcard.question}</p>
+                            <Label className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded inline-block">Question</Label>
+                            <p className="text-sm font-medium mt-1">{currentFlashcard.question}</p>
                           </div>
                           <div>
-                            <Label className="text-xs text-muted-foreground">Answer</Label>
-                            <p className="text-sm">{currentFlashcard.answer}</p>
+                            <Label className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-1 rounded inline-block">Answer</Label>
+                            <p className="text-sm mt-1">{currentFlashcard.answer}</p>
                           </div>
                         </div>
                       </CardContent>

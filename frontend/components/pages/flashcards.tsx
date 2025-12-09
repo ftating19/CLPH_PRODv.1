@@ -1334,8 +1334,8 @@ export default function Flashcards() {
           >
             <CardContent className="flex items-center justify-center h-full p-8">
               <div className="text-center space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  {isFlipped ? "Answer" : "Question"}
+                <div className="text-sm font-semibold">
+                  {isFlipped ? <span className="text-green-600 bg-green-100 px-3 py-1 rounded-full">Answer</span> : <span className="text-blue-600 bg-blue-100 px-3 py-1 rounded-full">Question</span>}
                 </div>
                 <div className="text-xl font-medium">
                   {isFlipped ? currentCard.back : currentCard.front}
@@ -1707,12 +1707,12 @@ export default function Flashcards() {
                     </div>
                     <div className="space-y-2">
                       <div>
-                        <Label className="text-sm font-medium">Question:</Label>
-                        <p className="text-sm">{flashcard.question}</p>
+                        <Label className="text-sm font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded inline-block">Question:</Label>
+                        <p className="text-sm mt-1">{flashcard.question}</p>
                       </div>
                       <div>
-                        <Label className="text-sm font-medium">Answer:</Label>
-                        <p className="text-sm">{flashcard.answer}</p>
+                        <Label className="text-sm font-semibold text-green-600 bg-green-100 px-2 py-1 rounded inline-block">Answer:</Label>
+                        <p className="text-sm mt-1">{flashcard.answer}</p>
                       </div>
                     </div>
                     
@@ -1924,7 +1924,7 @@ export default function Flashcards() {
                 </Popover>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="question">Question</Label>
+                <Label htmlFor="question" className="font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded inline-block">Question</Label>
                 <Textarea 
                   id="question" 
                   placeholder="Enter the question" 
@@ -1933,7 +1933,7 @@ export default function Flashcards() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="answer">Answer</Label>
+                <Label htmlFor="answer" className="font-semibold text-green-600 bg-green-100 px-2 py-1 rounded inline-block">Answer</Label>
                 <Textarea 
                   id="answer" 
                   placeholder="Enter the answer" 
@@ -2100,7 +2100,7 @@ export default function Flashcards() {
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label>Question</Label>
+                          <Label className="font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded inline-block">Question</Label>
                           <Textarea 
                             placeholder="Enter the question..."
                             value={question}
@@ -2109,7 +2109,7 @@ export default function Flashcards() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Answer</Label>
+                          <Label className="font-semibold text-green-600 bg-green-100 px-2 py-1 rounded inline-block">Answer</Label>
                           <Textarea 
                             placeholder="Enter the answer..."
                             value={answer}
