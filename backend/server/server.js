@@ -3993,12 +3993,24 @@ app.get('/api/tutor-pre-assessment-questions/pre-assessment/:preAssessmentId', a
     const pool = await db.getPool();
     const questions = await getTutorPreAssessmentQuestions(pool, parseInt(preAssessmentId));
     
-    console.log(`✅ Found ${questions.length} questions for tutor pre-assessment`);
+    // Shuffle questions for randomization
+    const shuffleArray = (array) => {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    };
+    
+    const shuffledQuestions = shuffleArray(questions);
+    
+    console.log(`✅ Found ${shuffledQuestions.length} questions for tutor pre-assessment (shuffled)`);
     
     res.json({
       success: true,
-      questions: questions,
-      total: questions.length
+      questions: shuffledQuestions,
+      total: shuffledQuestions.length
     });
   } catch (err) {
     console.error('Error fetching tutor pre-assessment questions:', err);

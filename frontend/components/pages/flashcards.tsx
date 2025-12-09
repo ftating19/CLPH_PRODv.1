@@ -1307,16 +1307,11 @@ export default function Flashcards() {
               Back to Sets
             </Button>
             <div className="text-center">
-              <h2 className="text-xl font-semibold">{selectedSet.title}</h2>
               <p className="text-sm text-muted-foreground">
                 Card {currentCardIndex + 1} of {selectedSet.cards.length}
                 {isCompleted && <span className="ml-2 text-green-600 font-medium">✓ Completed</span>}
               </p>
             </div>
-            <Button variant="outline" onClick={() => setIsFlipped(false)}>
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Reset
-            </Button>
           </div>
 
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -1362,18 +1357,6 @@ export default function Flashcards() {
               <ChevronLeft className="w-4 h-4 mr-2" />
               Previous
             </Button>
-            
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm">
-                Hard
-              </Button>
-              <Button variant="outline" size="sm">
-                Good
-              </Button>
-              <Button variant="outline" size="sm">
-                Easy
-              </Button>
-            </div>
 
             <Button 
               onClick={handleNextOrComplete}
