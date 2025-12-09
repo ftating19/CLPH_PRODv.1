@@ -271,14 +271,14 @@ const fs = require('fs')
 
 const app = express()
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '250mb' })) // Increased limit for file uploads
 // Also accept URL-encoded form data (helps some clients/tools)
-app.use(express.urlencoded({ extended: true }))
+app.use(express.urlencoded({ extended: true, limit: '250mb' }))
 
 // Add a fallback middleware to parse raw body if needed
 const bodyParser = require('body-parser');
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }))
+app.use(bodyParser.json({ limit: '250mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '250mb' }))
 
 // Ensure middleware is applied globally
 app.use((req, res, next) => {
@@ -2297,7 +2297,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 200 * 1024 * 1024 // 200MB limit - higher limit since materials are reviewed by faculty
   }
 });
 

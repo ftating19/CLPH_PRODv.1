@@ -165,9 +165,9 @@ export default function LearningResources() {
         return
       }
       
-      // Validate file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB!')
+      // Validate file size (200MB limit)
+      if (file.size > 200 * 1024 * 1024) {
+        alert('File size must be less than 200MB!')
         e.target.value = ''
         return
       }
@@ -737,7 +737,7 @@ export default function LearningResources() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Maximum file size: 10MB. Only PDF files are allowed.
+                  Maximum file size: 200MB. Only PDF files are allowed. All uploads are reviewed by faculty.
                 </p>
                 {uploadForm.file && (
                   <div className="flex items-center justify-between p-2 bg-muted rounded">
