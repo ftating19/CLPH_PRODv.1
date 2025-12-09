@@ -6,7 +6,7 @@ require('dotenv').config({ path: '../.env' })
 
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
-const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, sendFacultyTutorNotificationEmail, sendFacultyNewApplicationNotificationEmail, sendQuizApprovalEmail, sendFlashcardApprovalEmail, sendRatingReminderEmail, testEmailConnection } = require('../services/emailService')
+const { generateTemporaryPassword, sendWelcomeEmail, sendTutorApprovalEmail, sendTutorRejectionEmail, sendMaterialApprovalEmail, sendMaterialRejectionEmail, sendPostTestApprovalEmailToTutor, sendPostTestApprovalEmailToStudent, sendPostTestAssignmentEmail, sendPostTestAssignmentEmailToCoTutor, sendFacultyTutorNotificationEmail, sendFacultyNewApplicationNotificationEmail, sendQuizApprovalEmail, sendFlashcardApprovalEmail, sendRatingReminderEmail, testEmailConnection } = require('../services/emailService')
 const { 
   getAllSubjects, 
   getSubjectById, 
@@ -8655,6 +8655,67 @@ app.post('/api/post-tests', async (req, res) => {
     
     console.log(`✅ Pending post-test created with ID: ${pendingPostTest.pending_post_test_id}`);
     
+    // Send initial notification to student (pending approval)
+    try {
+      const [tutorRows] = await pool.query(`
+        SELECT first_name, last_name FROM users WHERE user_id = ?
+      `, [tutor_id]);
+      
+      const [studentRows] = await pool.query(`
+        SELECT first_name, last_name, email FROM users WHERE user_id = ?
+      `, [student_id]);
+      
+      const tutor = tutorRows[0];
+      const student = studentRows[0];
+      
+      if (tutor && student) {
+        // Send a pending approval notification
+        const transporter = require('nodemailer').createTransporter({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: process.env.SMTP_PORT || 587,
+          secure: false,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+        
+        const mailOptions = {
+          from: `"CPLH Platform" <${process.env.SMTP_USER}>`,
+          to: student.email,
+          subject: 'Post-Test Created - Awaiting Faculty Approval',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h1>📝 Post-Test Created</h1>
+                <p>Awaiting Faculty Approval</p>
+              </div>
+              
+              <div style="background: white; padding: 25px; border: 1px solid #ddd; border-radius: 8px;">
+                <p>Hello <strong>${student.first_name} ${student.last_name}</strong>,</p>
+                
+                <p>Your tutor <strong>${tutor.first_name} ${tutor.last_name}</strong> has created a post-test titled "<strong>${title}</strong>" for you.</p>
+                
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 15px; margin: 20px 0;">
+                  <p style="margin: 0; color: #856404;"><strong>⏳ Status:</strong> This test is currently awaiting faculty approval.</p>
+                </div>
+                
+                <p>You will receive another notification once the test is approved and ready for you to take.</p>
+                
+                <p>Best regards,<br><strong>CPLH Platform</strong></p>
+              </div>
+            </div>
+          `
+        };
+        
+        await transporter.sendMail(mailOptions);
+        console.log(`✅ Pending post-test notification sent to ${student.email}`);
+      }
+    } catch (emailError) {
+      console.error('Error sending pending post-test notification:', emailError);
+      // Don't fail the creation if email fails
+    }
+    
     res.status(201).json({
       success: true,
       message: 'Post-test submitted for faculty review',
@@ -9230,6 +9291,21 @@ app.post('/api/post-test-templates/:templateId/assign', async (req, res) => {
     const templateId = parseInt(req.params.templateId);
     const { student_ids, booking_ids, assigned_by, due_date } = req.body;
     const postTestTemplates = require('../queries/postTestTemplates');
+    const pool = await db.getPool();
+    
+    // Get template details for email
+    const [templateRows] = await pool.query(`
+      SELECT title, subject_name, tutor_id,
+             CONCAT(u.first_name, ' ', u.last_name) as tutor_name
+      FROM post_test_templates ptt
+      LEFT JOIN users u ON ptt.tutor_id = u.user_id
+      WHERE ptt.template_id = ?
+    `, [templateId]);
+    
+    const template = templateRows[0];
+    if (!template) {
+      return res.status(404).json({ success: false, error: 'Template not found' });
+    }
     
     // Create assignment array
     const assignments = student_ids.map((studentId, index) => ({
@@ -9241,6 +9317,72 @@ app.post('/api/post-test-templates/:templateId/assign', async (req, res) => {
     }));
     
     const result = await postTestTemplates.assignTemplate(assignments);
+    
+    // Send email notifications to students
+    try {
+      for (let i = 0; i < student_ids.length; i++) {
+        const studentId = student_ids[i];
+        
+        // Get student details
+        const [studentRows] = await pool.query(`
+          SELECT first_name, last_name, email FROM users WHERE user_id = ?
+        `, [studentId]);
+        
+        const student = studentRows[0];
+        if (student) {
+          await sendPostTestAssignmentEmail(
+            student.email,
+            `${student.first_name} ${student.last_name}`,
+            template.tutor_name,
+            template.title,
+            template.subject_name,
+            due_date
+          );
+          console.log(`✅ Assignment email sent to ${student.email}`);
+        }
+      }
+      
+      // Send notifications to co-tutors (other tutors in the same bookings)
+      for (let i = 0; i < booking_ids.length; i++) {
+        const bookingId = booking_ids[i];
+        const studentId = student_ids[i];
+        
+        // Get co-tutors for this booking (tutors who are not the assigner)
+        const [coTutorRows] = await pool.query(`
+          SELECT DISTINCT u.user_id, u.first_name, u.last_name, u.email
+          FROM bookings b
+          INNER JOIN users u ON (
+            u.user_id IN (
+              SELECT tutor_id FROM bookings WHERE user_id = b.user_id AND subject_id = b.subject_id
+            )
+          )
+          WHERE b.booking_id = ? AND u.user_id != ? AND u.role IN ('Tutor', 'Faculty')
+        `, [bookingId, assigned_by]);
+        
+        // Get student name for co-tutor notification
+        const [studentRows] = await pool.query(`
+          SELECT first_name, last_name FROM users WHERE user_id = ?
+        `, [studentId]);
+        
+        const student = studentRows[0];
+        
+        for (const coTutor of coTutorRows) {
+          await sendPostTestAssignmentEmailToCoTutor(
+            coTutor.email,
+            `${coTutor.first_name} ${coTutor.last_name}`,
+            template.tutor_name,
+            template.title,
+            template.subject_name,
+            `${student.first_name} ${student.last_name}`,
+            due_date
+          );
+          console.log(`✅ Co-tutor notification sent to ${coTutor.email}`);
+        }
+      }
+    } catch (emailError) {
+      console.error('Error sending assignment notification emails:', emailError);
+      // Don't fail the assignment if emails fail
+    }
     
     res.json({
       success: true,

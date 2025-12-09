@@ -1173,6 +1173,156 @@ const sendRatingReminderEmail = async (studentEmail, studentName, tutorName, ses
   }
 };
 
+// Send post-test assignment notification to student
+const sendPostTestAssignmentEmail = async (studentEmail, studentName, tutorName, postTestTitle, subjectName, dueDate = null) => {
+  try {
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: `"CPLH Platform" <${process.env.SMTP_USER}>`,
+      to: studentEmail,
+      subject: 'New Post-Test Assigned - Action Required',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Post-Test Assigned</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+            .container { background: #f9f9f9; padding: 30px; border-radius: 10px; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+            .content { background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px; }
+            .highlight { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin: 20px 0; border-radius: 4px; }
+            .btn { display: inline-block; background: #667eea; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+            .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>📝 New Post-Test Assigned</h1>
+              <p>Assessment Notification</p>
+            </div>
+            
+            <div class="content">
+              <p>Hello <strong>${studentName}</strong>,</p>
+              
+              <p>You have been assigned a new post-test by your tutor <strong>${tutorName}</strong>.</p>
+              
+              <div class="highlight">
+                <h3>📚 Assignment Details:</h3>
+                <p><strong>Test Title:</strong> ${postTestTitle}</p>
+                <p><strong>Subject:</strong> ${subjectName}</p>
+                <p><strong>Assigned by:</strong> ${tutorName}</p>
+                ${dueDate ? `<p><strong>Due Date:</strong> ${new Date(dueDate).toLocaleDateString()}</p>` : ''}
+              </div>
+              
+              <div class="highlight">
+                <p><strong>🎯 How to take the test:</strong></p>
+                <ol>
+                  <li>Go to your Sessions page</li>
+                  <li>Look for the "Take Post-Test" button</li>
+                  <li>Complete the assessment when you're ready</li>
+                </ol>
+              </div>
+              
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/sessions" class="btn">Go to Sessions</a>
+              
+              <p>Please complete this assessment as assigned by your tutor. If you have any questions, feel free to contact your tutor directly.</p>
+              
+              <div class="footer">
+                <p>This is an automated message from the CPLH Platform</p>
+                <p>If you need help, please contact your tutor or administrator</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Post-test assignment email sent to student:', result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Error sending post-test assignment email to student:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Send post-test assignment notification to co-tutor
+const sendPostTestAssignmentEmailToCoTutor = async (coTutorEmail, coTutorName, assignerName, postTestTitle, subjectName, studentName, dueDate = null) => {
+  try {
+    const transporter = createTransporter();
+    
+    const mailOptions = {
+      from: `"CPLH Platform" <${process.env.SMTP_USER}>`,
+      to: coTutorEmail,
+      subject: 'Post-Test Assignment Notification - Co-Tutor Update',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Post-Test Assignment Notification</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+            .container { background: #f9f9f9; padding: 30px; border-radius: 10px; }
+            .header { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; text-align: center; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+            .content { background: white; padding: 25px; border-radius: 8px; margin-bottom: 20px; }
+            .highlight { background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; border-radius: 4px; }
+            .btn { display: inline-block; background: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+            .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>👥 Post-Test Assignment Update</h1>
+              <p>Co-Tutor Notification</p>
+            </div>
+            
+            <div class="content">
+              <p>Hello <strong>${coTutorName}</strong>,</p>
+              
+              <p>Your colleague <strong>${assignerName}</strong> has assigned a post-test to a shared student.</p>
+              
+              <div class="highlight">
+                <h3>📚 Assignment Details:</h3>
+                <p><strong>Test Title:</strong> ${postTestTitle}</p>
+                <p><strong>Subject:</strong> ${subjectName}</p>
+                <p><strong>Student:</strong> ${studentName}</p>
+                <p><strong>Assigned by:</strong> ${assignerName}</p>
+                ${dueDate ? `<p><strong>Due Date:</strong> ${new Date(dueDate).toLocaleDateString()}</p>` : ''}
+              </div>
+              
+              <p>This notification is for your awareness as a co-tutor. The student will receive the assessment notification directly.</p>
+              
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/sessions/manage-post-test" class="btn">View Post-Tests</a>
+              
+              <div class="footer">
+                <p>This is an automated message from the CPLH Platform</p>
+                <p>If you have any questions, please contact the assigning tutor</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('Post-test assignment email sent to co-tutor:', result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('Error sending post-test assignment email to co-tutor:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   generateTemporaryPassword,
   sendWelcomeEmail,
@@ -1182,6 +1332,8 @@ module.exports = {
   sendMaterialRejectionEmail,
   sendPostTestApprovalEmailToTutor,
   sendPostTestApprovalEmailToStudent,
+  sendPostTestAssignmentEmail,
+  sendPostTestAssignmentEmailToCoTutor,
   sendFacultyTutorNotificationEmail,
   sendFacultyNewApplicationNotificationEmail,
   sendQuizApprovalEmail,
