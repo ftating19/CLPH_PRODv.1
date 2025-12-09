@@ -1,6 +1,6 @@
 const express = require('express')
 const cors = require('cors')
-require('dotenv').config({ path: '../.env' })
+require('dotenv').config()
 
 // ...imports only, no app initialization or routes here...
 
