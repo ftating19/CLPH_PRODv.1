@@ -260,7 +260,7 @@ export default function Flashcards() {
     const matchesSubject = selectedSubjectFilter === "all" || flashcard.subject_name === selectedSubjectFilter
 
     // Difficulty filter (assuming difficulty is available, otherwise always match)
-    const matchesDifficulty = selectedDifficultyFilter === "all" || (flashcard.difficulty || "Mixed") === selectedDifficultyFilter
+    const matchesDifficulty = selectedDifficultyFilter === "all" || (flashcard.difficulty || "Beginner") === selectedDifficultyFilter
 
     // Program filter - for students, automatically filter by their program
     let matchesProgram = true
@@ -332,7 +332,7 @@ export default function Flashcards() {
       created_by: firstCard.created_by,
       cardCount: cards.length,
       description: cards.length > 1 ? `${cards.length} flashcards in this set` : firstCard.answer?.substring(0, 80) + (firstCard.answer?.length > 80 ? '...' : ''),
-      difficulty: firstCard.difficulty || "Mixed",
+      difficulty: firstCard.difficulty || "Beginner",
       lastStudied: firstCard.completed_at || firstCard.created_at || new Date().toISOString().split('T')[0],
       progress: progress,
       completedCards: completedCards,
