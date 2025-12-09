@@ -1196,7 +1196,7 @@ export default function StudentMatching() {
 
   const StudentCard = ({ student }: { student: Student }) => (
     <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200">
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-3 p-4">
         <div className="flex items-start space-x-4">
           <Avatar className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0">
             <AvatarFallback className="text-sm sm:text-lg font-semibold bg-blue-100 text-blue-600">
@@ -1219,7 +1219,7 @@ export default function StudentMatching() {
 
                   if (subjId == null) {
                     return (
-                      <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
+                      <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-[10px] sm:text-xs px-1 sm:px-2">
                         No Subject
                       </Badge>
                     )
@@ -1227,7 +1227,7 @@ export default function StudentMatching() {
 
                   if (pct === null || pct === undefined) {
                     return (
-                      <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
+                      <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-[10px] sm:text-xs px-1 sm:px-2">
                         No Assessment
                       </Badge>
                     )
@@ -1235,7 +1235,7 @@ export default function StudentMatching() {
 
                   if (typeof pct === 'number' && pct < 82.5) {
                     return (
-                      <Badge variant="default" className="bg-green-600 text-xs">
+                      <Badge variant="default" className="bg-green-600 text-[10px] sm:text-xs px-1 sm:px-2">
                         Recommended
                       </Badge>
                     )
@@ -1243,7 +1243,7 @@ export default function StudentMatching() {
 
                   if (typeof pct === 'number' && pct < 90) {
                     return (
-                      <Badge variant="outline" className="bg-amber-100 border-amber-300 text-amber-800 text-xs">
+                      <Badge variant="outline" className="bg-amber-100 border-amber-300 text-amber-800 text-[10px] sm:text-xs px-1 sm:px-2">
                         Suggested
                       </Badge>
                     )
@@ -1252,7 +1252,7 @@ export default function StudentMatching() {
                   return null
                 })()}
 
-                <Badge variant="default" className="ml-2 bg-green-600">
+                <Badge variant="default" className="bg-green-600 text-[10px] sm:text-xs px-1 sm:px-2">
                   Active Student
                 </Badge>
               </div>
@@ -1298,54 +1298,44 @@ export default function StudentMatching() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Email Information */}
+      <CardContent className="space-y-3">
+        {/* Compact Info */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Contact Email</Label>
           <div className="flex items-center space-x-2 min-w-0">
-            <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-sm truncate min-w-0">{student.email}</span>
+            <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+            <span className="text-xs truncate min-w-0">{student.email}</span>
           </div>
-        </div>
-
-        {/* Program */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Academic Program</Label>
-          <div className="flex items-center space-x-2 min-w-0">
-            <GraduationCap className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-sm break-words">{student.program}</span>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary" className="text-xs px-2 py-1">
+              {student.program}
+            </Badge>
+            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 px-2 py-1">
+              {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
+            </Badge>
           </div>
-        </div>
-
-        {/* Student Status */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Status</Label>
-          <Badge variant="outline" className="text-sm bg-green-50 text-green-700 border-green-200">
-            {student.status.charAt(0).toUpperCase() + student.status.slice(1)} Student
-          </Badge>
         </div>
 
         <div className="pt-4 border-t">
-          <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+          <div className="flex flex-col lg:flex-row gap-2 lg:gap-3 lg:justify-end">
             <Button 
               size="sm" 
               variant="outline" 
-              className="w-full sm:w-auto"
+              className="w-full lg:w-auto text-xs px-2 py-1"
               onClick={() => {
                 setSelectedStudent(student)
                 setShowProfileModal(true)
               }}
             >
-              View Profile
+              Profile
             </Button>
             {currentUser?.role?.toLowerCase() === 'tutor' && (
               <Button 
                 size="sm" 
-                className="bg-green-600 hover:bg-green-700 w-full sm:w-auto" 
+                className="bg-green-600 hover:bg-green-700 w-full lg:w-auto text-xs px-2 py-1" 
                 onClick={() => handleBookStudent(student)}
               >
-                <Calendar className="w-4 h-4 mr-2" />
-                Book Student
+                <Calendar className="w-3 h-3 mr-1" />
+                Book
               </Button>
             )}
             <Button 
@@ -1496,7 +1486,7 @@ export default function StudentMatching() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-6">
             {paginatedStudents.map((student) => (
               <StudentCard key={student.user_id} student={student} />
             ))}

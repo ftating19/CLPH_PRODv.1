@@ -445,10 +445,12 @@ export default function TutorMatching() {
                 {getInitials(tutor.name)}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <CardTitle className="text-xl">{tutor.name || 'Name not provided'}</CardTitle>
-                <div className="flex gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-lg sm:text-xl break-words">{tutor.name || 'Name not provided'}</CardTitle>
+                </div>
+                <div className="flex gap-1 sm:gap-2 flex-wrap flex-shrink-0">
                   {isFiveStar && (
                     <Badge variant="default" className="bg-green-600 hover:bg-green-700">
                       Recommended
@@ -467,133 +469,80 @@ export default function TutorMatching() {
             <CardDescription className="text-base mt-1">
               {tutor.program || 'Program not specified'}
             </CardDescription>
-            <div className="flex items-center space-x-4 mt-2">
-              {/* <div className="flex items-center text-sm text-muted-foreground">
-                <User className="w-4 h-4 mr-1" />
-                ID: {tutor.user_id || 'N/A'}
-              </div> */}
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="w-4 h-4 mr-1" />
-                Since: {tutor.application_date ? new Date(tutor.application_date).toLocaleDateString() : 'Date not available'}
+            <div className="flex flex-col gap-1 mt-2">
+              <div className="flex items-center text-xs text-muted-foreground">
+                <Calendar className="w-3 h-3 mr-1" />
+                Since: {tutor.application_date ? new Date(tutor.application_date).toLocaleDateString() : 'N/A'}
               </div>
-              {/* Tutor Rating Display - Modern, Animated, Partial Stars, Tooltip */}
+              {/* Tutor Rating Display - Compact */}
               <div
-                className="flex items-center text-sm font-semibold group relative"
+                className="flex items-center text-xs font-medium group relative"
                 title={tutor.ratings ? `Rated ${tutor.ratings} out of 5` : 'No ratings yet'}
               >
-                <span className="mr-1 text-yellow-700">Rating:</span>
-                <div className="flex items-center">
-                  {(() => {
-                    const ratingValue = typeof tutor.ratings === 'string' ? parseFloat(tutor.ratings) : tutor.ratings || 0;
-                    const fullStars = Math.floor(ratingValue);
-                    const hasHalfStar = ratingValue - fullStars >= 0.25 && ratingValue - fullStars < 0.75;
-                    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-                    const stars = [];
-                    for (let i = 0; i < fullStars; i++) {
-                      stars.push(
-                        <span key={"full"+i} className="w-5 h-5 mr-0.5 text-yellow-500 group-hover:scale-110 transition-transform duration-200">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" strokeWidth="1.5" className="w-full h-full">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.97a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.97c.3.921-.755 1.688-1.54 1.118l-3.38-2.455a1 1 0 00-1.175 0l-3.38 2.455c-.784.57-1.838-.197-1.539-1.118l1.287-3.97a1 1 0 00-.364-1.118L2.049 9.397c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.97z"/>
-                          </svg>
-                        </span>
-                      );
-                    }
-                    if (hasHalfStar) {
-                      stars.push(
-                        <span key="half" className="w-5 h-5 mr-0.5 text-yellow-500 group-hover:scale-110 transition-transform duration-200">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" className="w-full h-full">
-                            <defs>
-                              <linearGradient id="halfStar" x1="0" x2="1" y1="0" y2="0">
-                                <stop offset="50%" stopColor="#facc15" />
-                                <stop offset="50%" stopColor="#e5e7eb" />
-                              </linearGradient>
-                            </defs>
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.97a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.97c.3.921-.755 1.688-1.54 1.118l-3.38-2.455a1 1 0 00-1.175 0l-3.38 2.455c-.784.57-1.838-.197-1.539-1.118l1.287-3.97a1 1 0 00-.364-1.118L2.049 9.397c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.97z" fill="url(#halfStar)" stroke="#facc15" strokeWidth="1.5"/>
-                          </svg>
-                        </span>
-                      );
-                    }
-                    for (let i = 0; i < emptyStars; i++) {
-                      stars.push(
-                        <span key={"empty"+i} className="w-5 h-5 mr-0.5 text-gray-300 group-hover:scale-110 transition-transform duration-200">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-full h-full">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.97a1 1 0 00.95.69h4.175c.969 0 1.371 1.24.588 1.81l-3.38 2.455a1 1 0 00-.364 1.118l1.287 3.97c.3.921-.755 1.688-1.54 1.118l-3.38-2.455a1 1 0 00-1.175 0l-3.38 2.455c-.784.57-1.838-.197-1.539-1.118l1.287-3.97a1 1 0 00-.364-1.118L2.049 9.397c-.783-.57-.38-1.81.588-1.81h4.175a1 1 0 00.95-.69l1.286-3.97z"/>
-                          </svg>
-                        </span>
-                      );
-                    }
-                    return stars;
-                  })()}
-                  <span className="ml-2 text-xs text-gray-500">
-                    {tutor.ratings ? tutor.ratings : 'No ratings yet'}
-                  </span>
-                </div>
+                <span className="mr-1">⭐</span>
+                <span className="text-xs font-medium">
+                  {tutor.ratings ? parseFloat(tutor.ratings.toString()).toFixed(1) : 'No ratings'}
+                </span>
               </div>
             </div>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Subject Information */}
+      <CardContent className="space-y-3 p-4">
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Subject Expertise</Label>
-          <Badge variant="outline" className="text-sm">
-            {tutor.subject_name || 'Subject not specified'}
-          </Badge>
+          <div className="flex flex-wrap gap-2 items-center">
+            <Badge variant="outline" className="text-xs">
+              {tutor.subject_name || 'Subject not specified'}
+            </Badge>
+            {tutor.program && (
+              <Badge variant="secondary" className="text-xs">
+                {tutor.program}
+              </Badge>
+            )}
+          </div>
         </div>
 
-        {/* Program */}
-        {tutor.program && (
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Program</Label>
-            <div className="flex items-center space-x-2">
-              <GraduationCap className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm">{tutor.program}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Specialties */}
+        {/* Specialties - Compact */}
         {tutor.specialties && (
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Specialties</Label>
-            <p className="text-sm text-muted-foreground line-clamp-3">
+          <div className="space-y-1">
+            <Label className="text-xs font-medium">Specialties</Label>
+            <p className="text-xs text-muted-foreground line-clamp-2">
               {tutor.specialties}
             </p>
           </div>
         )}
 
-        {/* Additional Information */}
-        {tutor.tutor_information && (
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Additional Information</Label>
-            <p className="text-sm text-muted-foreground line-clamp-3">
-              {tutor.tutor_information}
-            </p>
-          </div>
-        )}
 
 
-
-        <div className="flex items-center justify-end pt-4 border-t">
-          <div className="flex space-x-2">
-            <Button size="sm" variant="outline" onClick={() => {
-              setSelectedTutorForRatings(tutor);
-              fetchRatingsForModal(tutor.user_id);
-              setShowRatingsModal(true);
-            }}>
-              View Ratings
+        <div className="pt-4 border-t">
+          <div className="flex flex-col lg:flex-row gap-2 lg:gap-3 lg:justify-end">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="w-full lg:w-auto text-xs px-2 py-1"
+              onClick={() => {
+                setSelectedTutorForRatings(tutor);
+                fetchRatingsForModal(tutor.user_id);
+                setShowRatingsModal(true);
+              }}
+            >
+              Ratings
             </Button>
-            <Button size="sm" variant="outline" onClick={() => {
-              setSelectedTutor(tutor);
-              fetchTutorStatistics(tutor.user_id);
-              setShowProfileModal(true);
-            }}>
-              View Profile
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="w-full lg:w-auto text-xs px-2 py-1"
+              onClick={() => {
+                setSelectedTutor(tutor);
+                fetchTutorStatistics(tutor.user_id);
+                setShowProfileModal(true);
+              }}
+            >
+              Profile
             </Button>
             <Button 
               size="sm"
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 w-full lg:w-auto text-xs px-2 py-1"
               onClick={() => {
                 if (currentUser?.user_id === tutor.user_id) {
                   toast({
@@ -609,8 +558,8 @@ export default function TutorMatching() {
               disabled={tutor.status !== 'approved'}
               title={currentUser?.user_id === tutor.user_id ? 'You cannot book yourself as a tutor.' : ''}
             >
-              <Calendar className="w-4 h-4 mr-2" />
-              Book Session
+              <Calendar className="w-3 h-3 mr-1" />
+              Book
             </Button>
           </div>
         </div>
@@ -1324,7 +1273,7 @@ export default function TutorMatching() {
 
       <div className="space-y-6">
         {/* Tutors Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
           {loading ? (
             <div className="col-span-full flex items-center justify-center py-12">
               <div className="flex items-center space-x-2">
