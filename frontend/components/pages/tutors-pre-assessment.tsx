@@ -434,7 +434,9 @@ export default function TutorsPreAssessment() {
 
   const fetchQuestions = async (preAssessmentId: number) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessment-questions/pre-assessment/${preAssessmentId}`)
+      // Add cache-busting parameter to ensure fresh data
+      const timestamp = new Date().getTime();
+      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessment-questions/pre-assessment/${preAssessmentId}?t=${timestamp}`)
       if (!response.ok) throw new Error('Failed to fetch questions')
       const data = await response.json()
       

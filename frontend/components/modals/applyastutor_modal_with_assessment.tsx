@@ -172,24 +172,48 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
     }
   };
 
+  // Shuffle array function
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   // Fetch questions for assessment
   const fetchQuestions = async (assessmentId: number) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessment-questions/pre-assessment/${assessmentId}`);
+      // Add cache-busting parameter to ensure fresh data
+      const timestamp = new Date().getTime();
+      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessment-questions/pre-assessment/${assessmentId}?t=${timestamp}`);
       if (!response.ok) throw new Error('Failed to fetch questions');
       
       const data = await response.json();
-      const mappedQuestions = (data.questions || []).map((q: any) => ({
-        id: q.id,
-        type: q.question_type,
-        question: q.question,
-        options: q.options && typeof q.options === 'string' ? JSON.parse(q.options) : q.options,
-        correctAnswer: q.correct_answer,
-        explanation: q.explanation,
-        points: q.points,
-      }));
+      const mappedQuestions = (data.questions || []).map((q: any) => {
+        let processedOptions = q.options && typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
+        
+        // Shuffle multiple choice options as well
+        if (q.question_type === 'multiple-choice' && processedOptions && Array.isArray(processedOptions)) {
+          processedOptions = shuffleArray(processedOptions);
+        }
+        
+        return {
+          id: q.id,
+          type: q.question_type,
+          question: q.question,
+          options: processedOptions,
+          correctAnswer: q.correct_answer,
+          explanation: q.explanation,
+          points: q.points,
+        };
+      });
       
-      setQuestions(mappedQuestions);
+      // Additional frontend shuffling to ensure randomization
+      const shuffledQuestions = shuffleArray(mappedQuestions);
+      
+      setQuestions(shuffledQuestions);
     } catch (error) {
       console.error('Error fetching questions:', error);
       toast({
