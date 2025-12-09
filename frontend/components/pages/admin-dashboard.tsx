@@ -4,6 +4,15 @@ import { useState, useEffect } from "react"
 import { useUser } from "@/contexts/UserContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   Users,
   BookOpen,
@@ -15,7 +24,9 @@ import {
   BarChart3,
   Star,
   TrendingUp,
-  MessageCircle
+  MessageCircle,
+  AlertTriangle,
+  Eye
 } from "lucide-react"
 
 export default function AdminDashboard() {
@@ -26,6 +37,8 @@ export default function AdminDashboard() {
   const [facultyCount, setFacultyCount] = useState<number | null>(null);
   const [feedbackStats, setFeedbackStats] = useState<any>(null);
   const [recentFeedback, setRecentFeedback] = useState<any[]>([]);
+  const [profanityViolations, setProfanityViolations] = useState<any[]>([]);
+  const [loadingViolations, setLoadingViolations] = useState(false);
   useEffect(() => {
     // Only fetch counts when we know the current user (and ideally only for admins)
     if (!currentUser) return
@@ -90,7 +103,30 @@ export default function AdminDashboard() {
         }
       })
       .catch((err) => console.error("Error fetching feedback stats:", err));
+
+    // Fetch profanity violations
+    fetchProfanityViolations();
   }, [currentUser]);
+
+  const fetchProfanityViolations = async () => {
+    if (!currentUser?.user_id) return;
+    
+    try {
+      setLoadingViolations(true);
+      const response = await fetch(`http://localhost:4000/api/admin/profanity-violations?requesting_user_id=${currentUser.user_id}&limit=20`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setProfanityViolations(data.violations || []);
+      } else {
+        console.error('Error fetching profanity violations:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching profanity violations:', error);
+    } finally {
+      setLoadingViolations(false);
+    }
+  };
 
   return (
     <>
@@ -352,20 +388,92 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
-        {/* Content Moderation */}
-        <Card>
+        {/* Content Moderation - Profanity Violations */}
+        <Card className="col-span-2">
           <CardHeader>
-            <CardTitle>Content Moderation</CardTitle>
-            <CardDescription>Review and manage platform content</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Profanity Violations
+            </CardTitle>
+            <CardDescription>Monitor and manage inappropriate content attempts</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <MessageSquare className="h-12 w-12 text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground mb-4">No content to moderate</p>
-              <Button variant="outline" className="bg-transparent">
-                View Reports
-              </Button>
-            </div>
+            {loadingViolations ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : profanityViolations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Shield className="h-12 w-12 text-green-500 mb-3" />
+                <p className="text-sm text-muted-foreground mb-2">No recent violations</p>
+                <p className="text-xs text-muted-foreground">Platform content is clean!</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Context</TableHead>
+                      <TableHead>Detected Words</TableHead>
+                      <TableHead>Severity</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {profanityViolations.slice(0, 10).map((violation) => (
+                      <TableRow key={violation.violation_id}>
+                        <TableCell>
+                          <div className="font-medium">{violation.user_name || 'Unknown User'}</div>
+                          <div className="text-xs text-muted-foreground">{violation.user_email}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {violation.context_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {violation.detected_words.slice(0, 3).map((word: string, idx: number) => (
+                              <Badge key={idx} variant="destructive" className="text-xs">
+                                {word}
+                              </Badge>
+                            ))}
+                            {violation.detected_words.length > 3 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{violation.detected_words.length - 3} more
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={violation.severity === 'high' ? 'destructive' : 
+                                   violation.severity === 'medium' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {violation.severity}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(violation.violation_timestamp).toLocaleDateString()}
+                          <div className="text-xs">
+                            {new Date(violation.violation_timestamp).toLocaleTimeString()}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {profanityViolations.length > 10 && (
+                  <div className="text-center pt-4">
+                    <Button variant="outline" onClick={fetchProfanityViolations}>
+                      Load More Violations
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -401,37 +509,6 @@ export default function AdminDashboard() {
               <div className="text-2xl font-bold">0</div>
               <p className="text-xs text-muted-foreground">No downloads this week</p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common administrative tasks</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
-              <Users className="h-6 w-6" />
-              <span className="text-sm">Manage Users</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
-              <BookOpen className="h-6 w-6" />
-              <span className="text-sm">Content Review</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
-              <Settings className="h-6 w-6" />
-              <span className="text-sm">System Settings</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2">
-              <BarChart3 className="h-6 w-6" />
-              <span className="text-sm">View Reports</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center justify-center space-y-2" onClick={() => window.location.href = '/admin-feedback'}>
-              <Star className="h-6 w-6" />
-              <span className="text-sm">Manage Feedback</span>
-            </Button>
           </div>
         </CardContent>
       </Card>
