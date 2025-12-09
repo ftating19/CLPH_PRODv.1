@@ -144,42 +144,8 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
     }
   }, [assessmentStarted, assessmentCompleted, timeLeft]);
 
-  // Check for existing tutor applications
-  const checkExistingApplications = async () => {
-    if (!currentUser) return;
-
-    try {
-      const response = await fetch(`http://localhost:4000/api/tutor-applications/user/${currentUser.user_id}`);
-      const result = await response.json();
-      
-      if (result.success && result.applications && result.applications.length > 0) {
-        // User has existing applications
-        const pendingApps = result.applications.filter((app: any) => app.status === 'pending');
-        if (pendingApps.length > 0) {
-          const app = pendingApps[0];
-          toast({
-            title: 'Application Already Pending',
-            description: `You already have a pending application for ${app.subject_name} submitted on ${app.application_date ? new Date(app.application_date).toLocaleDateString() : 'a previous date'}. Please wait for it to be reviewed.`,
-            variant: 'destructive',
-            duration: 6000,
-          });
-          
-          // Close the modal immediately
-          handleClose();
-          return;
-        }
-      }
-    } catch (error) {
-      console.error('Error checking existing applications:', error);
-      // If check fails, still allow proceeding with the application
-    }
-  };
-
   useEffect(() => {
     if (open && currentUser) {
-      // Check for existing applications first
-      checkExistingApplications();
-      
       // Auto-populate fields from current user
       setFullName(`${currentUser.first_name} ${currentUser.middle_name ? currentUser.middle_name + ' ' : ''}${currentUser.last_name}`);
       setEmail(currentUser.email);
