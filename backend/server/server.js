@@ -8272,36 +8272,7 @@ app.put('/api/sessions/:booking_id/rating', async (req, res) => {
         
         // If no rating exists, prevent completion and send email in background
         if (!booking.rating) {
-          const studentFullName = `${booking.student_name} ${booking.student_last}`;
-          const tutorFullName = `${booking.tutor_name} ${booking.tutor_last}`;
-          const sessionDate = new Date(booking.start_date).toLocaleDateString();
-          const sessionTime = booking.preferred_time || 'TBD';
-          
-          // Send response immediately without waiting for email
-
-          // Convert started_at to MySQL DATETIME format
-          function toMySQLDatetime(isoString) {
-            if (!isoString) return null;
-            return isoString.replace('T', ' ').substring(0, 19);
-          }
-
-          const resultData = {
-            user_id,
-            pre_assessment_id,
-            score,
-            total_points,
-            percentage: parseFloat(percentage.toFixed(2)),
-            correct_answers: correct_answers || 0,
-            total_questions: total_questions || 0,
-            time_taken_seconds,
-            started_at: toMySQLDatetime(started_at),
-            answers
-          };
-
-          console.log('--- Data to insert ---');
-          console.log('ResultData:', JSON.stringify(resultData, null, 2));
-          
-          return res.status(400).json(responseData);
+          return res.status(400).json({ success: false, error: 'Student must rate the session before marking as complete.' });
         }
       }
       
