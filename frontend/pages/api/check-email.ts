@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+import { apiUrl } from '@/lib/api-config'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -13,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Call the backend API instead of direct database access
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiUrl = apiUrl('');
     const response = await fetch(`${apiUrl}/api/check-email?email=${encodeURIComponent(email)}`);
     
     if (!response.ok) {

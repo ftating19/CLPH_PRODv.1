@@ -1,6 +1,6 @@
 // API Configuration
 // This uses the environment variable with a fallback for local development
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+export const API_BASE_URL = apiUrl('');
 
 // Helper function to build API URLs
 export function apiUrl(path: string): string {
