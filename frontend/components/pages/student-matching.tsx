@@ -137,7 +137,7 @@ function StudentBookingForm({ student, currentUser, onClose }: StudentBookingFor
       
       // Fetch both tutor's existing bookings and student's existing bookings
       const [tutorResponse, studentResponse] = await Promise.all([
-        fetch(apiUrl(`/api/sessions?tutor_id=${tutorId}`),
+        fetch(apiUrl(`/api/sessions?tutor_id=${tutorId}`)),
         fetch(apiUrl(`/api/sessions?user_id=${studentId}`))
       ])
       
@@ -445,7 +445,7 @@ function StudentBookingForm({ student, currentUser, onClose }: StudentBookingFor
       const bookingPromises = selectedTimeSlots.map(async (timeSlot) => {
         const [startTime, endTime] = timeSlot.split('-')
         
-        const response = await fetch(apiUrl("/api/sessions/tutor-booking", {
+        const response = await fetch(apiUrl("/api/sessions/tutor-booking"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

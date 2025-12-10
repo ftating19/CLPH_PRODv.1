@@ -241,7 +241,7 @@ export default function LearningResources() {
   const fetchMaterialRatings = async (materialId: number) => {
     try {
       const [avgResponse, userResponse] = await Promise.all([
-        fetch(apiUrl(`/api/materials/${materialId}/rating`),
+        fetch(apiUrl(`/api/materials/${materialId}/rating`)),
         currentUser ? fetch(apiUrl(`/api/materials/${materialId}/rating/${currentUser.user_id}`)) : Promise.resolve(null)
       ])
 

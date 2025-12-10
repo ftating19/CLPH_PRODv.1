@@ -1094,8 +1094,8 @@ export default function Quizzes() {
       console.log('===========================');
 
       const url = currentQuiz 
-        ? apiUrl(`/api/quizzes/${currentQuiz.id || currentQuiz.quiz_id}` 
-        : 'apiUrl/api/quizzes'
+        ? apiUrl(`/api/quizzes/${currentQuiz.id || currentQuiz.quiz_id}`)
+        : apiUrl('/api/quizzes')
       
       const response = await fetch(url, {
         method: currentQuiz ? 'PUT' : 'POST',

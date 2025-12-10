@@ -187,7 +187,7 @@ export default function PendingPostTests() {
     try {
       setProcessing(true)
       const response = await fetch(
-        apiUrl(`/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/approve`,
+        apiUrl(`/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/approve`),
         {
           method: 'PUT',
           headers: {
@@ -239,7 +239,7 @@ export default function PendingPostTests() {
     try {
       setProcessing(true)
       const response = await fetch(
-        apiUrl(`/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/reject`,
+        apiUrl(`/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/reject`),
         {
           method: 'PUT',
           headers: {

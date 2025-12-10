@@ -184,7 +184,7 @@ export default function TutorMatching() {
       // Add cache busting to force fresh data from database
       const timestamp = Date.now()
       const response = await fetch(
-        apiUrl(`/api/pre-assessment-results/user/${currentUser.user_id}?_t=${timestamp}`,
+        apiUrl(`/api/pre-assessment-results/user/${currentUser.user_id}?_t=${timestamp}`),
         {
           method: 'GET',
           headers: {
@@ -414,7 +414,7 @@ export default function TutorMatching() {
         try {
           setCardStats(prev => ({ ...prev, loading: true }));
           
-          const commentsResponse = await fetch(apiUrl(`/api/tutors/${tutor.user_id}/sessions/comments?rating_filter=5`);
+          const commentsResponse = await fetch(apiUrl(`/api/tutors/${tutor.user_id}/sessions/comments?rating_filter=5`));
           const commentsData = await commentsResponse.json();
           
           if (commentsData.success) {
@@ -640,7 +640,7 @@ export default function TutorMatching() {
     }
 
     try {
-      const response = await fetch(apiUrl(`/api/tutor-applications/user/${currentUser.user_id}`);
+      const response = await fetch(apiUrl(`/api/tutor-applications/user/${currentUser.user_id}`));
       const result = await response.json();
       
       if (result.success && result.applications && result.applications.length > 0) {
