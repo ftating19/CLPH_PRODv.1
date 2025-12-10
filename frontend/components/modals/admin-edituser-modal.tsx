@@ -93,7 +93,7 @@ export default function EditUserModal({ user, isOpen, onClose, onUserUpdated }: 
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:4000/api/admin/edit-user/${user.user_id}`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/admin/edit-user/${user.user_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

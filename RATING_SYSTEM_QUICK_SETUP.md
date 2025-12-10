@@ -92,15 +92,15 @@ WHERE quiz_id = 1;
 ### Option C: Using API (Postman/curl)
 ```bash
 # Rate a quiz
-curl -X POST http://localhost:4000/api/quizzes/1/rating \
+curl -X POST https://api.cictpeerlearninghub.com/api/quizzes/1/rating \
   -H "Content-Type: application/json" \
   -d '{"user_id": 1, "rating": 5}'
 
 # Get quiz rating
-curl http://localhost:4000/api/quizzes/1/rating
+curl https://api.cictpeerlearninghub.com/api/quizzes/1/rating
 
 # Get user's rating
-curl http://localhost:4000/api/quizzes/1/rating/1
+curl https://api.cictpeerlearninghub.com/api/quizzes/1/rating/1
 ```
 
 ## Step 5: Verify Everything Works

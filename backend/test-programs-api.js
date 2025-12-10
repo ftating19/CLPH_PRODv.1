@@ -5,7 +5,7 @@ async function testProgramsAPI() {
   try {
     console.log('🧪 Testing programs API endpoint...');
     
-    const response = await axios.get('http://localhost:4000/api/programs');
+    const response = await axios.get('https://api.cictpeerlearninghub.com/api/programs');
     
     if (response.data.success) {
       console.log('✅ Programs API working successfully');

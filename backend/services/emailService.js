@@ -858,8 +858,8 @@ const sendFacultyTutorNotificationEmail = async (facultyEmail, facultyName, tuto
                 </ul>
                 
                 <div style="text-align: center; margin: 25px 0;">
-                    <a href="http://localhost:3000/dashboard" class="button">View Dashboard</a>
-                    <a href="http://localhost:3000/tutors" class="button" style="background-color: #28a745;">View All Tutors</a>
+                    <a href="https://cictpeerlearninghub.com/dashboard" class="button">View Dashboard</a>
+                    <a href="https://cictpeerlearninghub.com/tutors" class="button" style="background-color: #28a745;">View All Tutors</a>
                 </div>
                 
                 <p>If you have any questions about this new tutor or need assistance with tutor assignments, please don't hesitate to contact the administration.</p>
@@ -942,8 +942,8 @@ const sendFacultyNewApplicationNotificationEmail = async (facultyEmail, facultyN
                 </ul>
                 
                 <div style="text-align: center; margin: 25px 0;">
-                    <a href="http://localhost:3000/pending-applicants" class="button">Review Applications</a>
-                    <a href="http://localhost:3000/admin-dashboard" class="button" style="background-color: #6366f1;">View Dashboard</a>
+                    <a href="https://cictpeerlearninghub.com/pending-applicants" class="button">Review Applications</a>
+                    <a href="https://cictpeerlearninghub.com/admin-dashboard" class="button" style="background-color: #6366f1;">View Dashboard</a>
                 </div>
                 
                 <p>Your timely review helps maintain the quality of our tutoring program and ensures students receive the best possible support.</p>

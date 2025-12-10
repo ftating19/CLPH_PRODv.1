@@ -6,7 +6,7 @@ async function testConnection() {
     console.log('Testing backend connection...');
     
     // Test a simple endpoint first
-    const response = await axios.get('http://localhost:4000/api/tutor-pre-assessments');
+    const response = await axios.get('https://api.cictpeerlearninghub.com/api/tutor-pre-assessments');
     console.log('✅ Backend connection successful');
     console.log('Response status:', response.status);
     console.log('Response data:', JSON.stringify(response.data, null, 2));

@@ -4,7 +4,7 @@ async function testAPI() {
   try {
     console.log('Testing post-tests API...');
     
-    const response = await fetch('http://localhost:4000/api/post-tests?booking_id=51&status=published');
+    const response = await fetch('https://api.cictpeerlearninghub.com/api/post-tests?booking_id=51&status=published');
     const data = await response.json();
     
     console.log('API Response:');

@@ -180,7 +180,7 @@ export default function Profile01() {
     }
 
     try {
-      const response = await fetch(`http://localhost:4000/api/tutor-applications/user/${currentUser.user_id}`);
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/tutor-applications/user/${currentUser.user_id}`);
       const result = await response.json();
       
       if (result.success && result.applications && result.applications.length > 0) {

@@ -132,7 +132,7 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
       formData.append('type', 'class_card')
       formData.append('user_id', currentUser?.user_id.toString() || '')
 
-      const response = await fetch('http://localhost:4000/api/upload', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/upload', {
         method: 'POST',
         body: formData
       })
@@ -218,7 +218,7 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
       console.log('Submitting tutor application:', applicationData);
 
       // Submit to backend API
-      const response = await fetch('http://localhost:4000/api/tutor-applications', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/tutor-applications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

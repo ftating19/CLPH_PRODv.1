@@ -96,7 +96,7 @@ export default function Sidebar() {
     const { currentUser } = useUser();
     useEffect(() => {
       let isMounted = true;
-      fetch("http://localhost:4000/api/pending-materials?status=pending")
+      fetch("https://api.cictpeerlearninghub.com/api/pending-materials?status=pending")
         .then((res) => res.json())
         .then((data) => {
           if (isMounted) {
@@ -152,7 +152,7 @@ export default function Sidebar() {
 
     useEffect(() => {
       let isMounted = true;
-      fetch("http://localhost:4000/api/pending-quizzes?status=pending")
+      fetch("https://api.cictpeerlearninghub.com/api/pending-quizzes?status=pending")
         .then((res) => res.json())
         .then((data) => {
           if (isMounted) {
@@ -203,7 +203,7 @@ export default function Sidebar() {
 
     useEffect(() => {
       let isMounted = true;
-      fetch("http://localhost:4000/api/pending-flashcards?status=pending")
+      fetch("https://api.cictpeerlearninghub.com/api/pending-flashcards?status=pending")
         .then((res) => res.json())
         .then((data) => {
           if (isMounted) {
@@ -260,7 +260,7 @@ export default function Sidebar() {
 
     useEffect(() => {
       let isMounted = true;
-      fetch("http://localhost:4000/api/pending-post-tests?status=pending")
+      fetch("https://api.cictpeerlearninghub.com/api/pending-post-tests?status=pending")
         .then((res) => res.json())
         .then((data) => {
           if (isMounted) {
@@ -314,7 +314,7 @@ export default function Sidebar() {
       
       if (currentUser?.user_id) {
         // Fetch sessions where current user is tutor and status is pending
-        fetch(`http://localhost:4000/api/sessions?user_id=${currentUser.user_id}`)
+        fetch(`https://api.cictpeerlearninghub.com/api/sessions?user_id=${currentUser.user_id}`)
           .then((res) => res.json())
           .then((data) => {
             if (isMounted && data.success && Array.isArray(data.sessions)) {
@@ -375,7 +375,7 @@ export default function Sidebar() {
     const { currentUser } = useUser();
     useEffect(() => {
       let isMounted = true;
-      fetch("http://localhost:4000/api/tutor-applications?status=pending")
+      fetch("https://api.cictpeerlearninghub.com/api/tutor-applications?status=pending")
         .then((res) => res.json())
         .then((data) => {
           if (isMounted) {

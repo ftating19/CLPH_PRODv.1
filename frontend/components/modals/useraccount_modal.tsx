@@ -30,7 +30,7 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 
 	async function checkEmailExists(email: string) {
 		try {
-			const response = await fetch(`http://localhost:4000/api/check-email?email=${email}`);
+			const response = await fetch(`https://api.cictpeerlearninghub.com/api/check-email?email=${email}`);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}

@@ -120,7 +120,7 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
 
   const fetchSubjects = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/subjects')
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/subjects')
       const data = await response.json()
       if (data.success) {
         setSubjects(data.subjects || [])
@@ -211,7 +211,7 @@ export default function PostTestModal({ isOpen, onClose, booking }: PostTestModa
 
     setSaving(true)
     try {
-      const response = await fetch('http://localhost:4000/api/post-tests', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/post-tests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

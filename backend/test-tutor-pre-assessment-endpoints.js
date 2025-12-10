@@ -1,7 +1,7 @@
 // Test script for tutor pre-assessment endpoints
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:4000/api';
+const BASE_URL = 'https://api.cictpeerlearninghub.com/api';
 
 // Test data
 const testPreAssessment = {

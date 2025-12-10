@@ -42,7 +42,7 @@ function ResetPasswordContent() {
 
   const validateResetToken = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/validate-reset-token', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/validate-reset-token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -95,7 +95,7 @@ function ResetPasswordContent() {
     setIsLoading(true)
 
     try {
-      const response = await fetch('http://localhost:4000/api/reset-password-with-token', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/reset-password-with-token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

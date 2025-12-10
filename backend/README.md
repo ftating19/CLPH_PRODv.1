@@ -30,8 +30,8 @@ npm run dev
 ```
 
 4. Verify:
-- Health: http://localhost:4000/health
-- Signup: POST http://localhost:4000/api/signup
+- Health: https://api.cictpeerlearninghub.com/health
+- Signup: POST https://api.cictpeerlearninghub.com/api/signup
 
 Notes:
 - The MySQL container in this setup uses an empty root password for quick local testing. Do NOT use this in production.

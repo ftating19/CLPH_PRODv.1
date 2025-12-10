@@ -37,7 +37,7 @@ export default function TutorSessionPage() {
   // Mark session as complete handler for student
   const handleStudentComplete = async (booking_id: number) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/sessions/${booking_id}/status`, {
+      const res = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking_id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "Completed" })
@@ -57,7 +57,7 @@ export default function TutorSessionPage() {
   // Mark session as complete handler
   const handleComplete = async (booking_id: number) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/sessions/${booking_id}/status`, {
+      const res = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking_id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "Completed" })
@@ -96,7 +96,7 @@ export default function TutorSessionPage() {
   // Rating handler
   const handleRating = async (booking_id: number, rating: number, remarks: string) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/sessions/${booking_id}/rating`, {
+      const res = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking_id}/rating`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rating, remarks })
@@ -137,7 +137,7 @@ export default function TutorSessionPage() {
   // Update booking status handler
   const handleStatusUpdate = async (booking_id: number, status: string) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/sessions/${booking_id}/status`, {
+      const res = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking_id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status })
@@ -186,7 +186,7 @@ export default function TutorSessionPage() {
     if (!currentUser) return
     setLoading(true)
     try {
-      let url = `http://localhost:4000/api/sessions`
+      let url = `https://api.cictpeerlearninghub.com/api/sessions`
       // For admin and faculty, show all transactions
       const role = currentUser?.role?.toLowerCase()
       if (role !== "admin" && role !== "faculty") {

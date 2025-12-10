@@ -109,7 +109,7 @@ export default function NotificationBell() {
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch(`http://localhost:4000/api/notifications/user/${currentUser.user_id}`)
+      const res = await fetch(`https://api.cictpeerlearninghub.com/api/notifications/user/${currentUser.user_id}`)
       const data = await res.json()
       setNotifications(data.notifications || [])
       setUnreadCount(data.notifications?.filter(n => !n.is_read).length || 0)
@@ -120,7 +120,7 @@ export default function NotificationBell() {
 
   const markAsRead = async (notificationId) => {
     try {
-      await fetch(`http://localhost:4000/api/notifications/${notificationId}/read`, {
+      await fetch(`https://api.cictpeerlearninghub.com/api/notifications/${notificationId}/read`, {
         method: 'PUT'
       })
       fetchNotifications()
@@ -131,7 +131,7 @@ export default function NotificationBell() {
 
   const markAllAsRead = async () => {
     try {
-      await fetch(`http://localhost:4000/api/notifications/user/${currentUser.user_id}/read-all`, {
+      await fetch(`https://api.cictpeerlearninghub.com/api/notifications/user/${currentUser.user_id}/read-all`, {
         method: 'PUT'
       })
       fetchNotifications()
@@ -436,7 +436,7 @@ export function PointsDisplay({ userId }: { userId: number }) {
   const [totalPoints, setTotalPoints] = useState(0)
   
   useEffect(() => {
-    fetch(`http://localhost:4000/api/gamification/points/${userId}`)
+    fetch(`https://api.cictpeerlearninghub.com/api/gamification/points/${userId}`)
       .then(res => res.json())
       .then(data => setTotalPoints(data.total))
   }, [userId])
@@ -455,7 +455,7 @@ export function BadgesDisplay({ userId }: { userId: number }) {
   const [badges, setBadges] = useState([])
   
   useEffect(() => {
-    fetch(`http://localhost:4000/api/gamification/badges/${userId}`)
+    fetch(`https://api.cictpeerlearninghub.com/api/gamification/badges/${userId}`)
       .then(res => res.json())
       .then(data => setBadges(data.badges))
   }, [userId])
@@ -476,7 +476,7 @@ export function StreakDisplay({ userId }: { userId: number }) {
   const [streak, setStreak] = useState(0)
   
   useEffect(() => {
-    fetch(`http://localhost:4000/api/gamification/streak/${userId}`)
+    fetch(`https://api.cictpeerlearninghub.com/api/gamification/streak/${userId}`)
       .then(res => res.json())
       .then(data => setStreak(data.current_streak))
   }, [userId])
@@ -605,7 +605,7 @@ const [recommendedTutors, setRecommendedTutors] = useState([])
 useEffect(() => {
   if (!currentUser?.user_id) return
   
-  fetch(`http://localhost:4000/api/recommendations/tutors/${currentUser.user_id}`)
+  fetch(`https://api.cictpeerlearninghub.com/api/recommendations/tutors/${currentUser.user_id}`)
     .then(res => res.json())
     .then(data => setRecommendedTutors(data.tutors))
 }, [currentUser])

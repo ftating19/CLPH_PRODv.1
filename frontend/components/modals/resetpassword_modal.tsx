@@ -94,7 +94,7 @@ export default function ResetPasswordModal({ open, userEmail, onClose, onSuccess
 
 		try {
 			// Call API to reset password
-			const response = await fetch('http://localhost:4000/api/reset-password', {
+			const response = await fetch('https://api.cictpeerlearninghub.com/api/reset-password', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

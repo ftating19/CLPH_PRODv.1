@@ -66,7 +66,7 @@ export default function SignupModal({ open, onClose, onSubmit }: SignupModalProp
 
 	async function checkEmailExists(email: string) {
 		try {
-			const response = await fetch(`http://localhost:4000/api/check-email?email=${email}`); // Updated port to 4000
+			const response = await fetch(`https://api.cictpeerlearninghub.com/api/check-email?email=${email}`); // Updated port to 4000
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}

@@ -43,7 +43,7 @@ The tutor cards didn't show enough information and lacked actionable elements.
 
 ### 1. **Fixed API Response Handling**
 ```typescript
-fetch("http://localhost:4000/api/tutors")
+fetch("https://api.cictpeerlearninghub.com/api/tutors")
   .then((res) => res.json())
   .then((data) => {
     if (data.success && Array.isArray(data.tutors)) {

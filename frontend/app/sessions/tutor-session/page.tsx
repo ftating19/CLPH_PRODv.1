@@ -98,7 +98,7 @@ export default function TutorSessionPage() {
     
     try {
       setLoadingTemplates(true)
-      const response = await fetch(`http://localhost:4000/api/post-test-templates/tutor/${currentUser.user_id}`)
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/tutor/${currentUser.user_id}`)
       
       if (!response.ok) throw new Error('Failed to fetch templates')
       
@@ -119,7 +119,7 @@ export default function TutorSessionPage() {
     
     try {
       const response = await fetch(
-        `http://localhost:4000/api/sessions/${bookingId}/chat/unread?user_id=${currentUser.user_id}`
+        `https://api.cictpeerlearninghub.com/api/sessions/${bookingId}/chat/unread?user_id=${currentUser.user_id}`
       )
       const data = await response.json()
       
@@ -154,7 +154,7 @@ export default function TutorSessionPage() {
     try {
       setAssigningTemplate(true)
       
-      const response = await fetch(`http://localhost:4000/api/post-test-templates/${templateId}/assign`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${templateId}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -192,7 +192,7 @@ export default function TutorSessionPage() {
   // Mark session as complete handler for student
   const handleStudentComplete = async (booking_id: number) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/sessions/${booking_id}/status`, {
+      const res = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking_id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "Completed" })
@@ -212,7 +212,7 @@ export default function TutorSessionPage() {
   // Mark session as complete handler
   const handleComplete = async (booking_id: number) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/sessions/${booking_id}/status`, {
+      const res = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking_id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "Completed" })
@@ -251,7 +251,7 @@ export default function TutorSessionPage() {
   // Rating handler
   const handleRating = async (booking_id: number, rating: number, remarks: string) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/sessions/${booking_id}/rating`, {
+      const res = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking_id}/rating`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rating, remarks })
@@ -292,7 +292,7 @@ export default function TutorSessionPage() {
   // Update booking status handler
   const handleStatusUpdate = async (booking_id: number, status: string) => {
     try {
-      const res = await fetch(`http://localhost:4000/api/sessions/${booking_id}/status`, {
+      const res = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking_id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status })
@@ -310,7 +310,7 @@ export default function TutorSessionPage() {
   const handleStudentResponse = async (booking_id: number, action: 'accept' | 'reject') => {
     try {
       const endpoint = action === 'accept' ? 'accept' : 'reject'
-      const response = await fetch(`http://localhost:4000/api/sessions/${booking_id}/${endpoint}`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking_id}/${endpoint}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -405,7 +405,7 @@ export default function TutorSessionPage() {
       // Update each expired session to completed (but will show as expired in UI)
       const updatePromises = expiredSessions.map(async (session) => {
         try {
-          const response = await fetch(`http://localhost:4000/api/sessions/${session.booking_id}/status`, {
+          const response = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${session.booking_id}/status`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: "Completed" })
@@ -440,7 +440,7 @@ export default function TutorSessionPage() {
         
         // Check for assigned templates
         try {
-          const templatesResponse = await fetch(`http://localhost:4000/api/post-test-assignments/student/${currentUser.user_id}?booking_id=${bookingId}`)
+          const templatesResponse = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-assignments/student/${currentUser.user_id}?booking_id=${bookingId}`)
           const templatesData = await templatesResponse.json()
           if (templatesData.success && templatesData.assignments) {
             // Map template assignments to post-test format
@@ -471,10 +471,10 @@ export default function TutorSessionPage() {
         
         if (isStudentInThisBooking) {
           // Use student-specific endpoint when user is the student in this booking
-          response = await fetch(`http://localhost:4000/api/post-tests/student/${currentUser.user_id}`)
+          response = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests/student/${currentUser.user_id}`)
         } else {
           // Use booking-based query for tutors or other roles
-          response = await fetch(`http://localhost:4000/api/post-tests?booking_id=${bookingId}&status=published`)
+          response = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests?booking_id=${bookingId}&status=published`)
         }
         
         const data = await response.json()
@@ -520,7 +520,7 @@ export default function TutorSessionPage() {
     setResultsLoading(prev => ({...prev, [bookingId]: true}))
     
     try {
-      const response = await fetch(`http://localhost:4000/api/post-test-results?booking_id=${bookingId}`)
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-results?booking_id=${bookingId}`)
       const data = await response.json()
       console.log('Post-test results response for booking', bookingId, ':', data);
       
@@ -594,7 +594,7 @@ export default function TutorSessionPage() {
     if (!currentUser) return
     setLoading(true)
     try {
-      let url = `http://localhost:4000/api/sessions`
+      let url = `https://api.cictpeerlearninghub.com/api/sessions`
       // For admin and faculty, show all transactions
       const role = currentUser?.role?.toLowerCase()
       if (role !== "admin" && role !== "faculty") {

@@ -39,7 +39,7 @@ Changed the fetch call to include:
 ```javascript
 const timestamp = Date.now()
 const response = await fetch(
-  `http://localhost:4000/api/pre-assessment-results/user/${currentUser.user_id}?_t=${timestamp}`,
+  `https://api.cictpeerlearninghub.com/api/pre-assessment-results/user/${currentUser.user_id}?_t=${timestamp}`,
   {
     method: 'GET',
     headers: {

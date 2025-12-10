@@ -88,7 +88,7 @@ export default function ChatModal({ isOpen, onClose, booking }: ChatModalProps) 
     }
     
     try {
-      const response = await fetch(`http://localhost:4000/api/sessions/${booking.booking_id}/chat?user_id=${currentUser.user_id}`)
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking.booking_id}/chat?user_id=${currentUser.user_id}`)
       const data = await response.json()
       
       if (data.success) {
@@ -120,7 +120,7 @@ export default function ChatModal({ isOpen, onClose, booking }: ChatModalProps) 
     
     setSending(true)
     try {
-      const response = await fetch(`http://localhost:4000/api/sessions/${booking.booking_id}/chat`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking.booking_id}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -159,7 +159,7 @@ export default function ChatModal({ isOpen, onClose, booking }: ChatModalProps) 
     if (!currentUser?.user_id || !booking?.booking_id || !deleteConfirmation.messageId) return
     
     try {
-      const response = await fetch(`http://localhost:4000/api/sessions/${booking.booking_id}/chat/${deleteConfirmation.messageId}`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking.booking_id}/chat/${deleteConfirmation.messageId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -195,7 +195,7 @@ export default function ChatModal({ isOpen, onClose, booking }: ChatModalProps) 
     if (!currentUser?.user_id || !booking?.booking_id || !editingMessage.messageId || !editingMessage.text.trim()) return
     
     try {
-      const response = await fetch(`http://localhost:4000/api/sessions/${booking.booking_id}/chat/${editingMessage.messageId}`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking.booking_id}/chat/${editingMessage.messageId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

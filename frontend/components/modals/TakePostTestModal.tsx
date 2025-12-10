@@ -105,7 +105,7 @@ export default function TakePostTestModal({
       
       if (isTemplate) {
         // Fetch template details
-        const templateResponse = await fetch(`http://localhost:4000/api/post-test-templates/${postTestId}`)
+        const templateResponse = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${postTestId}`)
         const templateData = await templateResponse.json()
 
         if (!templateData.success) {
@@ -113,7 +113,7 @@ export default function TakePostTestModal({
         }
 
         // Fetch template questions
-        const questionsResponse = await fetch(`http://localhost:4000/api/post-test-templates/${postTestId}/questions`)
+        const questionsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${postTestId}/questions`)
         const questionsData = await questionsResponse.json()
         console.log('Template questions response:', questionsData);
 
@@ -141,7 +141,7 @@ export default function TakePostTestModal({
         }
       } else {
         // Fetch regular post-test details
-        const postTestResponse = await fetch(`http://localhost:4000/api/post-tests/${postTestId}`)
+        const postTestResponse = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests/${postTestId}`)
         const postTestData = await postTestResponse.json()
 
         if (!postTestData.success) {
@@ -149,7 +149,7 @@ export default function TakePostTestModal({
         }
 
         // Fetch questions
-        const questionsResponse = await fetch(`http://localhost:4000/api/post-tests/${postTestId}/questions`)
+        const questionsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests/${postTestId}/questions`)
         const questionsData = await questionsResponse.json()
         console.log('Questions response:', questionsData);
 
@@ -212,7 +212,7 @@ export default function TakePostTestModal({
       
       if (isTemplate && assignmentId) {
         // Submit template-based test via assignment
-        response = await fetch(`http://localhost:4000/api/post-test-templates/${postTestId}/submit`, {
+        response = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${postTestId}/submit`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -230,7 +230,7 @@ export default function TakePostTestModal({
         })
       } else {
         // Submit regular post-test
-        response = await fetch(`http://localhost:4000/api/post-tests/${postTestId}/submit`, {
+        response = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests/${postTestId}/submit`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

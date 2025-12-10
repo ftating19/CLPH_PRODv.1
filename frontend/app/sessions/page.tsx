@@ -51,7 +51,7 @@ export default function StudentSessions() {
     
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:4000/api/post-tests/student/${currentUser.user_id}`)
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests/student/${currentUser.user_id}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch post-tests')
@@ -67,7 +67,7 @@ export default function StudentSessions() {
           tests.map(async (test: PostTest) => {
             if (test.test_status === 'completed') {
               try {
-                const resultResponse = await fetch(`http://localhost:4000/api/post-test-results?student_id=${currentUser.user_id}&post_test_id=${test.id}`)
+                const resultResponse = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-results?student_id=${currentUser.user_id}&post_test_id=${test.id}`)
                 const resultData = await resultResponse.json()
                 
                 if (resultData.success && resultData.results.length > 0) {

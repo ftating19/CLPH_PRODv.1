@@ -154,7 +154,7 @@ export async function logProfanityViolation(violationData: {
   severity?: 'low' | 'medium' | 'high';
 }): Promise<void> {
   try {
-    const response = await fetch('http://localhost:4000/api/profanity-violations', {
+    const response = await fetch('https://api.cictpeerlearninghub.com/api/profanity-violations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

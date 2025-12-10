@@ -53,7 +53,7 @@ export default function PostTestResultsModal({ isOpen, onClose, bookingId, booki
   const fetchResults = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`http://localhost:4000/api/post-test-results?booking_id=${bookingId}`)
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-results?booking_id=${bookingId}`)
       const data = await response.json()
       
       if (data.success) {

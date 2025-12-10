@@ -17,7 +17,7 @@ async function testProfanityViolationLogging() {
     };
 
     console.log('📝 Logging test violation...');
-    const logResponse = await fetch('http://localhost:4000/api/profanity-violations', {
+    const logResponse = await fetch('https://api.cictpeerlearninghub.com/api/profanity-violations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -33,13 +33,13 @@ async function testProfanityViolationLogging() {
       
       // Test getting user violations
       console.log('\n📊 Fetching user violations...');
-      const getUserResponse = await fetch(`http://localhost:4000/api/profanity-violations/user/1`);
+      const getUserResponse = await fetch(`https://api.cictpeerlearninghub.com/api/profanity-violations/user/1`);
       const userResult = await getUserResponse.json();
       console.log('✅ User Violations:', userResult);
 
       // Test getting violation count
       console.log('\n🔢 Getting violation count...');
-      const countResponse = await fetch(`http://localhost:4000/api/profanity-violations/user/1/count`);
+      const countResponse = await fetch(`https://api.cictpeerlearninghub.com/api/profanity-violations/user/1/count`);
       const countResult = await countResponse.json();
       console.log('✅ Violation Count:', countResult);
 

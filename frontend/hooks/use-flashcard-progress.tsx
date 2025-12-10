@@ -50,7 +50,7 @@ export function useFlashcardProgress(userId: number | null) {
     
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:4000/api/flashcards/progress/${userId}`)
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/progress/${userId}`)
       const data = await response.json()
       
       if (data.success) {
@@ -70,7 +70,7 @@ export function useFlashcardProgress(userId: number | null) {
     if (!userId) return
     
     try {
-      const response = await fetch(`http://localhost:4000/api/flashcards/progress/stats/${userId}`)
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/progress/stats/${userId}`)
       const data = await response.json()
       
       if (data.success) {
@@ -112,7 +112,7 @@ export function useUpdateFlashcardProgress() {
     try {
       setUpdating(true)
       
-      const response = await fetch(`http://localhost:4000/api/flashcards/${flashcardId}/progress`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/${flashcardId}/progress`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,7 +148,7 @@ export function useUpdateFlashcardProgress() {
     try {
       setUpdating(true)
       
-      const response = await fetch(`http://localhost:4000/api/flashcards/${flashcardId}/complete`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/${flashcardId}/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,7 +189,7 @@ export function useUpdateFlashcardProgress() {
     try {
       setUpdating(true)
       
-      const response = await fetch(`http://localhost:4000/api/flashcards/${flashcardId}/reset`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/${flashcardId}/reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -244,7 +244,7 @@ export function useFlashcardProgressStatus(flashcardId: number | null, userId: n
     
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:4000/api/flashcards/${flashcardId}/progress/${userId}`)
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/${flashcardId}/progress/${userId}`)
       const data = await response.json()
       
       if (data.success && data.progress) {

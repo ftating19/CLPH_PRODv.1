@@ -33,7 +33,7 @@ export default function BookingForm({ tutor, currentUser, onClose }: BookingForm
     try {
       const preferred_dates = [startDate, endDate]
       const preferred_time = `${timeFrom} - ${timeTo}`
-      const res = await fetch("http://localhost:4000/api/sessions", {
+      const res = await fetch("https://api.cictpeerlearninghub.com/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

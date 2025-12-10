@@ -89,7 +89,7 @@ export default function EditProfileModal({ open, onClose, onUpdate }: EditProfil
 
       // Fetch fresh user data from database
       console.log(`Fetching user data from database for ID: ${userId}`);
-      const response = await fetch(`http://localhost:4000/api/users/${userId}`);
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/users/${userId}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch user data: ${response.status}`);
@@ -208,7 +208,7 @@ export default function EditProfileModal({ open, onClose, onUpdate }: EditProfil
       }
 
       // Update profile
-      const response = await fetch(`http://localhost:4000/api/update-profile/${userData.id}`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/update-profile/${userData.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -31,7 +31,7 @@ async function testWithRealUser() {
     };
 
     console.log('\n📝 Testing profanity violation logging...');
-    const response = await fetch('http://localhost:4000/api/profanity-violations', {
+    const response = await fetch('https://api.cictpeerlearninghub.com/api/profanity-violations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -47,7 +47,7 @@ async function testWithRealUser() {
       
       // Test getting user violations
       console.log('\n📊 Fetching user violations...');
-      const getUserResponse = await fetch(`http://localhost:4000/api/profanity-violations/user/${user.user_id}`);
+      const getUserResponse = await fetch(`https://api.cictpeerlearninghub.com/api/profanity-violations/user/${user.user_id}`);
       const userResult = await getUserResponse.json();
       console.log('✅ User Violations Response:', userResult);
     }

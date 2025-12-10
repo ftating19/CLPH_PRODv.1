@@ -119,7 +119,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
       
       const studentId = currentUser?.user_id
       const requesterId = currentUser?.user_id // Include requester ID for conflict checking
-      const url = `http://localhost:4000/api/tutors/${tutor.user_id}/availability?startDate=${startDate}&endDate=${endDate}&studentId=${studentId}&requesterId=${requesterId}`
+      const url = `https://api.cictpeerlearninghub.com/api/tutors/${tutor.user_id}/availability?startDate=${startDate}&endDate=${endDate}&studentId=${studentId}&requesterId=${requesterId}`
       console.log('Request URL:', url)
       
       const response = await fetch(url)
@@ -398,7 +398,7 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
       const bookingPromises = selectedTimeSlots.map(async (timeSlot) => {
         const [startTime, endTime] = timeSlot.split('-')
         
-        const response = await fetch("http://localhost:4000/api/sessions", {
+        const response = await fetch("https://api.cictpeerlearninghub.com/api/sessions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

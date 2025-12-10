@@ -79,7 +79,7 @@ export function UserProvider({ children }: UserProviderProps) {
         
         // Fetch fresh data from API to ensure it's up to date
         try {
-          const response = await fetch(`http://localhost:4000/api/users/${userData.user_id}`);
+          const response = await fetch(`https://api.cictpeerlearninghub.com/api/users/${userData.user_id}`);
           if (response.ok) {
             const data = await response.json();
             
@@ -148,7 +148,7 @@ export function UserProvider({ children }: UserProviderProps) {
     if (currentUser && typeof window !== 'undefined') {
       try {
         console.log('Force refreshing user data from database...');
-        const response = await fetch(`http://localhost:4000/api/users/${currentUser.user_id}`);
+        const response = await fetch(`https://api.cictpeerlearninghub.com/api/users/${currentUser.user_id}`);
         if (response.ok) {
           const data = await response.json();
           

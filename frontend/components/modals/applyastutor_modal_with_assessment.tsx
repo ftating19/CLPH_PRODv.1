@@ -157,7 +157,7 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
   // Fetch assessments for selected subject
   const fetchAssessments = async (subjectId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessments/subject/${subjectId}`);
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/tutor-pre-assessments/subject/${subjectId}`);
       if (!response.ok) throw new Error('Failed to fetch assessments');
       
       const data = await response.json();
@@ -187,7 +187,7 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
     try {
       // Add cache-busting parameter to ensure fresh data
       const timestamp = new Date().getTime();
-      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessment-questions/pre-assessment/${assessmentId}?t=${timestamp}`);
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/tutor-pre-assessment-questions/pre-assessment/${assessmentId}?t=${timestamp}`);
       if (!response.ok) throw new Error('Failed to fetch questions');
       
       const data = await response.json();
@@ -304,7 +304,7 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
       };
 
       // Submit result to backend
-      const response = await fetch('http://localhost:4000/api/tutor-pre-assessment-results', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/tutor-pre-assessment-results', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -396,7 +396,7 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
       formData.append('type', 'class_card')
       formData.append('user_id', currentUser?.user_id.toString() || '')
 
-      const response = await fetch('http://localhost:4000/api/upload', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/upload', {
         method: 'POST',
         body: formData
       })
@@ -477,7 +477,7 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
         assessment_score: assessmentResult.percentage
       };
 
-      const response = await fetch('http://localhost:4000/api/tutor-applications', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/tutor-applications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

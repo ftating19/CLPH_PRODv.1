@@ -25,7 +25,7 @@ export function useFlashcards(userId?: number | null) {
   const fetchFlashcards = async () => {
     try {
       setLoading(true)
-      let url = 'http://localhost:4000/api/flashcards'
+      let url = 'https://api.cictpeerlearninghub.com/api/flashcards'
       if (userId) {
         url += `?user_id=${userId}`
       }
@@ -70,11 +70,11 @@ export function useFlashcardsWithPending(userId: number | null) {
       setLoading(true)
       
       // Fetch approved flashcards
-      const approvedResponse = await fetch('http://localhost:4000/api/flashcards')
+      const approvedResponse = await fetch('https://api.cictpeerlearninghub.com/api/flashcards')
       const approvedData = await approvedResponse.json()
       
       // Fetch pending flashcards by user
-      const pendingResponse = await fetch(`http://localhost:4000/api/pending-flashcards/user/${userId}`)
+      const pendingResponse = await fetch(`https://api.cictpeerlearninghub.com/api/pending-flashcards/user/${userId}`)
       const pendingData = await pendingResponse.json()
       
       console.log('DEBUG - Approved flashcards:', approvedData)
@@ -132,7 +132,7 @@ export function useFlashcardsBySubject(subjectId: number | null) {
   const fetchFlashcards = async (id: number) => {
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:4000/api/flashcards/subject/${id}`)
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/subject/${id}`)
       const data = await response.json()
       
       if (data.success) {
@@ -168,7 +168,7 @@ export function useFlashcardsByCreator(userId: number | null) {
   const fetchFlashcards = async (id: number) => {
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:4000/api/flashcards/creator/${id}`)
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/creator/${id}`)
       const data = await response.json()
       
       if (data.success) {
@@ -218,7 +218,7 @@ export function useCreateFlashcard() {
       console.log('Program in hook:', flashcardData.program);
       console.log('===================================');
 
-      const response = await fetch('http://localhost:4000/api/flashcards', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/flashcards', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -259,7 +259,7 @@ export function useUpdateFlashcard() {
       setUpdating(true)
       setError(null)
 
-      const response = await fetch(`http://localhost:4000/api/flashcards/${flashcardId}`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/${flashcardId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -295,7 +295,7 @@ export function useDeleteFlashcard() {
       setDeleting(true)
       setError(null)
 
-      const response = await fetch(`http://localhost:4000/api/flashcards/${flashcardId}`, {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/${flashcardId}`, {
         method: 'DELETE'
       })
 
