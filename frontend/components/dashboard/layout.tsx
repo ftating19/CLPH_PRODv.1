@@ -1,6 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
+import { Suspense } from "react"
 import Sidebar from "./sidebar"
 import TopNav from "./top-nav"
 import { useTheme } from "next-themes"
@@ -20,7 +21,9 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className={`flex h-screen ${mounted && theme === "dark" ? "dark" : ""}`}>
-      <Sidebar />
+      <Suspense fallback={<div>Loading...</div>}>
+        <Sidebar />
+      </Suspense>
       <div className="w-full flex flex-1 flex-col">
         <header className="h-16 border-b border-gray-200 dark:border-[#1F1F23]">
           <TopNav />

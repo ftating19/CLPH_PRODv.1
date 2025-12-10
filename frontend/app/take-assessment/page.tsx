@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,7 @@ interface Answer {
   answer: string
 }
 
-export default function TakeAssessment() {
+function TakeAssessmentContent() {
   const { currentUser } = useUser()
   const { toast } = useToast()
   const router = useRouter()
@@ -365,5 +365,13 @@ export default function TakeAssessment() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function TakeAssessment() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <TakeAssessmentContent />
+    </Suspense>
   )
 }
