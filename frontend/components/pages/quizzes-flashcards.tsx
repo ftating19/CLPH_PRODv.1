@@ -81,7 +81,7 @@ export default function QuizzesFlashcards() {
     if (activeTab !== "flashcards") return;
     setFlashcardsLoading(true);
     setFlashcardsError(null);
-    fetch(apiUrl("/api/flashcards"))
+    fetch("https://api.cictpeerlearninghub.com/api/flashcards")
       .then((res) => res.json())
       .then((data) => {
         setFlashcardSets(data.sets || []);
@@ -505,8 +505,5 @@ export default function QuizzesFlashcards() {
     </div>
   )
 }
-function apiUrl(path: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-  return `${baseUrl}${path}`
-}
+
 

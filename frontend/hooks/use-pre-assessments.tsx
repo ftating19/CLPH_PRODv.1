@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiUrl } from '@/lib/api-config'
+
 
 interface PreAssessment {
   id: number
@@ -25,7 +25,7 @@ export function usePreAssessments() {
   const fetchPreAssessments = async () => {
     try {
       setLoading(true)
-      const response = await fetch(apiUrl('/api/pre-assessments'))
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/pre-assessments')
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

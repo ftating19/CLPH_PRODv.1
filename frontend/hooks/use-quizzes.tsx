@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiUrl } from '@/lib/api-config'
+
 
 interface Quiz {
   quizzes_id: number
@@ -35,7 +35,7 @@ export function useQuizzesWithPending(userId: number | null) {
       setLoading(true)
       
       // Fetch approved quizzes
-      const approvedResponse = await fetch(apiUrl('/api/quizzes'))
+      const approvedResponse = await fetch('https://api.cictpeerlearninghub.com/api/quizzes')
       const approvedData = await approvedResponse.json()
       
       // Fetch pending quizzes by user
@@ -113,7 +113,7 @@ export function useQuizzes() {
   const fetchQuizzes = async () => {
     try {
       setLoading(true)
-      const response = await fetch(apiUrl('/api/quizzes'))
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/quizzes')
       const data = await response.json()
       
       if (data.success) {
@@ -176,7 +176,7 @@ export function useQuizQuestions(quizId: number | null) {
 export function useQuizAttempts() {
   const createAttempt = async (attempt: Omit<QuizAttempt, 'attempt_id' | 'timestamp'>) => {
     try {
-      const response = await fetch(apiUrl('/api/quiz-attempts'), {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/quiz-attempts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -12,7 +12,7 @@ import { Clock, CheckCircle, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-r
 import { useUser } from '@/contexts/UserContext'
 import { useToast } from '@/hooks/use-toast'
 import { usePreAssessmentGuard } from '@/hooks/use-pre-assessment-guard'
-import { apiUrl } from '@/lib/api-config'
+
 
 interface Question {
   id: number
@@ -69,12 +69,12 @@ function TakeAssessmentContent() {
       setIsLoading(true)
 
       // Fetch assessment details
-      const assessmentResponse = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessments/${assessmentId}`))
+      const assessmentResponse = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessments/${assessmentId}`)
       if (!assessmentResponse.ok) throw new Error('Failed to fetch assessment')
       const assessmentData = await assessmentResponse.json()
       
       // Fetch questions
-      const questionsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-questions/pre-assessment/${assessmentId}`))
+      const questionsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-questions/pre-assessment/${assessmentId}`)
       if (!questionsResponse.ok) throw new Error('Failed to fetch questions')
       const questionsData = await questionsResponse.json()
 
@@ -135,7 +135,7 @@ function TakeAssessmentContent() {
         time_taken: timeLeft > 0 ? (assessment.duration * (assessment.duration_unit === 'hours' ? 3600 : 60)) - timeLeft : assessment.duration * (assessment.duration_unit === 'hours' ? 3600 : 60)
       }
 
-      const response = await fetch(apiUrl('/api/pre-assessment-results'), {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/pre-assessment-results', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

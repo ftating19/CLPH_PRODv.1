@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
-import { apiUrl } from "@/lib/api-config"
+
 
 export interface StudyMaterial {
   material_id: number
@@ -29,7 +29,7 @@ export function useStudyMaterials() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch(apiUrl('/api/study-materials'))
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/study-materials')
       const data = await response.json()
 
       if (data.success) {
@@ -48,7 +48,7 @@ export function useStudyMaterials() {
 
   const uploadMaterial = async (materialData: FormData) => {
     try {
-      const response = await fetch(apiUrl('/api/study-materials'), {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/study-materials', {
         method: 'POST',
         body: materialData
       })

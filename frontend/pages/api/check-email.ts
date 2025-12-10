@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { apiUrl } from '@/lib/api-config'
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -14,8 +14,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Call the backend API instead of direct database access
-    const backendApiUrl = apiUrl('');
-    const response = await fetch(`${backendApiUrl}/api/check-email?email=${encodeURIComponent(email)}`);
+    const backendApiUrl = 'https://api.cictpeerlearninghub.com';
+    const response = await fetch(`https://api.cictpeerlearninghub.com/api/check-email?email=${encodeURIComponent(email)}`);
     
     if (!response.ok) {
       throw new Error('Backend API request failed');

@@ -15,7 +15,7 @@ import { BookOpen, Users, Brain, AlertCircle, Eye, EyeOff } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/sonner"
-import { apiUrl } from "@/lib/api-config"
+
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -118,7 +118,7 @@ export default function LoginPage() {
         return;
       }
 
-      const response = await fetch(apiUrl('/api/login'), {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -435,7 +435,7 @@ export default function LoginPage() {
               onClose={() => setShowSignupModal(false)}
               onSubmit={async (data) => {
                 try {
-                  const response = await fetch(apiUrl('/api/signup'), {
+                  const response = await fetch('https://api.cictpeerlearninghub.com/api/signup', {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',

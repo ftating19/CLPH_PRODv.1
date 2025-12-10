@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { apiUrl } from "@/lib/api-config"
+
 
 export interface Subject {
   subject_id: number
@@ -22,7 +22,7 @@ export function useSubjects() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch(apiUrl('/api/subjects'))
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/subjects')
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
