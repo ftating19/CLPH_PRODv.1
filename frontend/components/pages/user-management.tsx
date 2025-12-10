@@ -177,7 +177,7 @@ export default function UserManagement() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${apiUrl}/api/users`, {
+      const response = await fetch(apiUrl('/api/users'), {
         headers: {
           'x-user-id': currentUser?.user_id ? String(currentUser.user_id) : '',
           'x-user-role': currentUser?.role || '',
@@ -197,7 +197,7 @@ export default function UserManagement() {
     }
   };    const handleAddUser = async (userData: any) => {
     try {
-      const response = await fetch('apiUrl/api/admin/create-user', {
+      const response = await fetch(apiUrl('/api/admin/create-user'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -259,7 +259,7 @@ export default function UserManagement() {
     if (!userToDeactivate) return;
 
     try {
-      const response = await fetch(`apiUrl/api/admin/edit-user/${userToDeactivate.user_id}`, {
+      const response = await fetch(apiUrl(`/api/admin/edit-user/${userToDeactivate.user_id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
