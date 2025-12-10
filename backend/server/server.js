@@ -3364,6 +3364,25 @@ app.post('/api/pre-assessment-results', async (req, res) => {
     }
 
     const percentage = total_points > 0 ? (score / total_points) * 100 : 0;
+    // Convert started_at to MySQL DATETIME format (YYYY-MM-DD HH:MM:SS)
+    function toMySQLDatetime(value) {
+      if (!value) return null;
+      // If already in desired format, return as is
+      if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)) return value;
+      // Try parsing ISO string
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const hh = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        const ss = String(date.getSeconds()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+      }
+      // Fallback: replace T with space and trim milliseconds
+      return String(value).replace('T', ' ').substring(0, 19);
+    }
 
     const resultData = {
       user_id,
@@ -3374,7 +3393,7 @@ app.post('/api/pre-assessment-results', async (req, res) => {
       correct_answers: correct_answers || 0,
       total_questions: total_questions || 0,
       time_taken_seconds,
-      started_at,
+      started_at: toMySQLDatetime(started_at),
       answers
     };
 
