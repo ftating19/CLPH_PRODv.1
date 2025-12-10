@@ -258,7 +258,7 @@ export default function TutorMatching() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch('apiUrl/api/tutors')
+      const response = await fetch(apiUrl('/api/tutors'))
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

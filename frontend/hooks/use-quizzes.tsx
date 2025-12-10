@@ -34,11 +34,11 @@ export function useQuizzesWithPending(userId: number | null) {
       setLoading(true)
       
       // Fetch approved quizzes
-      const approvedResponse = await fetch('http://localhost:4000/api/quizzes')
+      const approvedResponse = await fetch(apiUrl('/api/quizzes'))
       const approvedData = await approvedResponse.json()
       
       // Fetch pending quizzes by user
-      const pendingResponse = await fetch(`http://localhost:4000/api/pending-quizzes/user/${userId}`)
+      const pendingResponse = await fetch(apiUrl(`/api/pending-quizzes/user/${userId}`))
       const pendingData = await pendingResponse.json()
       
       console.log('DEBUG - Approved quizzes:', approvedData)
@@ -112,7 +112,7 @@ export function useQuizzes() {
   const fetchQuizzes = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://localhost:4000/api/quizzes')
+      const response = await fetch(apiUrl('/api/quizzes'))
       const data = await response.json()
       
       if (data.success) {
@@ -144,7 +144,7 @@ export function useQuizQuestions(quizId: number | null) {
   const fetchQuestions = async (id: number) => {
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:4000/api/questions/quiz/${id}`)
+      const response = await fetch(apiUrl(`/api/questions/quiz/${id}`))
       const data = await response.json()
       
       if (data.success) {
@@ -175,7 +175,7 @@ export function useQuizQuestions(quizId: number | null) {
 export function useQuizAttempts() {
   const createAttempt = async (attempt: Omit<QuizAttempt, 'attempt_id' | 'timestamp'>) => {
     try {
-      const response = await fetch('http://localhost:4000/api/quiz-attempts', {
+      const response = await fetch(apiUrl('/api/quiz-attempts'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -198,7 +198,7 @@ export function useQuizAttempts() {
 
   const getUserBestScore = async (quizId: number, userId: number) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/quiz-attempts/best-score/${quizId}/${userId}`)
+      const response = await fetch(apiUrl(`/api/quiz-attempts/best-score/${quizId}/${userId}`))
       const data = await response.json()
       
       if (data.success) {
@@ -214,7 +214,7 @@ export function useQuizAttempts() {
 
   const getUserAttempts = async (userId: number) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/quiz-attempts/user/${userId}`)
+      const response = await fetch(apiUrl(`/api/quiz-attempts/user/${userId}`))
       const data = await response.json()
       
       if (data.success) {

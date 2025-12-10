@@ -21,7 +21,7 @@ export function useSubjects() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch('http://localhost:4000/api/subjects')
+      const response = await fetch(apiUrl('/api/subjects'))
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

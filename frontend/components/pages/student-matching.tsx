@@ -981,7 +981,7 @@ export default function StudentMatching() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch('apiUrl/api/students')
+      const response = await fetch(apiUrl('/api/students'))
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -1012,7 +1012,7 @@ export default function StudentMatching() {
 
       try {
         // Get tutor record for current user
-        const tutorsRes = await fetch('apiUrl/api/tutors')
+        const tutorsRes = await fetch(apiUrl('/api/tutors'))
         const tutorsData = await tutorsRes.json()
         const myTutor = Array.isArray(tutorsData.tutors) ? tutorsData.tutors.find((t: any) => t.user_id === currentUser.user_id) : null
         const foundTutorSubjectId = myTutor?.subject_id
@@ -1142,7 +1142,7 @@ export default function StudentMatching() {
     // Try to determine tutor's subject from tutors API
     const sortForTutor = async () => {
       try {
-        const tutorsRes = await fetch('apiUrl/api/tutors')
+        const tutorsRes = await fetch(apiUrl('/api/tutors'))
         const tutorsData = await tutorsRes.json()
         const myTutor = Array.isArray(tutorsData.tutors) ? tutorsData.tutors.find((t: any) => t.user_id === currentUser.user_id) : null
         const tutorSubjectId = myTutor?.subject_id
