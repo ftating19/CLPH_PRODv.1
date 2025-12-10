@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { apiUrl } from '@/lib/api-config'
 
 interface Quiz {
   quizzes_id: number

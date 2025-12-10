@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
+import { apiUrl } from "@/lib/api-config"
 
 export interface StudyMaterial {
   material_id: number

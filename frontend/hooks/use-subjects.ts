@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { apiUrl } from "@/lib/api-config"
 
 export interface Subject {
   subject_id: number
