@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -64,6 +64,10 @@ export default function QuizzesFlashcards() {
   const [quizStarted, setQuizStarted] = useState(false)
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([])
   const [score, setScore] = useState<number | null>(null)
+  const [flashcardSets, setFlashcardSets] = useState<any[]>([])
+  const [flashcards, setFlashcards] = useState<any[]>([])
+  const [flashcardsLoading, setFlashcardsLoading] = useState(false)
+  const [flashcardsError, setFlashcardsError] = useState<string | null>(null)
 
   // Database hooks
   const { quizzes, loading: quizzesLoading, error: quizzesError } = useQuizzes()
@@ -71,6 +75,40 @@ export default function QuizzesFlashcards() {
     selectedQuiz?.quizzes_id || null
   )
   const { createAttempt } = useQuizAttempts()
+
+  // Fetch flashcard sets from backend
+  useEffect(() => {
+    if (activeTab !== "flashcards") return;
+    setFlashcardsLoading(true);
+    setFlashcardsError(null);
+    fetch(apiUrl("/api/flashcards"))
+      .then((res) => res.json())
+      .then((data) => {
+        setFlashcardSets(data.sets || []);
+      })
+      .catch((err) => {
+        setFlashcardsError("Failed to load flashcard sets.");
+        setFlashcardSets([]);
+      })
+      .finally(() => setFlashcardsLoading(false));
+  }, [activeTab]);
+
+  // Fetch flashcards for selected set
+  useEffect(() => {
+    if (!selectedFlashcardSet) return;
+    setFlashcardsLoading(true);
+    setFlashcardsError(null);
+    fetch(apiUrl(`/api/flashcards/${selectedFlashcardSet.id}`))
+      .then((res) => res.json())
+      .then((data) => {
+        setFlashcards(data.cards || []);
+      })
+      .catch((err) => {
+        setFlashcardsError("Failed to load flashcards.");
+        setFlashcards([]);
+      })
+      .finally(() => setFlashcardsLoading(false));
+  }, [selectedFlashcardSet]);
 
   const startQuiz = (quiz: any) => {
     setSelectedQuiz(quiz)
@@ -129,10 +167,11 @@ export default function QuizzesFlashcards() {
     setSelectedFlashcardSet(set)
     setCurrentCard(0)
     setShowAnswer(false)
+    setFlashcards([])
   }
 
   const nextCard = () => {
-    if (currentCard < sampleFlashcards.length - 1) {
+    if (currentCard < flashcards.length - 1) {
       setCurrentCard(currentCard + 1)
       setShowAnswer(false)
     }
@@ -149,6 +188,7 @@ export default function QuizzesFlashcards() {
     setSelectedFlashcardSet(null)
     setCurrentCard(0)
     setShowAnswer(false)
+    setFlashcards([])
   }
 
   const getDifficultyVariant = (difficulty: string) => {
@@ -365,7 +405,34 @@ export default function QuizzesFlashcards() {
 
       {activeTab === "flashcards" && (
         <div>
-          {!selectedFlashcardSet ? (
+          {flashcardsError && (
+            <Alert className="mb-6">
+              <AlertDescription>
+                {flashcardsError}
+              </AlertDescription>
+            </Alert>
+          )}
+          {flashcardsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-4 w-full mb-2" />
+                    <Skeleton className="h-4 w-2/3 mb-4" />
+                    <div className="flex justify-between mb-4">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-12" />
+                    </div>
+                    <Skeleton className="h-10 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : !selectedFlashcardSet ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {flashcardSets.map((set) => (
                 <Card key={set.id} className="hover:shadow-lg transition-shadow">
@@ -378,7 +445,7 @@ export default function QuizzesFlashcards() {
                     <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
                       <span className="flex items-center space-x-1">
                         <BookOpen className="h-4 w-4" />
-                        <span>{set.cards} cards</span>
+                        <span>{set.cards || (set.card_count || 0)} cards</span>
                       </span>
                     </div>
                     <Button onClick={() => startFlashcards(set)} className="w-full">
@@ -398,12 +465,12 @@ export default function QuizzesFlashcards() {
                     Back to Sets
                   </Button>
                 </div>
-                <Progress value={((currentCard + 1) / sampleFlashcards.length) * 100} className="w-full" />
+                <Progress value={((currentCard + 1) / flashcards.length) * 100} className="w-full" />
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
                   <div className="text-center text-sm text-gray-500">
-                    Card {currentCard + 1} of {sampleFlashcards.length}
+                    Card {currentCard + 1} of {flashcards.length}
                   </div>
                   <div
                     className="bg-gray-50 dark:bg-gray-800 rounded-lg p-8 min-h-[200px] flex items-center justify-center cursor-pointer transition-all hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -411,7 +478,7 @@ export default function QuizzesFlashcards() {
                   >
                     <div className="text-center">
                       <p className="text-lg font-medium mb-2">
-                        {showAnswer ? sampleFlashcards[currentCard].back : sampleFlashcards[currentCard].front}
+                        {flashcards.length > 0 ? (showAnswer ? flashcards[currentCard].back : flashcards[currentCard].front) : "No cards available"}
                       </p>
                       <p className="text-sm text-gray-500">{showAnswer ? <><span className="text-green-600 bg-green-100 px-2 py-1 rounded font-semibold">Definition</span></> : "Click to reveal answer"}</p>
                     </div>
@@ -424,7 +491,7 @@ export default function QuizzesFlashcards() {
                     <Button onClick={() => setShowAnswer(!showAnswer)}>
                       {showAnswer ? <><span className="text-blue-600 font-semibold">Show Question</span></> : <><span className="text-green-600 font-semibold">Show Answer</span></>}
                     </Button>
-                    <Button variant="outline" onClick={nextCard} disabled={currentCard === sampleFlashcards.length - 1}>
+                    <Button variant="outline" onClick={nextCard} disabled={currentCard === flashcards.length - 1}>
                       Next
                       <ChevronRight className="h-4 w-4 ml-2" />
                     </Button>
@@ -438,3 +505,8 @@ export default function QuizzesFlashcards() {
     </div>
   )
 }
+function apiUrl(path: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+  return `${baseUrl}${path}`
+}
+
