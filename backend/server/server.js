@@ -2381,11 +2381,17 @@ app.get('/api/study-materials', async (req, res) => {
     const materials = await getAllStudyMaterials(pool);
     
     console.log(`✅ Found ${materials.length} study materials`);
-    
+    // Build absolute file URLs
+    const baseUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+    const materialsWithUrls = materials.map(m => ({
+      ...m,
+      file_path: m.file_path && (m.file_path.startsWith('http') ? m.file_path : `${baseUrl}${m.file_path}`)
+    }));
+
     res.json({
       success: true,
-      materials: materials,
-      total: materials.length
+      materials: materialsWithUrls,
+      total: materialsWithUrls.length
     });
   } catch (err) {
     console.error('Error fetching study materials:', err);
@@ -2413,10 +2419,15 @@ app.get('/api/study-materials/:id', async (req, res) => {
     }
     
     console.log(`✅ Found study material ${materialId}`);
+    const baseUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+    const materialWithUrl = {
+      ...material,
+      file_path: material.file_path && (material.file_path.startsWith('http') ? material.file_path : `${baseUrl}${material.file_path}`)
+    };
     
     res.json({
       success: true,
-      material: material
+      material: materialWithUrl
     });
   } catch (err) {
     console.error('Error fetching study material:', err);
@@ -2620,10 +2631,13 @@ app.get('/api/study-materials/:id/download', async (req, res) => {
     // Increment download count
     await incrementDownloadCount(pool, materialId);
 
-    // Return file path for frontend to handle download
+    // Build absolute URL for download and return for frontend
+    const baseUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+    const fileUrl = material.file_path && (material.file_path.startsWith('http') ? material.file_path : `${baseUrl}${material.file_path}`);
+
     res.json({
       success: true,
-      file_path: material.file_path,
+      file_path: fileUrl,
       title: material.title
     });
   } catch (err) {
@@ -2656,10 +2670,13 @@ app.get('/api/study-materials/:id/preview', async (req, res) => {
     // Increment view count
     await incrementViewCount(pool, materialId);
 
-    // Return file path for frontend to handle preview
+    // Build absolute URL for preview and return for frontend
+    const baseUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+    const fileUrl = material.file_path && (material.file_path.startsWith('http') ? material.file_path : `${baseUrl}${material.file_path}`);
+
     res.json({
       success: true,
-      file_path: material.file_path,
+      file_path: fileUrl,
       title: material.title
     });
   } catch (err) {
