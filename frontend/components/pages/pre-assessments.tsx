@@ -358,7 +358,7 @@ export default function PreAssessments() {
 
   const fetchSubjects = async () => {
     try {
-      const response = await fetch('apiUrl/api/subjects')
+      const response = await fetch(apiUrl('/api/subjects'))
       if (!response.ok) throw new Error('Failed to fetch subjects')
       const data = await response.json()
       setSubjects(data.subjects || [])
