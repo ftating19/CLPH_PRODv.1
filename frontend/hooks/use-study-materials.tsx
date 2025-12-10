@@ -112,18 +112,11 @@ export function useStudyMaterials() {
 
   const previewMaterial = async (materialId: number) => {
     try {
-      const response = await fetch(`https://api.cictpeerlearninghub.com/api/study-materials/${materialId}/preview`)
-      const result = await response.json()
-
-      if (result.success) {
-        // Open in new tab for preview
-        window.open(result.file_path, '_blank')
-        
-        // Refresh materials to update view count
-        await fetchMaterials()
-      } else {
-        throw new Error(result.error || 'Failed to preview material')
-      }
+      // Open the server-served preview endpoint in a new tab so the API streams the PDF
+      const serveUrl = `https://api.cictpeerlearninghub.com/api/study-materials/${materialId}/serve`
+      window.open(serveUrl, '_blank')
+      // The serve endpoint will increment the view count; refresh list to reflect changes
+      await fetchMaterials()
     } catch (err) {
       console.error('Error previewing material:', err)
       toast({

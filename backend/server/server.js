@@ -288,6 +288,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve uploaded pending resources so backend can host files if FRONTEND_URL isn't set
+const pendingResourcesPath = path.join(__dirname, '../../frontend/public/pending-resources');
+if (fs.existsSync(pendingResourcesPath)) {
+  app.use('/pending-resources', express.static(pendingResourcesPath));
+} else {
+  // Ensure directory exists in runtime environments where uploads may occur
+  try {
+    fs.mkdirSync(pendingResourcesPath, { recursive: true });
+    app.use('/pending-resources', express.static(pendingResourcesPath));
+  } catch (e) {
+    console.warn('Could not create or serve pending-resources directory:', e.message);
+  }
+}
+
 const PORT = process.env.PORT || 4000
 
 app.get('/health', (req, res) => res.json({ ok: true }))
@@ -2685,6 +2699,54 @@ app.get('/api/study-materials/:id/preview', async (req, res) => {
       success: false,
       error: 'Internal server error' 
     });
+  }
+});
+
+// Serve/stream the study material file directly (for preview in new tab)
+app.get('/api/study-materials/:id/serve', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    console.log(`Serving study material file ${materialId}`);
+
+    const pool = await db.getPool();
+    const material = await getStudyMaterialById(pool, materialId);
+
+    if (!material || !material.file_path) {
+      return res.status(404).json({ success: false, error: 'Study material not found' });
+    }
+
+    // Resolve filesystem path for the file (supports '/pending-resources/...' stored values)
+    let relPath = material.file_path;
+    // If stored as absolute URL, try to extract the pathname
+    try {
+      if (relPath.startsWith('http')) {
+        const parsed = new URL(relPath);
+        relPath = parsed.pathname;
+      }
+    } catch (e) {
+      // ignore URL parsing errors
+    }
+
+    const filePath = path.join(__dirname, '../../frontend/public', relPath);
+
+    if (!fs.existsSync(filePath)) {
+      console.error('File not found on server:', filePath);
+      return res.status(404).json({ success: false, error: 'File not found' });
+    }
+
+    // Increment view count
+    try {
+      await incrementViewCount(pool, materialId);
+    } catch (incErr) {
+      console.warn('Failed to increment view count:', incErr.message);
+    }
+
+    // Stream the file
+    res.setHeader('Content-Type', 'application/pdf');
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('Error serving study material file:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
