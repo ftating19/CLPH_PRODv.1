@@ -225,10 +225,10 @@ export default function TutorSessionPage() {
           description: "The session has been successfully marked as completed.",
           variant: "default"
         })
-      } else if (data.requiresRating) {
+      } else if (data.error && data.error.toLowerCase().includes("rate")) {
         toast({
-          title: "⏳ Student Rating Required",
-          description: "Please ask the student to rate this session first. A reminder has been sent to them.",
+          title: "Student Must Rate",
+          description: "Please inform your student to rate the session before marking as complete.",
           variant: "default",
           duration: 4000
         })
