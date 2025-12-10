@@ -30,9 +30,9 @@ git push origin main
 ### 3. Configure the Application
 **General Settings:**
 - **Name**: `CICT Peer Learning Hub - Frontend`
-- **Build Pack**: Docker
-- **Dockerfile Location**: `frontend/Dockerfile`
-- **Base Directory**: `frontend`
+- **Build Pack**: Select **"Dockerfile"**
+- **Base Directory**: `frontend` (Important: Set this first!)
+- **Dockerfile Location**: `Dockerfile` (relative to base directory)
 - **Port**: `3000`
 
 **Domains:**
