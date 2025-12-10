@@ -32,7 +32,7 @@ async function getForumById(pool, forum_id) {
 // Create a new forum
 async function createForum(pool, { title, topic, subject_id, created_by }) {
   const [result] = await pool.query(
-    'INSERT INTO forums (title, topic, subject_id, created_by, created_at) VALUES (?, ?, ?, ?, NOW())',
+    'INSERT INTO forums (title, topic, subject_id, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), "")',
     [title, topic, subject_id, created_by]
   );
   return result.insertId;
