@@ -2488,8 +2488,9 @@ app.post('/api/study-materials', upload.single('file'), async (req, res) => {
     const pool = await db.getPool();
 
     // Compose public-accessible file path/URL for the uploaded file.
-    // Use `PENDING_RESOURCES_URL` if provided; else fall back to FRONTEND_URL + /pending-resources or relative path.
+    // Priority: PENDING_RESOURCES_URL -> backend host (/pending-resources) -> FRONTEND_URL
     const publicBase = pendingResourcesPublicUrl
+      || `${req.protocol}://${req.get('host')}/pending-resources`
       || (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL.replace(/\/$/, '')}/pending-resources` : '/pending-resources');
     const filePathForDb = `${publicBase.replace(/\/$/, '')}/${req.file.filename}`;
 
@@ -2762,6 +2763,50 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
   } catch (err) {
     console.error('Error serving study material file:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// --- Debug endpoints for pending-resources (only enabled when ENABLE_DEBUG_ENDPOINTS=true) ---
+const debugEnabled = String(process.env.ENABLE_DEBUG_ENDPOINTS || '').toLowerCase() === 'true';
+
+app.get('/debug/pending-resources-files', async (req, res) => {
+  if (!debugEnabled) return res.status(404).json({ error: 'Not found' });
+  try {
+    const files = fs.existsSync(pendingResourcesDir) ? fs.readdirSync(pendingResourcesDir) : [];
+    return res.json({ success: true, dir: pendingResourcesDir, count: files.length, files });
+  } catch (err) {
+    console.error('Debug list error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /debug/pending-resources/migrate
+// Copies files from the repo frontend/public/pending-resources to the configured pendingResourcesDir.
+// Body (optional): { force: boolean }
+app.post('/debug/pending-resources/migrate', async (req, res) => {
+  if (!debugEnabled) return res.status(404).json({ error: 'Not found' });
+  try {
+    const repoPath = path.join(__dirname, '../../frontend/public/pending-resources');
+    if (!fs.existsSync(repoPath)) {
+      return res.status(404).json({ success: false, error: 'Source repo pending-resources folder not found', repoPath });
+    }
+    if (!fs.existsSync(pendingResourcesDir)) {
+      fs.mkdirSync(pendingResourcesDir, { recursive: true });
+    }
+    const files = fs.readdirSync(repoPath);
+    let copied = 0;
+    for (const f of files) {
+      const src = path.join(repoPath, f);
+      const dest = path.join(pendingResourcesDir, f);
+      if (!fs.existsSync(dest) || req.body.force) {
+        fs.copyFileSync(src, dest);
+        copied++;
+      }
+    }
+    return res.json({ success: true, copied, targetDir: pendingResourcesDir });
+  } catch (err) {
+    console.error('Debug migrate error:', err);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
