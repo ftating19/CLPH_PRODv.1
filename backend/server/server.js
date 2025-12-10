@@ -288,18 +288,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve uploaded pending resources so backend can host files if FRONTEND_URL isn't set
-const pendingResourcesPath = path.join(__dirname, '../../frontend/public/pending-resources');
-if (fs.existsSync(pendingResourcesPath)) {
-  app.use('/pending-resources', express.static(pendingResourcesPath));
-} else {
-  // Ensure directory exists in runtime environments where uploads may occur
-  try {
-    fs.mkdirSync(pendingResourcesPath, { recursive: true });
-    app.use('/pending-resources', express.static(pendingResourcesPath));
-  } catch (e) {
-    console.warn('Could not create or serve pending-resources directory:', e.message);
+// Configure where pending resources are stored and how they are exposed publicly.
+// - `PENDING_RESOURCES_DIR`: absolute filesystem directory where PDFs are saved (optional).
+// - `PENDING_RESOURCES_URL`: public base URL where files are served (optional).
+// If not provided, files default to `../frontend/public/pending-resources` and are served
+// by the backend at `/pending-resources`.
+const pendingResourcesDir = process.env.PENDING_RESOURCES_DIR || path.join(__dirname, '../../frontend/public/pending-resources');
+const pendingResourcesPublicUrl = process.env.PENDING_RESOURCES_URL || null; // optional absolute URL
+
+// Ensure directory exists and expose it at `/pending-resources` so the backend can serve files
+try {
+  if (!fs.existsSync(pendingResourcesDir)) {
+    fs.mkdirSync(pendingResourcesDir, { recursive: true });
   }
+  app.use('/pending-resources', express.static(pendingResourcesDir));
+} catch (e) {
+  console.warn('Could not create or serve pending-resources directory:', e.message);
 }
 
 const PORT = process.env.PORT || 4000
@@ -2282,13 +2286,18 @@ app.get('/api/programs', async (req, res) => {
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadPath = path.join(__dirname, '../../frontend/public/pending-resources');
-    
+    // Use configured pending resources directory when available
+    const uploadPath = pendingResourcesDir || path.join(__dirname, '../../frontend/public/pending-resources');
+
     // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
+    try {
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath, { recursive: true });
+      }
+    } catch (e) {
+      console.warn('Could not ensure upload directory exists:', e.message);
     }
-    
+
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
@@ -2478,12 +2487,18 @@ app.post('/api/study-materials', upload.single('file'), async (req, res) => {
     // Get a database connection
     const pool = await db.getPool();
 
+    // Compose public-accessible file path/URL for the uploaded file.
+    // Use `PENDING_RESOURCES_URL` if provided; else fall back to FRONTEND_URL + /pending-resources or relative path.
+    const publicBase = pendingResourcesPublicUrl
+      || (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL.replace(/\/$/, '')}/pending-resources` : '/pending-resources');
+    const filePathForDb = `${publicBase.replace(/\/$/, '')}/${req.file.filename}`;
+
     // Create the pending material for review
     const result = await createPendingMaterial(pool, {
       title,
       description,
       subject: subject || 'General',
-      file_path: `/pending-resources/${req.file.filename}`,
+      file_path: filePathForDb,
       uploaded_by,
       file_type: 'PDF',
       file_size: req.file.size,
