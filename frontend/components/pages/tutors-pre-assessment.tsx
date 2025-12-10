@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/contexts/UserContext"
 import Layout from "@/components/dashboard/layout"
-
+import { apiUrl } from "@/lib/api-config"
 // Icons
 import {
   Plus,
@@ -221,7 +221,7 @@ export default function TutorsPreAssessment() {
     try {
       setLoading(true)
       // For faculty, only show pre-assessments they created for tutor evaluation
-      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessments?created_by=${currentUser?.user_id}`)
+      const response = await fetch(`apiUrl/api/tutor-pre-assessments?created_by=${currentUser?.user_id}`)
       
       if (!response.ok) throw new Error('Failed to fetch tutors pre-assessments')
       const data = await response.json()
@@ -274,7 +274,7 @@ export default function TutorsPreAssessment() {
         assessment_type: 'tutor' // Mark this as a tutor pre-assessment
       }
       
-      const response = await fetch('http://localhost:4000/api/tutor-pre-assessments', {
+      const response = await fetch('apiUrl/api/tutor-pre-assessments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -357,7 +357,7 @@ export default function TutorsPreAssessment() {
 
     try {
       setIsSubmitting(true)
-      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessments/${selectedPreAssessment.id}`, {
+      const response = await fetch(`apiUrl/api/tutor-pre-assessments/${selectedPreAssessment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -398,7 +398,7 @@ export default function TutorsPreAssessment() {
 
     try {
       setIsSubmitting(true)
-      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessments/${selectedPreAssessment.id}`, {
+      const response = await fetch(`apiUrl/api/tutor-pre-assessments/${selectedPreAssessment.id}`, {
         method: 'DELETE'
       })
 
@@ -436,7 +436,7 @@ export default function TutorsPreAssessment() {
     try {
       // Add cache-busting parameter to ensure fresh data
       const timestamp = new Date().getTime();
-      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessment-questions/pre-assessment/${preAssessmentId}?t=${timestamp}`)
+      const response = await fetch(`apiUrl/api/tutor-pre-assessment-questions/pre-assessment/${preAssessmentId}?t=${timestamp}`)
       if (!response.ok) throw new Error('Failed to fetch questions')
       const data = await response.json()
       
@@ -521,13 +521,13 @@ export default function TutorsPreAssessment() {
 
       let response
       if (editingQuestion) {
-        response = await fetch(`http://localhost:4000/api/tutor-pre-assessment-questions/${editingQuestion.id}`, {
+        response = await fetch(`apiUrl/api/tutor-pre-assessment-questions/${editingQuestion.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestData)
         })
       } else {
-        response = await fetch('http://localhost:4000/api/tutor-pre-assessment-questions', {
+        response = await fetch('apiUrl/api/tutor-pre-assessment-questions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestData)
@@ -560,7 +560,7 @@ export default function TutorsPreAssessment() {
   const handleDeleteQuestion = async (questionId: number) => {
     try {
       setIsSubmitting(true)
-      const response = await fetch(`http://localhost:4000/api/tutor-pre-assessment-questions/${questionId}`, {
+      const response = await fetch(`apiUrl/api/tutor-pre-assessment-questions/${questionId}`, {
         method: 'DELETE'
       })
 

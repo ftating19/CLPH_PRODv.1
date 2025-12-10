@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
+import { apiUrl } from "@/lib/api-config"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -228,7 +229,7 @@ export default function Quizzes() {
       }
 
       try {
-        const response = await fetch(`http://localhost:4000/api/quiz-attempts/user/${currentUser.user_id}`)
+        const response = await fetch(`apiUrl/api/quiz-attempts/user/${currentUser.user_id}`)
         const data = await response.json()
         
         if (data.success && data.attempts) {
@@ -265,7 +266,7 @@ export default function Quizzes() {
       try {
         const statisticsPromises = quizzes.map(async (quiz: any) => {
           try {
-            const response = await fetch(`http://localhost:4000/api/quiz-attempts/statistics/${quiz.quizzes_id}`)
+            const response = await fetch(`apiUrl/api/quiz-attempts/statistics/${quiz.quizzes_id}`)
             const data = await response.json()
             
             if (data.success && data.statistics) {
@@ -317,7 +318,7 @@ export default function Quizzes() {
         // Fetch average ratings for all quizzes
         const ratingsPromises = quizzes.map(async (quiz: any) => {
           try {
-            const response = await fetch(`http://localhost:4000/api/quizzes/${quiz.quizzes_id}/rating`)
+            const response = await fetch(`apiUrl/api/quizzes/${quiz.quizzes_id}/rating`)
             if (response.ok) {
               const data = await response.json()
               return {
@@ -344,7 +345,7 @@ export default function Quizzes() {
         if (currentUser?.user_id) {
           const userRatingsPromises = quizzes.map(async (quiz: any) => {
             try {
-              const response = await fetch(`http://localhost:4000/api/quizzes/${quiz.quizzes_id}/rating/${currentUser.user_id}`)
+              const response = await fetch(`apiUrl/api/quizzes/${quiz.quizzes_id}/rating/${currentUser.user_id}`)
               if (response.ok) {
                 const data = await response.json()
                 return {
@@ -370,7 +371,7 @@ export default function Quizzes() {
           // Fetch user's comments
           const userCommentsPromises = quizzes.map(async (quiz: any) => {
             try {
-              const response = await fetch(`http://localhost:4000/api/quizzes/${quiz.quizzes_id}/rating/${currentUser.user_id}`)
+              const response = await fetch(`apiUrl/api/quizzes/${quiz.quizzes_id}/rating/${currentUser.user_id}`)
               if (response.ok) {
                 const data = await response.json()
                 return {
@@ -416,7 +417,7 @@ export default function Quizzes() {
     }
 
     try {
-      const response = await fetch(`http://localhost:4000/api/quizzes/${quizId}/rating`, {
+      const response = await fetch(`apiUrl/api/quizzes/${quizId}/rating`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -735,7 +736,7 @@ export default function Quizzes() {
     try {
       // Load questions for the quiz
       console.log('Loading questions for quiz:', quiz)
-      const response = await fetch(`http://localhost:4000/api/questions/quiz/${quiz.quiz_id || quiz.id}`)
+      const response = await fetch(`apiUrl/api/questions/quiz/${quiz.quiz_id || quiz.id}`)
       const data = await response.json()
       
       console.log('Questions API response:', data)
@@ -938,7 +939,7 @@ export default function Quizzes() {
           totalQuestions: takingQuiz.questions.length
         })
 
-        const response = await fetch('http://localhost:4000/api/quiz-attempts', {
+        const response = await fetch('apiUrl/api/quiz-attempts', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -951,7 +952,7 @@ export default function Quizzes() {
         if (result.success) {
           // Refresh user attempts to update UI immediately
           if (currentUser) {
-            const attemptsResponse = await fetch(`http://localhost:4000/api/quiz-attempts/user/${currentUser.user_id}`)
+            const attemptsResponse = await fetch(`apiUrl/api/quiz-attempts/user/${currentUser.user_id}`)
             if (attemptsResponse.ok) {
               const attemptsData = await attemptsResponse.json()
               if (attemptsData.success && attemptsData.attempts) {
@@ -1093,8 +1094,8 @@ export default function Quizzes() {
       console.log('===========================');
 
       const url = currentQuiz 
-        ? `http://localhost:4000/api/quizzes/${currentQuiz.id || currentQuiz.quiz_id}` 
-        : 'http://localhost:4000/api/quizzes'
+        ? `apiUrl/api/quizzes/${currentQuiz.id || currentQuiz.quiz_id}` 
+        : 'apiUrl/api/quizzes'
       
       const response = await fetch(url, {
         method: currentQuiz ? 'PUT' : 'POST',
@@ -1116,7 +1117,7 @@ export default function Quizzes() {
           // If updating an existing quiz, delete old questions first
           if (currentQuiz) {
             try {
-              await fetch(`http://localhost:4000/api/questions/quiz/${createdQuizId}`, {
+              await fetch(`apiUrl/api/questions/quiz/${createdQuizId}`, {
                 method: 'DELETE'
               })
               console.log('Deleted old questions for quiz:', createdQuizId)
@@ -1138,7 +1139,7 @@ export default function Quizzes() {
                 question_type: question.question_type || question.type
               }
               console.log(`Saving question ${index + 1}:`, questionData)
-              const questionResponse = await fetch('http://localhost:4000/api/questions', {
+              const questionResponse = await fetch('apiUrl/api/questions', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -1160,7 +1161,7 @@ export default function Quizzes() {
         // Update the quiz with the correct item count
         if (!currentQuiz) {
           try {
-            await fetch(`http://localhost:4000/api/quizzes/${createdQuizId}`, {
+            await fetch(`apiUrl/api/quizzes/${createdQuizId}`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -1291,7 +1292,7 @@ export default function Quizzes() {
   const handleDeleteQuiz = async (quiz: Quiz) => {
     if (confirm(`Are you sure you want to delete the quiz "${quiz.title}"? This action cannot be undone.`)) {
       try {
-        const response = await fetch(`http://localhost:4000/api/quizzes/${quiz.id || quiz.quiz_id}`, {
+        const response = await fetch(`apiUrl/api/quizzes/${quiz.id || quiz.quiz_id}`, {
           method: 'DELETE'
         })
         
@@ -1354,7 +1355,7 @@ export default function Quizzes() {
     // Load questions from database for existing quiz
     try {
       const quizId = quiz.id || quiz.quiz_id
-      const response = await fetch(`http://localhost:4000/api/questions/quiz/${quizId}`)
+      const response = await fetch(`apiUrl/api/questions/quiz/${quizId}`)
       const data = await response.json()
       
       if (data.success && data.questions) {

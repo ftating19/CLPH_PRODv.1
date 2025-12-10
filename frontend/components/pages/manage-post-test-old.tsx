@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { apiUrl } from "@/lib/api-config"
 import {
   Dialog,
   DialogContent,
@@ -192,7 +193,7 @@ export default function ManagePostTest() {
       setLoading(true)
       console.log('Fetching post-tests for tutor:', currentUser.user_id)
       
-      const response = await fetch(`http://localhost:4000/api/post-tests/tutor/${currentUser.user_id}`)
+      const response = await fetch(`apiUrl/api/post-tests/tutor/${currentUser.user_id}`)
       
       console.log('Response status:', response.status)
       console.log('Response ok:', response.ok)
@@ -228,7 +229,7 @@ export default function ManagePostTest() {
     
     try {
       setLoadingTemplates(true)
-      const response = await fetch(`http://localhost:4000/api/post-test-templates/tutor/${currentUser.user_id}`)
+      const response = await fetch(`apiUrl/api/post-test-templates/tutor/${currentUser.user_id}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch templates')
@@ -254,7 +255,7 @@ export default function ManagePostTest() {
   const fetchTemplateAssignments = async (templateId: number) => {
     try {
       setLoadingAssignments(true)
-      const response = await fetch(`http://localhost:4000/api/post-test-templates/${templateId}/assignments`)
+      const response = await fetch(`apiUrl/api/post-test-templates/${templateId}/assignments`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch assignments')
@@ -295,7 +296,7 @@ export default function ManagePostTest() {
       })
       
       // Fetch template questions
-      const response = await fetch(`http://localhost:4000/api/post-test-templates/${template.template_id}/questions`)
+      const response = await fetch(`apiUrl/api/post-test-templates/${template.template_id}/questions`)
       if (response.ok) {
         const data = await response.json()
         if (data.success && Array.isArray(data.questions)) {
@@ -365,7 +366,7 @@ export default function ManagePostTest() {
       
       if (editingTemplateId) {
         // UPDATE existing template
-        const templateResponse = await fetch(`http://localhost:4000/api/post-test-templates/${editingTemplateId}`, {
+        const templateResponse = await fetch(`apiUrl/api/post-test-templates/${editingTemplateId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -384,7 +385,7 @@ export default function ManagePostTest() {
         
         // Delete old questions and add new ones
         // Note: This is a simple approach. For better UX, you'd want to update individual questions
-        const questionsResponse = await fetch(`http://localhost:4000/api/post-test-templates/${editingTemplateId}/questions`, {
+        const questionsResponse = await fetch(`apiUrl/api/post-test-templates/${editingTemplateId}/questions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -409,7 +410,7 @@ export default function ManagePostTest() {
         })
       } else {
         // CREATE new template
-        const templateResponse = await fetch('http://localhost:4000/api/post-test-templates', {
+        const templateResponse = await fetch('apiUrl/api/post-test-templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -431,7 +432,7 @@ export default function ManagePostTest() {
         const templateId = templateData.template_id
         
         // Add questions to template
-        const questionsResponse = await fetch(`http://localhost:4000/api/post-test-templates/${templateId}/questions`, {
+        const questionsResponse = await fetch(`apiUrl/api/post-test-templates/${templateId}/questions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -491,7 +492,7 @@ export default function ManagePostTest() {
       setLoading(true)
       console.log('Fetching post-tests for tutor:', currentUser.user_id)
       
-      const response = await fetch(`http://localhost:4000/api/post-tests/tutor/${currentUser.user_id}`)
+      const response = await fetch(`apiUrl/api/post-tests/tutor/${currentUser.user_id}`)
       
       console.log('Response status:', response.status)
       console.log('Response ok:', response.ok)
@@ -528,8 +529,8 @@ export default function ManagePostTest() {
     try {
       setLoadingQuestions(true)
       const endpoint = isTemplate 
-        ? `http://localhost:4000/api/post-test-templates/${postTestId}/questions`
-        : `http://localhost:4000/api/post-tests/${postTestId}/questions`
+        ? `apiUrl/api/post-test-templates/${postTestId}/questions`
+        : `apiUrl/api/post-tests/${postTestId}/questions`
       
       const response = await fetch(endpoint)
       
@@ -615,7 +616,7 @@ export default function ManagePostTest() {
     try {
       setSavingQuestion(true)
       
-      const response = await fetch(`http://localhost:4000/api/post-tests/questions/${editedQuestion.id}`, {
+      const response = await fetch(`apiUrl/api/post-tests/questions/${editedQuestion.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -661,7 +662,7 @@ export default function ManagePostTest() {
     if (!questionId || !selectedPostTest) return
     
     try {
-      const response = await fetch(`http://localhost:4000/api/post-tests/questions/${questionId}`, {
+      const response = await fetch(`apiUrl/api/post-tests/questions/${questionId}`, {
         method: 'DELETE'
       })
       
@@ -692,7 +693,7 @@ export default function ManagePostTest() {
     if (!postTestToDelete) return
     
     try {
-      const response = await fetch(`http://localhost:4000/api/post-tests/${postTestToDelete.id}`, {
+      const response = await fetch(`apiUrl/api/post-tests/${postTestToDelete.id}`, {
         method: 'DELETE'
       })
       
@@ -729,7 +730,7 @@ export default function ManagePostTest() {
       
       try {
         // Fetch sessions for the tutor
-        const response = await fetch(`http://localhost:4000/api/sessions?user_id=${currentUser.user_id}`)
+        const response = await fetch(`apiUrl/api/sessions?user_id=${currentUser.user_id}`)
         if (response.ok) {
           const data = await response.json()
           
@@ -1118,38 +1119,28 @@ export default function ManagePostTest() {
             </Dialog>
           )}
         </div>
-      </div>
-
-      {/* Create/Edit Template Dialog */}
-      <Dialog open={showCreateTemplateDialog} onOpenChange={(open) => {
-        setShowCreateTemplateDialog(open)
-        if (!open) {
-          // Reset form when closing
-          setEditingTemplateId(null)
-          setTemplateForm({
-            title: '',
-            description: '',
-            subject_id: '',
-            time_limit: 30,
-            passing_score: 70
-          })
-          setTemplateQuestions([])
-        }
-      }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingTemplateId ? 'Edit Post-Test Template' : 'Create Post-Test Template'}</DialogTitle>
-            <DialogDescription>
-              {editingTemplateId 
-                ? 'Update the template details and questions'
-                : 'Create a reusable template that can be assigned to multiple students'
-              }
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Basic Info */}
-            <div className="space-y-4">
+      
+      {/* Post Tests List */}
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading post-tests...</p>
+        </div>
+      ) : filteredPostTests.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold mb-2">No Post-Tests Found</h3>
+            <p className="text-muted-foreground">
+              {searchQuery || selectedSubjectFilter !== "all"
+                ? "No post-tests match your current filters"
+                : "You haven't created any post-tests yet"}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredPostTests.map((postTest) => (
             <Card key={postTest.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Check, ChevronsUpDown } from "lucide-react"
+import { apiUrl } from "@/lib/api-config"
 import {
   Dialog,
   DialogContent,
@@ -122,7 +123,7 @@ export default function PendingPostTests() {
   const fetchPendingPostTests = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:4000/api/pending-post-tests`)
+      const response = await fetch(`apiUrl/api/pending-post-tests`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch pending post-tests')
@@ -149,7 +150,7 @@ export default function PendingPostTests() {
   const fetchPostTestQuestions = async (pendingPostTestId: number) => {
     try {
       setLoadingQuestions(true)
-      const response = await fetch(`http://localhost:4000/api/pending-post-tests/${pendingPostTestId}`)
+      const response = await fetch(`apiUrl/api/pending-post-tests/${pendingPostTestId}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch questions')
@@ -186,7 +187,7 @@ export default function PendingPostTests() {
     try {
       setProcessing(true)
       const response = await fetch(
-        `http://localhost:4000/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/approve`,
+        `apiUrl/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/approve`,
         {
           method: 'PUT',
           headers: {
@@ -238,7 +239,7 @@ export default function PendingPostTests() {
     try {
       setProcessing(true)
       const response = await fetch(
-        `http://localhost:4000/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/reject`,
+        `apiUrl/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/reject`,
         {
           method: 'PUT',
           headers: {

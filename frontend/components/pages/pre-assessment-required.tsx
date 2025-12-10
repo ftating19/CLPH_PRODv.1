@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
+import { apiUrl } from "@/lib/api-config"
 import { AlertCircle, BookOpen, Clock, Target, CheckCircle, MessageSquare, ArrowLeft, ArrowRight, Play, Trophy } from 'lucide-react'
 import {
   Dialog,
@@ -133,7 +134,7 @@ export default function PreAssessmentRequired({
       setShowStartDialog(false)
 
       // Fetch questions
-      const questionsResponse = await fetch(`http://localhost:4000/api/pre-assessment-questions/pre-assessment/${selectedAssessment.id}`)
+      const questionsResponse = await fetch(`apiUrl/api/pre-assessment-questions/pre-assessment/${selectedAssessment.id}`)
       if (!questionsResponse.ok) throw new Error('Failed to fetch questions')
       const questionsData = await questionsResponse.json()
       
@@ -272,7 +273,7 @@ export default function PreAssessmentRequired({
 
       console.log('Submitting assessment data:', submissionData)
 
-      const response = await fetch('http://localhost:4000/api/pre-assessment-results', {
+      const response = await fetch('apiUrl/api/pre-assessment-results', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

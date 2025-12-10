@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { apiUrl } from "@/lib/api-config"
 import {
   Dialog,
   DialogContent,
@@ -76,7 +77,7 @@ export default function PendingApplicants() {
     try {
       setLoading(true)
       setError(null)
-      const response = await fetch('http://localhost:4000/api/tutor-applications?status=pending', {
+      const response = await fetch('apiUrl/api/tutor-applications?status=pending', {
         headers: {
           'x-user-id': currentUser?.user_id ? String(currentUser.user_id) : '',
           'x-user-role': currentUser?.role || '',
@@ -120,7 +121,7 @@ export default function PendingApplicants() {
     if (!currentApplicant) return
     
     try {
-      const response = await fetch(`http://localhost:4000/api/tutor-applications/${currentApplicant.application_id}/approve`, {
+      const response = await fetch(`apiUrl/api/tutor-applications/${currentApplicant.application_id}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -169,7 +170,7 @@ export default function PendingApplicants() {
     }
     
     try {
-      const response = await fetch(`http://localhost:4000/api/tutor-applications/${currentApplicant.application_id}/reject`, {
+      const response = await fetch(`apiUrl/api/tutor-applications/${currentApplicant.application_id}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

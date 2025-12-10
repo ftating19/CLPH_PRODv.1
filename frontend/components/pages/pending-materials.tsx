@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { apiUrl } from "@/lib/api-config"
 import {
   Dialog,
   DialogContent,
@@ -75,7 +76,7 @@ export default function PendingMaterials() {
     try {
       setLoading(true)
       setError(null)
-      const response = await fetch('http://localhost:4000/api/pending-materials/status/pending')
+      const response = await fetch('apiUrl/api/pending-materials/status/pending')
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
@@ -120,7 +121,7 @@ export default function PendingMaterials() {
     if (!currentMaterial || !currentUser) return
     
     try {
-      const response = await fetch(`http://localhost:4000/api/pending-materials/${currentMaterial.material_id}/approve`, {
+      const response = await fetch(`apiUrl/api/pending-materials/${currentMaterial.material_id}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -169,7 +170,7 @@ export default function PendingMaterials() {
     }
     
     try {
-      const response = await fetch(`http://localhost:4000/api/pending-materials/${currentMaterial.material_id}/reject`, {
+      const response = await fetch(`apiUrl/api/pending-materials/${currentMaterial.material_id}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
