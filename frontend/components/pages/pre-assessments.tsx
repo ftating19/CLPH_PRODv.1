@@ -748,6 +748,14 @@ export default function PreAssessments() {
 
   // Student-specific handlers
   const handleStartAssessment = (assessment: PreAssessment) => {
+    if (!assessment.program || !assessment.year_level) {
+      toast({
+        title: "Selection Error",
+        description: "Selected pre-assessment is missing program or year level information.",
+        variant: "destructive"
+      })
+      return
+    }
     setSelectedPreAssessment(assessment)
     setShowStartDialog(true)
   }
