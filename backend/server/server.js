@@ -8257,22 +8257,29 @@ app.put('/api/sessions/:booking_id/rating', async (req, res) => {
       if (status.toLowerCase() === 'completed') {
         const [[booking]] = await pool.query(
           `SELECT b.rating, b.start_date, b.end_date, b.preferred_time, 
-                  s.email as student_email, s.first_name as student_name, s.last_name as student_last,
-                  t.first_name as tutor_name, t.last_name as tutor_last
+                  s.email as student_email, s.first_name as student_name, s.last_name as student_last, s.role as student_role,
+                  t.first_name as tutor_name, t.last_name as tutor_last, t.role as tutor_role
            FROM bookings b
            JOIN users s ON b.student_id = s.user_id
            JOIN users t ON b.tutor_id = t.user_id
            WHERE b.booking_id = ?`,
           [booking_id]
         );
-        
+
         if (!booking) {
           return res.status(404).json({ success: false, error: 'Booking not found' });
         }
-        
-        // If no rating exists, prevent completion and send email in background
-        if (!booking.rating) {
-          return res.status(400).json({ success: false, error: 'Student must rate the session before marking as complete.' });
+
+        // If both users are tutors, require the student (tutor acting as student) to rate before completion
+        if (booking.student_role && booking.tutor_role && booking.student_role.toLowerCase() === 'tutor' && booking.tutor_role.toLowerCase() === 'tutor') {
+          if (!booking.rating) {
+            return res.status(400).json({ success: false, error: 'The tutor acting as student must rate the session before marking as complete.' });
+          }
+        } else {
+          // Default: require student rating before completion
+          if (!booking.rating) {
+            return res.status(400).json({ success: false, error: 'Student must rate the session before marking as complete.' });
+          }
         }
       }
       

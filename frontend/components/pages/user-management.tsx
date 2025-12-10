@@ -210,6 +210,10 @@ export default function UserManagement() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 409) {
+          // Email already exists
+          throw new Error('A user with this email already exists.');
+        }
         throw new Error(data.error || 'Failed to create user');
       }
 
@@ -218,6 +222,7 @@ export default function UserManagement() {
       
       return { success: true, message: data.message };
     } catch (error) {
+      // Optionally display error to user here (e.g., toast, modal)
       console.error('Error creating user:', error);
       throw error;
     }
