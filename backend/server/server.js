@@ -2280,9 +2280,9 @@ const storage = multer.diskStorage({
   filename: function (req, file, cb) {
     // Generate unique filename with timestamp
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+  });
 
 // File filter to only allow PDF files
 const fileFilter = (req, file, cb) => {
@@ -8120,22 +8120,28 @@ app.put('/api/sessions/:booking_id/rating', async (req, res) => {
           const sessionTime = booking.preferred_time || 'TBD';
           
           // Send response immediately without waiting for email
-          const responseData = { 
-            success: false, 
-            error: 'Student must rate the session before it can be completed. A reminder email has been sent to the student.',
-            requiresRating: true
+
+          // Convert started_at to MySQL DATETIME format
+          function toMySQLDatetime(isoString) {
+            if (!isoString) return null;
+            return isoString.replace('T', ' ').substring(0, 19);
+          }
+
+          const resultData = {
+            user_id,
+            pre_assessment_id,
+            score,
+            total_points,
+            percentage: parseFloat(percentage.toFixed(2)),
+            correct_answers: correct_answers || 0,
+            total_questions: total_questions || 0,
+            time_taken_seconds,
+            started_at: toMySQLDatetime(started_at),
+            answers
           };
-          
-          // Send email asynchronously in background (don't await)
-          sendRatingReminderEmail(
-            booking.student_email,
-            studentFullName,
-            tutorFullName,
-            sessionDate,
-            sessionTime
-          ).catch(error => {
-            console.error('Background email sending failed:', error);
-          });
+
+          console.log('--- Data to insert ---');
+          console.log('ResultData:', JSON.stringify(resultData, null, 2));
           
           return res.status(400).json(responseData);
         }
