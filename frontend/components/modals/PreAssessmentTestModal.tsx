@@ -130,7 +130,7 @@ export default function PreAssessmentTestModal({ open, onOpenChange, currentUser
 
     try {
       setCheckingExistingResults(true)
-      const response = await fetch(apiUrl(`/api/pre-assessment-results/user/${currentUser.user_id}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-results/user/${currentUser.user_id}`)
       
       if (response.ok) {
         const data = await response.json()
@@ -159,7 +159,7 @@ export default function PreAssessmentTestModal({ open, onOpenChange, currentUser
   const fetchQuestions = async (assessmentId: number) => {
     try {
       setLoading(true)
-      const response = await fetch(apiUrl(`/api/pre-assessment-questions/pre-assessment/${assessmentId}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-questions/pre-assessment/${assessmentId}`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

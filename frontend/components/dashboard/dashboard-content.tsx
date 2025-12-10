@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { apiUrl } from "@/lib/api-config"
+
 import {
   BookOpen,
   Users,
@@ -49,7 +49,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   // Fetch dashboard stats (single API call for all counts)
   useEffect(() => {
     console.log('📊 Dashboard: Fetching stats...');
-    fetch(apiUrl("/api/stats/dashboard"))
+    fetch("https://api.cictpeerlearninghub.com/api/stats/dashboard")
       .then((res) => res.json())
       .then((data) => {
         console.log('📊 Dashboard: Stats received:', data);
@@ -64,7 +64,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
 
   useEffect(() => {
     // Fetch recent forums and tutors
-    fetch(apiUrl("/api/forums"))
+    fetch("https://api.cictpeerlearninghub.com/api/forums")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.forums)) {
@@ -79,7 +79,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
 
     // Fetch recommended tutors (5 stars or high ratings)
     console.log('🔍 Dashboard: Fetching tutors...');
-    fetch(apiUrl("/api/tutors"))
+    fetch("https://api.cictpeerlearninghub.com/api/tutors")
       .then((res) => res.json())
       .then((data) => {
         console.log('👨‍🏫 Dashboard: Tutors data received:', data);
@@ -121,73 +121,94 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
     
     console.log('🔍 Dashboard: Fetching pre-assessment for user:', currentUser.user_id);
     
-    fetch(apiUrl(`/api/pre-assessment-results/user/${currentUser.user_id}?_t=${Date.now()}`), {
+    interface PreAssessmentAnswer {
+      subject_name?: string;
+      is_correct: boolean;
+    }
+
+    interface PreAssessmentResult {
+      answers: PreAssessmentAnswer[];
+      [key: string]: any;
+    }
+
+    interface PreAssessmentApiResponse {
+      success: boolean;
+      results: PreAssessmentResult[];
+    }
+
+    interface BySubjectStats {
+      correct: number;
+      total: number;
+      percentage?: number;
+    }
+
+    fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-results/user/${currentUser.user_id}?_t=${Date.now()}`, {
       headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
       }
     })
       .then((res) => res.json())
-      .then((data) => {
-        console.log('📊 Dashboard: Pre-assessment raw data received:', data);
+      .then((data: PreAssessmentApiResponse) => {
+      console.log('📊 Dashboard: Pre-assessment raw data received:', data);
+      
+      // The API returns { success: true, results: [...] }
+      if (data.success && data.results && data.results.length > 0) {
+        // Get the most recent result
+        const latestResult: PreAssessmentResult = data.results[0];
+        console.log('📊 Dashboard: Latest result:', latestResult);
         
-        // The API returns { success: true, results: [...] }
-        if (data.success && data.results && data.results.length > 0) {
-          // Get the most recent result
-          const latestResult = data.results[0];
-          console.log('📊 Dashboard: Latest result:', latestResult);
-          
-          // Calculate overall statistics from answers with subject breakdown
-          const answers = latestResult.answers || [];
-          const bySubject: Record<string, { correct: number; total: number; percentage?: number }> = {};
-          
-          answers.forEach((answer: any) => {
-            const subjectName = answer.subject_name || 'Unknown';
-            if (!bySubject[subjectName]) {
-              bySubject[subjectName] = { correct: 0, total: 0 };
-            }
-            bySubject[subjectName].total++;
-            if (answer.is_correct) {
-              bySubject[subjectName].correct++;
-            }
-          });
-          
-          // Add percentage to each subject
-          Object.keys(bySubject).forEach(subject => {
-            const data = bySubject[subject];
-            data.percentage = data.total > 0 ? (data.correct / data.total) * 100 : 0;
-          });
-          
-          // Calculate overall percentage
-          const totalCorrect = answers.filter((a: any) => a.is_correct).length;
-          const totalQuestions = answers.length;
-          const overallPercentage = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
-          
-          console.log('📊 Dashboard: Calculated stats:', {
-            overall_percentage: overallPercentage,
-            by_subject: bySubject,
-            total_correct: totalCorrect,
-            total_questions: totalQuestions
-          });
-          
-          // Set the processed data
-          setPreAssessmentData({
-            ...latestResult,
-            overall_percentage: overallPercentage,
-            by_subject: bySubject,
-            total_correct: totalCorrect,
-            total_questions: totalQuestions
-          });
-        } else {
-          console.log('📊 Dashboard: No pre-assessment results found');
-          setPreAssessmentData(null);
+        // Calculate overall statistics from answers with subject breakdown
+        const answers: PreAssessmentAnswer[] = latestResult.answers || [];
+        const bySubject: Record<string, BySubjectStats> = {};
+        
+        answers.forEach((answer: PreAssessmentAnswer) => {
+        const subjectName = answer.subject_name || 'Unknown';
+        if (!bySubject[subjectName]) {
+          bySubject[subjectName] = { correct: 0, total: 0 };
         }
-        setPreAssessmentLoading(false);
-      })
-      .catch((error) => {
-        console.error('❌ Dashboard: Error fetching pre-assessment:', error);
+        bySubject[subjectName].total++;
+        if (answer.is_correct) {
+          bySubject[subjectName].correct++;
+        }
+        });
+        
+        // Add percentage to each subject
+        Object.keys(bySubject).forEach(subject => {
+        const data = bySubject[subject];
+        data.percentage = data.total > 0 ? (data.correct / data.total) * 100 : 0;
+        });
+        
+        // Calculate overall percentage
+        const totalCorrect = answers.filter((a: PreAssessmentAnswer) => a.is_correct).length;
+        const totalQuestions = answers.length;
+        const overallPercentage = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
+        
+        console.log('📊 Dashboard: Calculated stats:', {
+        overall_percentage: overallPercentage,
+        by_subject: bySubject,
+        total_correct: totalCorrect,
+        total_questions: totalQuestions
+        });
+        
+        // Set the processed data
+        setPreAssessmentData({
+        ...latestResult,
+        overall_percentage: overallPercentage,
+        by_subject: bySubject,
+        total_correct: totalCorrect,
+        total_questions: totalQuestions
+        });
+      } else {
+        console.log('📊 Dashboard: No pre-assessment results found');
         setPreAssessmentData(null);
-        setPreAssessmentLoading(false);
+      }
+      setPreAssessmentLoading(false);
+      })
+      .catch((error: unknown) => {
+      console.error('❌ Dashboard: Error fetching pre-assessment:', error);
+      setPreAssessmentData(null);
+      setPreAssessmentLoading(false);
       });
   }, [currentUser]);
 
@@ -195,7 +216,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   useEffect(() => {
     if (!currentUser?.user_id) return;
     
-    fetch(apiUrl(`/api/quiz-attempts/user/${currentUser.user_id}?_t=${Date.now()}`))
+    fetch(`https://api.cictpeerlearninghub.com/api/quiz-attempts/user/${currentUser.user_id}?_t=${Date.now()}`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.attempts)) {
@@ -225,7 +246,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   // Fetch top quiz performers for dashboard global view
   useEffect(() => {
     // request top performers limited to 3
-    fetch(apiUrl(`/api/analytics/top-quiz-performers?limit=3`))
+    fetch(`https://api.cictpeerlearninghub.com/api/analytics/top-quiz-performers?limit=3`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.performers)) {
@@ -248,7 +269,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   useEffect(() => {
     if (!currentUser?.user_id || currentUser?.role?.toLowerCase() !== 'student') return;
     
-    fetch(apiUrl(`/api/post-tests/student/${currentUser.user_id}`))
+    fetch(`https://api.cictpeerlearninghub.com/api/post-tests/student/${currentUser.user_id}`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.postTests)) {
@@ -262,7 +283,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   useEffect(() => {
     if (!currentUser?.user_id) return;
     
-    fetch(apiUrl(`/api/bookings/user/${currentUser.user_id}`))
+    fetch(`https://api.cictpeerlearninghub.com/api/bookings/user/${currentUser.user_id}`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.bookings)) {

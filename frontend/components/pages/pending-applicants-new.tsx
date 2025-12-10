@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { apiUrl } from "@/lib/api-config"
+
 import {
   Dialog,
   DialogContent,
@@ -49,7 +49,7 @@ export default function PendingApplicants() {
         setLoading(true)
         setError(null)
         
-        const response = await fetch('apiUrl/api/tutor-applications?status=pending')
+        const response = await fetch('https://api.cictpeerlearninghub.com/api/tutor-applications?status=pending')
         if (!response.ok) {
           throw new Error('Failed to fetch pending applicants')
         }
@@ -191,7 +191,7 @@ export default function PendingApplicants() {
   const confirmApproval = async () => {
     if (currentApplicant) {
       try {
-        const response = await fetch(apiUrl(`/api/tutor-applications/${currentApplicant.application_id}/approve`), {
+        const response = await fetch(`https://api.cictpeerlearninghub.com/api/tutor-applications/${currentApplicant.application_id}/approve`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' }
         })
@@ -223,7 +223,7 @@ export default function PendingApplicants() {
   const confirmRejection = async () => {
     if (currentApplicant) {
       try {
-        const response = await fetch(apiUrl(`/api/tutor-applications/${currentApplicant.application_id}/reject`), {
+        const response = await fetch(`https://api.cictpeerlearninghub.com/api/tutor-applications/${currentApplicant.application_id}/reject`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 

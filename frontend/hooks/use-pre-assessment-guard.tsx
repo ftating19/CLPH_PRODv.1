@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useUser } from '@/contexts/UserContext'
-import { apiUrl } from '@/lib/api-config'
+
 
 interface PreAssessmentGuardResult {
   hasCompletedPreAssessment: boolean | null
@@ -21,11 +21,11 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
     if (!currentUser) {
       setIsLoading(false)
       return
-    }
+  }
 
     // Only check for students - allow all other roles immediate access
-    const userRole = currentUser.role?.toLowerCase()
-    if (userRole !== 'student') {
+    const userRole = currentUser?.role?.toLowerCase()
+    if (!userRole || userRole !== 'student') {
       setHasCompleted(true)
       setIsLoading(false)
       setError(null)
@@ -37,7 +37,7 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
       setError(null)
 
       // Check if user has completed any pre-assessment
-      const resultsResponse = await fetch(apiUrl(`/api/pre-assessment-results/user/${currentUser.user_id}`))
+      const resultsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-results/user/${currentUser.user_id}`)
       
       if (!resultsResponse.ok) {
         // If the API endpoint doesn't exist (404), bypass the requirement
@@ -64,7 +64,7 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
       } else {
         // Check for available pre-assessments for their program and year level
         const assessmentsResponse = await fetch(
-          apiUrl(`/api/pre-assessments/program/${encodeURIComponent(currentUser.program)}/year/${encodeURIComponent(currentUser.year_level || '')}`)
+          `https://api.cictpeerlearninghub.com/api/pre-assessments/program/${encodeURIComponent(currentUser.program)}/year/${encodeURIComponent(currentUser.year_level || '')}`
         )
         
         if (!assessmentsResponse.ok) {

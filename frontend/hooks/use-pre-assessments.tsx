@@ -78,7 +78,7 @@ export function usePreAssessmentsByProgram(program: string | null) {
 
     try {
       setLoading(true)
-      const response = await fetch(apiUrl(`/api/pre-assessments/program/${encodeURIComponent(program)}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessments/program/${encodeURIComponent(program)}`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -131,7 +131,7 @@ export function usePreAssessmentsByYearLevel(yearLevel: string | null) {
 
     try {
       setLoading(true)
-      const response = await fetch(apiUrl(`/api/pre-assessments/year-level/${encodeURIComponent(yearLevel)}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessments/year-level/${encodeURIComponent(yearLevel)}`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -184,7 +184,7 @@ export function usePreAssessmentsByProgramAndYear(program: string | null, yearLe
 
     try {
       setLoading(true)
-      const response = await fetch(apiUrl(`/api/pre-assessments/program/${encodeURIComponent(program)}/year/${encodeURIComponent(yearLevel)}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessments/program/${encodeURIComponent(program)}/year/${encodeURIComponent(yearLevel)}`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

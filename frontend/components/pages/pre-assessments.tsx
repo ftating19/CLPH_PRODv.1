@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { apiUrl } from "@/lib/api-config"
+
 import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
@@ -358,7 +358,7 @@ export default function PreAssessments() {
 
   const fetchSubjects = async () => {
     try {
-      const response = await fetch(apiUrl('/api/subjects'))
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/subjects')
       if (!response.ok) throw new Error('Failed to fetch subjects')
       const data = await response.json()
       setSubjects(data.subjects || [])
@@ -371,7 +371,7 @@ export default function PreAssessments() {
     if (!currentUser?.user_id) return
     
     try {
-      const response = await fetch(apiUrl(`/api/pre-assessment-results/user/${currentUser.user_id}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-results/user/${currentUser.user_id}`)
       if (!response.ok) throw new Error('Failed to fetch student results')
       const data = await response.json()
       setStudentResults(data.results || [])
@@ -402,7 +402,7 @@ export default function PreAssessments() {
       
       console.log('Creating pre-assessment with data:', requestBody)
       
-      const response = await fetch('apiUrl/api/pre-assessments', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/pre-assessments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -479,7 +479,7 @@ export default function PreAssessments() {
       
       console.log('Updating pre-assessment with data:', editForm)
       
-      const response = await fetch(apiUrl(`/api/pre-assessments/${selectedPreAssessment.id}`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessments/${selectedPreAssessment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -525,7 +525,7 @@ export default function PreAssessments() {
 
     try {
       setIsSubmitting(true)
-      const response = await fetch(apiUrl(`/api/pre-assessments/${selectedPreAssessment.id}`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessments/${selectedPreAssessment.id}`, {
         method: 'DELETE'
       })
 
@@ -561,7 +561,7 @@ export default function PreAssessments() {
 
   const fetchQuestions = async (preAssessmentId: number) => {
     try {
-      const response = await fetch(apiUrl(`/api/pre-assessment-questions/pre-assessment/${preAssessmentId}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-questions/pre-assessment/${preAssessmentId}`)
       if (!response.ok) throw new Error('Failed to fetch questions')
       const data = await response.json()
       
@@ -679,8 +679,8 @@ export default function PreAssessments() {
       console.log('Question data being sent:', questionData)
 
       const url = editingQuestion 
-        ? apiUrl(`/api/pre-assessment-questions/${editingQuestion.id}`)
-        : 'apiUrl/api/pre-assessment-questions'
+        ? `https://api.cictpeerlearninghub.com/api/pre-assessment-questions/${editingQuestion.id}`
+        : 'https://api.cictpeerlearninghub.com/api/pre-assessment-questions'
       
       const method = editingQuestion ? 'PUT' : 'POST'
 
@@ -719,7 +719,7 @@ export default function PreAssessments() {
   const handleDeleteQuestion = async (questionId: number) => {
     try {
       setIsSubmitting(true)
-      const response = await fetch(apiUrl(`/api/pre-assessment-questions/${questionId}`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-questions/${questionId}`, {
         method: 'DELETE'
       })
 
@@ -768,7 +768,7 @@ export default function PreAssessments() {
       setShowStartDialog(false)
 
       // Fetch questions
-      const questionsResponse = await fetch(apiUrl(`/api/pre-assessment-questions/pre-assessment/${selectedPreAssessment.id}`))
+      const questionsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-questions/pre-assessment/${selectedPreAssessment.id}`)
       if (!questionsResponse.ok) throw new Error('Failed to fetch questions')
       const questionsData = await questionsResponse.json()
 
@@ -905,7 +905,7 @@ export default function PreAssessments() {
         answers: formattedAnswers
       }
 
-      const response = await fetch('apiUrl/api/pre-assessment-results', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/pre-assessment-results', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

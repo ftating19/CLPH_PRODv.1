@@ -37,8 +37,8 @@ foreach ($file in $files) {
             # Pattern 1: ${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/... -> apiUrl('/api/...')
             $content = $content -replace '\$\{process\.env\.NEXT_PUBLIC_API_URL \|\| [''"]http://localhost:4000[''"]}/api/', "apiUrl('/api/"
             
-            # Pattern 2: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/... -> apiUrl(`/api/...
-            $content = $content -replace '`\$\{process\.env\.NEXT_PUBLIC_API_URL \|\| "http://localhost:4000"}/api/', "apiUrl(`/api/"
+            # Pattern 2: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/... -> `https://api.cictpeerlearninghub.com/api/...
+            $content = $content -replace '`\$\{process\.env\.NEXT_PUBLIC_API_URL \|\| "http://localhost:4000"}/api/', "`https://api.cictpeerlearninghub.com/api/"
             
             # Pattern 3: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000' followed by string concatenation
             $content = $content -replace "process\.env\.NEXT_PUBLIC_API_URL \|\| 'http://localhost:4000'", "apiUrl('')"

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { apiUrl } from "@/lib/api-config"
+
 import {
   Dialog,
   DialogContent,
@@ -68,7 +68,7 @@ export default function PendingFlashcards() {
     try {
       setLoading(true)
       setError(null)
-      const response = await fetch('apiUrl/api/pending-flashcards/status/pending')
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/pending-flashcards/status/pending')
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
@@ -79,7 +79,7 @@ export default function PendingFlashcards() {
         if (currentUser?.role?.toLowerCase() === 'faculty') {
           // Fetch all subjects to find which ones belong to this faculty
           try {
-            const subjectsResponse = await fetch('apiUrl/api/subjects')
+            const subjectsResponse = await fetch('https://api.cictpeerlearninghub.com/api/subjects')
             if (subjectsResponse.ok) {
               const subjectsData = await subjectsResponse.json()
               
@@ -183,7 +183,7 @@ export default function PendingFlashcards() {
     
     try {
       // Approve individual flashcard
-      const response = await fetch(apiUrl(`/api/pending-flashcards/${currentFlashcard.flashcard_id}/approve`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pending-flashcards/${currentFlashcard.flashcard_id}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -232,7 +232,7 @@ export default function PendingFlashcards() {
     
     try {
       // Reject entire flashcard group by sub_id
-      const response = await fetch(apiUrl(`/api/pending-flashcards/${currentFlashcard.flashcard_id}/reject`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pending-flashcards/${currentFlashcard.flashcard_id}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

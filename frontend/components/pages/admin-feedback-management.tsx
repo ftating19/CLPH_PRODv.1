@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Star, Download, Filter, Calendar, User, TrendingUp, MessageCircle } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
-import { apiUrl } from "@/lib/api-config"
+
 export default function AdminFeedbackManagement() {
   const { currentUser } = useUser()
   const { toast } = useToast()
@@ -32,7 +32,7 @@ export default function AdminFeedbackManagement() {
       if (currentUser.role) headers['x-user-role'] = currentUser.role
 
       try {
-        const response = await fetch('apiUrl/api/system-feedback/stats', { headers })
+        const response = await fetch('https://api.cictpeerlearninghub.com/api/system-feedback/stats', { headers })
         const data = await response.json()
         
         if (data.success) {

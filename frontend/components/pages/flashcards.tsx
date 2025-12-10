@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { apiUrl } from "@/lib/api-config"
+
 import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
@@ -383,7 +383,7 @@ export default function Flashcards() {
       try {
         const statisticsPromises = flashcardGroupedSets.map(async (set: any) => {
           try {
-            const response = await fetch(apiUrl(`/api/flashcards/set/statistics/${set.sub_id}`))
+            const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/set/statistics/${set.sub_id}`)
             const data = await response.json()
             
             if (data.success && data.statistics) {
@@ -435,7 +435,7 @@ export default function Flashcards() {
         // Fetch average ratings for all flashcard sets
         const ratingsPromises = flashcardGroupedSets.map(async (set: any) => {
           try {
-            const response = await fetch(apiUrl(`/api/flashcards/set/${set.sub_id}/rating`))
+            const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/set/${set.sub_id}/rating`)
             if (response.ok) {
               const data = await response.json()
               return {
@@ -462,7 +462,7 @@ export default function Flashcards() {
         if (currentUser?.user_id) {
           const userRatingsPromises = flashcardGroupedSets.map(async (set: any) => {
             try {
-              const response = await fetch(apiUrl(`/api/flashcards/set/${set.sub_id}/rating/${currentUser.user_id}`))
+              const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/set/${set.sub_id}/rating/${currentUser.user_id}`)
               if (response.ok) {
                 const data = await response.json()
                 return {
@@ -488,7 +488,7 @@ export default function Flashcards() {
           // Fetch user's comments
           const userCommentsPromises = flashcardGroupedSets.map(async (set: any) => {
             try {
-              const response = await fetch(apiUrl(`/api/flashcards/set/${set.sub_id}/rating/${currentUser.user_id}`))
+              const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/set/${set.sub_id}/rating/${currentUser.user_id}`)
               if (response.ok) {
                 const data = await response.json()
                 return {
@@ -534,15 +534,15 @@ export default function Flashcards() {
     }
 
     try {
-      const response = await fetch(apiUrl(`/api/flashcards/set/${subId}/rating`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: currentUser.user_id,
-          rating: rating,
-          comment: comment || null
-        })
+    const response = await fetch(`https://api.cictpeerlearninghub.com/api/flashcards/set/${subId}/rating`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: currentUser.user_id,
+        rating: rating,
+        comment: comment || null
       })
+    })
 
       if (response.ok) {
         const data = await response.json()

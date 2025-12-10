@@ -69,12 +69,12 @@ function TakeAssessmentContent() {
       setIsLoading(true)
 
       // Fetch assessment details
-      const assessmentResponse = await fetch(apiUrl(`/api/pre-assessments/${assessmentId}`))
+      const assessmentResponse = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessments/${assessmentId}`))
       if (!assessmentResponse.ok) throw new Error('Failed to fetch assessment')
       const assessmentData = await assessmentResponse.json()
       
       // Fetch questions
-      const questionsResponse = await fetch(apiUrl(`/api/pre-assessment-questions/pre-assessment/${assessmentId}`))
+      const questionsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-questions/pre-assessment/${assessmentId}`))
       if (!questionsResponse.ok) throw new Error('Failed to fetch questions')
       const questionsData = await questionsResponse.json()
 

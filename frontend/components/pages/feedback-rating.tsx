@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Star, Send, CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
 import { useUser } from "@/contexts/UserContext"
 import { useToast } from "@/hooks/use-toast"
-import { apiUrl } from "@/lib/api-config"
+
 export default function FeedbackRating() {
   const { currentUser } = useUser()
   const { toast } = useToast()
@@ -32,10 +32,10 @@ export default function FeedbackRating() {
 
       try {
         // Initialize table first (this will be a no-op if table exists)
-        await fetch(apiUrl('/api/system-feedback/init-table'))
+        await fetch('https://api.cictpeerlearninghub.com/api/system-feedback/init-table')
         
         // Then load user's feedback history
-        const response = await fetch(apiUrl(`/api/system-feedback/user/${currentUser.user_id}`))
+        const response = await fetch(`https://api.cictpeerlearninghub.com/api/system-feedback/user/${currentUser.user_id}`)
         const data = await response.json()
         
         if (data.success) {
@@ -85,7 +85,7 @@ export default function FeedbackRating() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('apiUrl/api/system-feedback', {
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/system-feedback', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +115,7 @@ export default function FeedbackRating() {
         setSuggestions("")
         
         // Reload feedback history
-        const historyResponse = await fetch(apiUrl(`/api/system-feedback/user/${currentUser.user_id}`))
+        const historyResponse = await fetch(`https://api.cictpeerlearninghub.com/api/system-feedback/user/${currentUser.user_id}`)
         const historyData = await historyResponse.json()
         if (historyData.success) {
           setUserFeedbackHistory(historyData.feedback)

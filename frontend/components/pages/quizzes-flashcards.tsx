@@ -98,7 +98,7 @@ export default function QuizzesFlashcards() {
     if (!selectedFlashcardSet) return;
     setFlashcardsLoading(true);
     setFlashcardsError(null);
-    fetch(apiUrl(`/api/flashcards/${selectedFlashcardSet.id}`))
+    fetch(`https://api.cictpeerlearninghub.com/api/flashcards/${selectedFlashcardSet.id}`)
       .then((res) => res.json())
       .then((data) => {
         setFlashcards(data.cards || []);

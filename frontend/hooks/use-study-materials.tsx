@@ -82,7 +82,7 @@ export function useStudyMaterials() {
 
   const downloadMaterial = async (materialId: number) => {
     try {
-      const response = await fetch(apiUrl(`/api/study-materials/${materialId}/download`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/study-materials/${materialId}/download`)
       const result = await response.json()
 
       if (result.success) {
@@ -112,7 +112,7 @@ export function useStudyMaterials() {
 
   const previewMaterial = async (materialId: number) => {
     try {
-      const response = await fetch(apiUrl(`/api/study-materials/${materialId}/preview`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/study-materials/${materialId}/preview`)
       const result = await response.json()
 
       if (result.success) {
@@ -136,7 +136,7 @@ export function useStudyMaterials() {
 
   const deleteMaterial = async (materialId: number) => {
     try {
-      const response = await fetch(apiUrl(`/api/study-materials/${materialId}`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/study-materials/${materialId}`, {
         method: 'DELETE'
       })
 
@@ -169,7 +169,7 @@ export function useStudyMaterials() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch(apiUrl(`/api/study-materials/search/${encodeURIComponent(searchTerm)}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/study-materials/search/${encodeURIComponent(searchTerm)}`)
       const data = await response.json()
 
       if (data.success) {

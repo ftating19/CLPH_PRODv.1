@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { apiUrl } from "@/lib/api-config"
+
 import {
   Dialog,
   DialogContent,
@@ -193,7 +193,7 @@ export default function ManagePostTest() {
       setLoading(true)
       console.log('Fetching post-tests for tutor:', currentUser.user_id)
       
-      const response = await fetch(apiUrl(`/api/post-tests/tutor/${currentUser.user_id}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests/tutor/${currentUser.user_id}`)
       
       console.log('Response status:', response.status)
       console.log('Response ok:', response.ok)
@@ -229,7 +229,7 @@ export default function ManagePostTest() {
     
     try {
       setLoadingTemplates(true)
-      const response = await fetch(apiUrl(`/api/post-test-templates/tutor/${currentUser.user_id}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/tutor/${currentUser.user_id}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch templates')
@@ -255,7 +255,7 @@ export default function ManagePostTest() {
   const fetchTemplateAssignments = async (templateId: number) => {
     try {
       setLoadingAssignments(true)
-      const response = await fetch(apiUrl(`/api/post-test-templates/${templateId}/assignments`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${templateId}/assignments`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch assignments')
@@ -296,7 +296,7 @@ export default function ManagePostTest() {
       })
       
       // Fetch template questions
-      const response = await fetch(apiUrl(`/api/post-test-templates/${template.template_id}/questions`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${template.template_id}/questions`)
       if (response.ok) {
         const data = await response.json()
         if (data.success && Array.isArray(data.questions)) {
@@ -366,7 +366,7 @@ export default function ManagePostTest() {
       
       if (editingTemplateId) {
         // UPDATE existing template
-        const templateResponse = await fetch(apiUrl(`/api/post-test-templates/${editingTemplateId}`), {
+        const templateResponse = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${editingTemplateId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -385,7 +385,7 @@ export default function ManagePostTest() {
         
         // Delete old questions and add new ones
         // Note: This is a simple approach. For better UX, you'd want to update individual questions
-        const questionsResponse = await fetch(apiUrl(`/api/post-test-templates/${editingTemplateId}/questions`), {
+        const questionsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${editingTemplateId}/questions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -410,7 +410,7 @@ export default function ManagePostTest() {
         })
       } else {
         // CREATE new template
-        const templateResponse = await fetch('apiUrl/api/post-test-templates', {
+        const templateResponse = await fetch('https://api.cictpeerlearninghub.com/api/post-test-templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -432,7 +432,7 @@ export default function ManagePostTest() {
         const templateId = templateData.template_id
         
         // Add questions to template
-        const questionsResponse = await fetch(apiUrl(`/api/post-test-templates/${templateId}/questions`), {
+        const questionsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${templateId}/questions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -492,7 +492,7 @@ export default function ManagePostTest() {
       setLoading(true)
       console.log('Fetching post-tests for tutor:', currentUser.user_id)
       
-      const response = await fetch(apiUrl(`/api/post-tests/tutor/${currentUser.user_id}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests/tutor/${currentUser.user_id}`)
       
       console.log('Response status:', response.status)
       console.log('Response ok:', response.ok)
@@ -529,8 +529,8 @@ export default function ManagePostTest() {
     try {
       setLoadingQuestions(true)
       const endpoint = isTemplate 
-        ? apiUrl(`/api/post-test-templates/${postTestId}/questions`
-        : apiUrl(`/api/post-tests/${postTestId}/questions`)
+        ? `https://api.cictpeerlearninghub.com/api/post-test-templates/${postTestId}/questions`
+        : `https://api.cictpeerlearninghub.com/api/post-tests/${postTestId}/questions`
       
       const response = await fetch(endpoint)
       
@@ -616,7 +616,7 @@ export default function ManagePostTest() {
     try {
       setSavingQuestion(true)
       
-      const response = await fetch(apiUrl(`/api/post-tests/questions/${editedQuestion.id}`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests/questions/${editedQuestion.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -662,7 +662,7 @@ export default function ManagePostTest() {
     if (!questionId || !selectedPostTest) return
     
     try {
-      const response = await fetch(apiUrl(`/api/post-tests/questions/${questionId}`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests/questions/${questionId}`, {
         method: 'DELETE'
       })
       
@@ -693,7 +693,7 @@ export default function ManagePostTest() {
     if (!postTestToDelete) return
     
     try {
-      const response = await fetch(apiUrl(`/api/post-tests/${postTestToDelete.id}`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/post-tests/${postTestToDelete.id}`, {
         method: 'DELETE'
       })
       
@@ -730,7 +730,7 @@ export default function ManagePostTest() {
       
       try {
         // Fetch sessions for the tutor
-        const response = await fetch(apiUrl(`/api/sessions?user_id=${currentUser.user_id}`))
+        const response = await fetch(`https://api.cictpeerlearninghub.com/api/sessions?user_id=${currentUser.user_id}`)
         if (response.ok) {
           const data = await response.json()
           

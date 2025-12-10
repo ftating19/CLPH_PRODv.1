@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { apiUrl } from "@/lib/api-config"
+
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -137,8 +137,8 @@ function StudentBookingForm({ student, currentUser, onClose }: StudentBookingFor
       
       // Fetch both tutor's existing bookings and student's existing bookings
       const [tutorResponse, studentResponse] = await Promise.all([
-        fetch(apiUrl(`/api/sessions?tutor_id=${tutorId}`)),
-        fetch(apiUrl(`/api/sessions?user_id=${studentId}`))
+        fetch(`https://api.cictpeerlearninghub.com/api/sessions?tutor_id=${tutorId}`),
+        fetch(`https://api.cictpeerlearninghub.com/api/sessions?user_id=${studentId}`)
       ])
       
       if (!tutorResponse.ok || !studentResponse.ok) {
@@ -445,7 +445,7 @@ function StudentBookingForm({ student, currentUser, onClose }: StudentBookingFor
       const bookingPromises = selectedTimeSlots.map(async (timeSlot) => {
         const [startTime, endTime] = timeSlot.split('-')
         
-        const response = await fetch(apiUrl("/api/sessions/tutor-booking"), {
+        const response = await fetch("https://api.cictpeerlearninghub.com/api/sessions/tutor-booking", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -981,7 +981,7 @@ export default function StudentMatching() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch(apiUrl('/api/students'))
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/students')
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -1012,7 +1012,7 @@ export default function StudentMatching() {
 
       try {
         // Get tutor record for current user
-        const tutorsRes = await fetch(apiUrl('/api/tutors'))
+        const tutorsRes = await fetch('https://api.cictpeerlearninghub.com/api/tutors')
         const tutorsData = await tutorsRes.json()
         const myTutor = Array.isArray(tutorsData.tutors) ? tutorsData.tutors.find((t: any) => t.user_id === currentUser.user_id) : null
         const foundTutorSubjectId = myTutor?.subject_id
@@ -1031,7 +1031,7 @@ export default function StudentMatching() {
 
         const assessments = await Promise.all(studentsToCheck.map(async (s) => {
           try {
-            const res = await fetch(apiUrl(`/api/pre-assessment-results/user/${s.user_id}?_t=${Date.now()}`))
+            const res = await fetch(`https://api.cictpeerlearninghub.com/api/pre-assessment-results/user/${s.user_id}?_t=${Date.now()}`)
             if (!res.ok) return { user_id: s.user_id, percentage: null }
             const data = await res.json()
             const latest = Array.isArray(data.results) && data.results.length > 0 ? data.results[0] : null
@@ -1142,7 +1142,7 @@ export default function StudentMatching() {
     // Try to determine tutor's subject from tutors API
     const sortForTutor = async () => {
       try {
-        const tutorsRes = await fetch(apiUrl('/api/tutors'))
+        const tutorsRes = await fetch('https://api.cictpeerlearninghub.com/api/tutors')
         const tutorsData = await tutorsRes.json()
         const myTutor = Array.isArray(tutorsData.tutors) ? tutorsData.tutors.find((t: any) => t.user_id === currentUser.user_id) : null
         const tutorSubjectId = myTutor?.subject_id

@@ -8,7 +8,7 @@ import { FileText, Download, Eye, Upload, Search, Filter, X, Check, ChevronsUpDo
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { apiUrl } from "@/lib/api-config"
+
 import {
   Select,
   SelectContent,
@@ -241,8 +241,8 @@ export default function LearningResources() {
   const fetchMaterialRatings = async (materialId: number) => {
     try {
       const [avgResponse, userResponse] = await Promise.all([
-        fetch(apiUrl(`/api/materials/${materialId}/rating`)),
-        currentUser ? fetch(apiUrl(`/api/materials/${materialId}/rating/${currentUser.user_id}`)) : Promise.resolve(null)
+        fetch(`https://api.cictpeerlearninghub.com/api/materials/${materialId}/rating`),
+        currentUser ? fetch(`https://api.cictpeerlearninghub.com/api/materials/${materialId}/rating/${currentUser.user_id}`) : Promise.resolve(null)
       ])
 
       const avgData = await avgResponse.json()
@@ -272,7 +272,7 @@ export default function LearningResources() {
     }
 
     try {
-      const response = await fetch(apiUrl(`/api/materials/${materialId}/rating`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/materials/${materialId}/rating`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

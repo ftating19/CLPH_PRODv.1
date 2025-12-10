@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { apiUrl } from "@/lib/api-config"
+
 import {
   Dialog,
   DialogContent,
@@ -77,7 +77,7 @@ export default function PendingQuizzes() {
     try {
       setLoading(true)
       setError(null)
-      const response = await fetch('apiUrl/api/pending-quizzes/status/pending')
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/pending-quizzes/status/pending')
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
@@ -88,7 +88,7 @@ export default function PendingQuizzes() {
         if (currentUser?.role?.toLowerCase() === 'faculty') {
           // Fetch all subjects to find which ones belong to this faculty
           try {
-            const subjectsResponse = await fetch('apiUrl/api/subjects')
+            const subjectsResponse = await fetch('https://api.cictpeerlearninghub.com/api/subjects')
             if (subjectsResponse.ok) {
               const subjectsData = await subjectsResponse.json()
               
@@ -190,7 +190,7 @@ export default function PendingQuizzes() {
     if (!currentQuiz || !currentUser) return
     
     try {
-      const response = await fetch(apiUrl(`/api/pending-quizzes/${currentQuiz.quizzes_id}/approve`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pending-quizzes/${currentQuiz.quizzes_id}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -238,7 +238,7 @@ export default function PendingQuizzes() {
     }
     
     try {
-      const response = await fetch(apiUrl(`/api/pending-quizzes/${currentQuiz.quizzes_id}/reject`), {
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/pending-quizzes/${currentQuiz.quizzes_id}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -286,7 +286,7 @@ export default function PendingQuizzes() {
     setShowQuestionsModal(true)
     
     try {
-      const response = await fetch(apiUrl(`/api/questions/quiz/${quiz.quizzes_id}`))
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/questions/quiz/${quiz.quizzes_id}`)
       if (!response.ok) {
         throw new Error('Failed to fetch quiz questions')
       }

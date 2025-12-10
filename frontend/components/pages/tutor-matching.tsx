@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { apiUrl } from "@/lib/api-config"
+
 import {
   Dialog,
   DialogContent,
@@ -184,7 +184,7 @@ export default function TutorMatching() {
       // Add cache busting to force fresh data from database
       const timestamp = Date.now()
       const response = await fetch(
-        apiUrl(`/api/pre-assessment-results/user/${currentUser.user_id}?_t=${timestamp}`),
+        `https://api.cictpeerlearninghub.com/api/pre-assessment-results/user/${currentUser.user_id}?_t=${timestamp}`,
         {
           method: 'GET',
           headers: {
@@ -258,7 +258,7 @@ export default function TutorMatching() {
       setLoading(true)
       setError(null)
       
-      const response = await fetch(apiUrl('/api/tutors'))
+      const response = await fetch('https://api.cictpeerlearninghub.com/api/tutors')
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -349,11 +349,11 @@ export default function TutorMatching() {
       setTutorStats(prev => ({ ...prev, loading: true }))
       
       // Fetch completed sessions count
-      const countResponse = await fetch(apiUrl(`/api/tutors/${tutorUserId}/sessions/completed-count`))
+      const countResponse = await fetch(`https://api.cictpeerlearninghub.com/api/tutors/${tutorUserId}/sessions/completed-count`)
       const countData = await countResponse.json()
       
       // Fetch all comments (we'll filter in the component for display)
-      const commentsResponse = await fetch(apiUrl(`/api/tutors/${tutorUserId}/sessions/comments`))
+      const commentsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/tutors/${tutorUserId}/sessions/comments`)
       const commentsData = await commentsResponse.json()
       
       if (countData.success && commentsData.success) {
@@ -378,7 +378,7 @@ export default function TutorMatching() {
       setRatingsModalStats(prev => ({ ...prev, loading: true }))
       
       // Fetch all comments for ratings modal
-      const commentsResponse = await fetch(apiUrl(`/api/tutors/${tutorUserId}/sessions/comments`))
+      const commentsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/tutors/${tutorUserId}/sessions/comments`)
       const commentsData = await commentsResponse.json()
       
       if (commentsData.success) {
@@ -414,7 +414,7 @@ export default function TutorMatching() {
         try {
           setCardStats(prev => ({ ...prev, loading: true }));
           
-          const commentsResponse = await fetch(apiUrl(`/api/tutors/${tutor.user_id}/sessions/comments?rating_filter=5`));
+          const commentsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/tutors/${tutor.user_id}/sessions/comments?rating_filter=5`);
           const commentsData = await commentsResponse.json();
           
           if (commentsData.success) {
@@ -640,7 +640,7 @@ export default function TutorMatching() {
     }
 
     try {
-      const response = await fetch(apiUrl(`/api/tutor-applications/user/${currentUser.user_id}`));
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/tutor-applications/user/${currentUser.user_id}`);
       const result = await response.json();
       
       if (result.success && result.applications && result.applications.length > 0) {
