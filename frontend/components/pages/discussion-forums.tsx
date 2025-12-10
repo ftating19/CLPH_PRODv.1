@@ -99,7 +99,7 @@ export default function DiscussionForums() {
   React.useEffect(() => {
     setLoadingForums(true);
     const userIdParam = currentUser?.user_id ? `?user_id=${currentUser.user_id}` : "";
-    fetch(`apiUrl/api/forums${userIdParam}`)
+    fetch(apiUrl(`/api/forums${userIdParam}`))
       .then((res) => res.json())
       .then((data) => {
         setForums(data.forums || []);
@@ -112,7 +112,7 @@ export default function DiscussionForums() {
   React.useEffect(() => {
     if (!selectedForumId) return;
     setLoadingComments(true);
-    fetch(`apiUrl/api/forums/${selectedForumId}/comments`)
+    fetch(apiUrl(`/api/forums/${selectedForumId}/comments`))
       .then((res) => res.json())
       .then((data) => {
         setComments(data.comments || []);
@@ -181,7 +181,7 @@ export default function DiscussionForums() {
     setEditError("");
     
     try {
-      const res = await fetch(`apiUrl/api/forums/${editingForum.forum_id}`, {
+      const res = await fetch(apiUrl(`/api/forums/${editingForum.forum_id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -205,7 +205,7 @@ export default function DiscussionForums() {
         
         // Refresh forums with proper user_id parameter
         console.log('🔄 Refreshing forums list...');
-        const forumsRes = await fetch(`apiUrl/api/forums?user_id=${currentUser.user_id}`);
+        const forumsRes = await fetch(apiUrl(`/api/forums?user_id=${currentUser.user_id}`));
         const forumsData = await forumsRes.json();
         console.log('📋 Refreshed forums data:', forumsData.forums?.length, 'forums');
         
@@ -259,7 +259,7 @@ export default function DiscussionForums() {
     setDeleteLoading(true);
     
     try {
-      const res = await fetch(`apiUrl/api/forums/${deletingForum.forum_id}?user_id=${currentUser.user_id}`, {
+      const res = await fetch(apiUrl(`/api/forums/${deletingForum.forum_id}?user_id=${currentUser.user_id}`), {
         method: 'DELETE'
       });
       
@@ -273,7 +273,7 @@ export default function DiscussionForums() {
         setShowDeleteDialog(false);
         setDeletingForum(null);
         // Refresh forums
-        const forumsRes = await fetch(`apiUrl/api/forums?user_id=${currentUser.user_id}`);
+        const forumsRes = await fetch(apiUrl(`/api/forums?user_id=${currentUser.user_id}`));
         const forumsData = await forumsRes.json();
         setForums(forumsData.forums || []);
       } else {
@@ -615,7 +615,7 @@ export default function DiscussionForums() {
                     setNewTopicLoading(false);
                     return;
                   }
-                  const res = await fetch("apiUrl/api/forums", {
+                  const res = await fetch(apiUrl("/api/forums"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -635,7 +635,7 @@ export default function DiscussionForums() {
                       description: "Forum topic created successfully",
                     });
                     // Refresh forums
-                    fetch("apiUrl/api/forums")
+                    fetch(apiUrl("/api/forums"))
                       .then((r) => r.json())
                       .then((d) => setForums(d.forums || []));
                   } else {
@@ -733,7 +733,7 @@ export default function DiscussionForums() {
                 className="flex items-center gap-1"
                 onClick={async () => {
                   if (!currentUser?.user_id) return;
-                  const res = await fetch(`apiUrl/api/forums/${forum.forum_id}/like`, {
+                  const res = await fetch(apiUrl(`/api/forums/${forum.forum_id}/like`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_id: currentUser.user_id })
@@ -833,7 +833,7 @@ export default function DiscussionForums() {
                         });
                         return;
                       }
-                      const res = await fetch(`apiUrl/api/forums/${selectedForumId}/comments`, {
+                      const res = await fetch(apiUrl(`/api/forums/${selectedForumId}/comments`), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ user_id, comment: newComment })
@@ -845,11 +845,11 @@ export default function DiscussionForums() {
                           description: "Comment posted successfully",
                         });
                         // Refresh comments
-                        fetch(`apiUrl/api/forums/${selectedForumId}/comments`)
+                        fetch(apiUrl(`/api/forums/${selectedForumId}/comments`))
                           .then((r) => r.json())
                           .then((d) => setComments(d.comments || []));
                         // Refresh forums to update comment counts
-                        fetch("apiUrl/api/forums")
+                        fetch(apiUrl("/api/forums"))
                           .then((r) => r.json())
                           .then((d) => setForums(d.forums || []));
                       }

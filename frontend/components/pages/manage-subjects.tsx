@@ -280,7 +280,7 @@ export default function ManageSubjects() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('apiUrl/api/subjects');
+      const response = await fetch(apiUrl('/api/subjects'));
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -302,7 +302,7 @@ export default function ManageSubjects() {
   // Fetch faculty from API
   const fetchFaculty = async () => {
     try {
-      const response = await fetch('apiUrl/api/faculty');
+      const response = await fetch(apiUrl('/api/faculty'));
       const data = await response.json();
       if (data.success) {
         setFacultyList(data.faculty || []);
@@ -328,7 +328,7 @@ export default function ManageSubjects() {
     }
     try {
       setIsSubmitting(true);
-      const response = await fetch('apiUrl/api/subjects', {
+      const response = await fetch(apiUrl('/api/subjects'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -399,7 +399,7 @@ export default function ManageSubjects() {
     }
     try {
       setIsSubmitting(true);
-      const response = await fetch(`apiUrl/api/subjects/${selectedSubject.subject_id}`, {
+      const response = await fetch(apiUrl(`/api/subjects/${selectedSubject.subject_id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -443,7 +443,7 @@ export default function ManageSubjects() {
     try {
       setIsSubmitting(true);
       
-      const response = await fetch(`apiUrl/api/subjects/${selectedSubject.subject_id}`, {
+      const response = await fetch(apiUrl(`/api/subjects/${selectedSubject.subject_id}`), {
         method: 'DELETE'
       })
       

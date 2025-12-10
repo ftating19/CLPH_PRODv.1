@@ -32,10 +32,10 @@ export default function FeedbackRating() {
 
       try {
         // Initialize table first (this will be a no-op if table exists)
-        await fetch('apiUrl/api/system-feedback/init-table')
+        await fetch(apiUrl('/api/system-feedback/init-table'))
         
         // Then load user's feedback history
-        const response = await fetch(`apiUrl/api/system-feedback/user/${currentUser.user_id}`)
+        const response = await fetch(apiUrl(`/api/system-feedback/user/${currentUser.user_id}`))
         const data = await response.json()
         
         if (data.success) {
@@ -115,7 +115,7 @@ export default function FeedbackRating() {
         setSuggestions("")
         
         // Reload feedback history
-        const historyResponse = await fetch(`apiUrl/api/system-feedback/user/${currentUser.user_id}`)
+        const historyResponse = await fetch(apiUrl(`/api/system-feedback/user/${currentUser.user_id}`))
         const historyData = await historyResponse.json()
         if (historyData.success) {
           setUserFeedbackHistory(historyData.feedback)
