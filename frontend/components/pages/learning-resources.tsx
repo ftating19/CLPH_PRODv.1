@@ -242,7 +242,7 @@ export default function LearningResources() {
     try {
       const [avgResponse, userResponse] = await Promise.all([
         fetch(apiUrl(`/api/materials/${materialId}/rating`),
-        currentUser ? fetch(apiUrl(`/api/materials/${materialId}/rating/${currentUser.user_id}`) : Promise.resolve(null)
+        currentUser ? fetch(apiUrl(`/api/materials/${materialId}/rating/${currentUser.user_id}`)) : Promise.resolve(null)
       ])
 
       const avgData = await avgResponse.json()
@@ -272,7 +272,7 @@ export default function LearningResources() {
     }
 
     try {
-      const response = await fetch(apiUrl(`/api/materials/${materialId}/rating`, {
+      const response = await fetch(apiUrl(`/api/materials/${materialId}/rating`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

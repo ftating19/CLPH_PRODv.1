@@ -183,7 +183,7 @@ export default function PendingFlashcards() {
     
     try {
       // Approve individual flashcard
-      const response = await fetch(apiUrl(`/api/pending-flashcards/${currentFlashcard.flashcard_id}/approve`, {
+      const response = await fetch(apiUrl(`/api/pending-flashcards/${currentFlashcard.flashcard_id}/approve`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -232,7 +232,7 @@ export default function PendingFlashcards() {
     
     try {
       // Reject entire flashcard group by sub_id
-      const response = await fetch(apiUrl(`/api/pending-flashcards/${currentFlashcard.flashcard_id}/reject`, {
+      const response = await fetch(apiUrl(`/api/pending-flashcards/${currentFlashcard.flashcard_id}/reject`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

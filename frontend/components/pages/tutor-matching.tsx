@@ -349,11 +349,11 @@ export default function TutorMatching() {
       setTutorStats(prev => ({ ...prev, loading: true }))
       
       // Fetch completed sessions count
-      const countResponse = await fetch(apiUrl(`/api/tutors/${tutorUserId}/sessions/completed-count`)
+      const countResponse = await fetch(apiUrl(`/api/tutors/${tutorUserId}/sessions/completed-count`))
       const countData = await countResponse.json()
       
       // Fetch all comments (we'll filter in the component for display)
-      const commentsResponse = await fetch(apiUrl(`/api/tutors/${tutorUserId}/sessions/comments`)
+      const commentsResponse = await fetch(apiUrl(`/api/tutors/${tutorUserId}/sessions/comments`))
       const commentsData = await commentsResponse.json()
       
       if (countData.success && commentsData.success) {
@@ -378,7 +378,7 @@ export default function TutorMatching() {
       setRatingsModalStats(prev => ({ ...prev, loading: true }))
       
       // Fetch all comments for ratings modal
-      const commentsResponse = await fetch(apiUrl(`/api/tutors/${tutorUserId}/sessions/comments`)
+      const commentsResponse = await fetch(apiUrl(`/api/tutors/${tutorUserId}/sessions/comments`))
       const commentsData = await commentsResponse.json()
       
       if (commentsData.success) {

@@ -135,7 +135,7 @@ export default function ManagePostTest() {
     
     try {
       setLoadingTemplates(true)
-      const response = await fetch(apiUrl(`/api/post-test-templates/tutor/${currentUser.user_id}`)
+      const response = await fetch(apiUrl(`/api/post-test-templates/tutor/${currentUser.user_id}`))
       
       if (!response.ok) {
         throw new Error('Failed to fetch templates')
@@ -161,7 +161,7 @@ export default function ManagePostTest() {
   const fetchTemplateAssignments = async (templateId: number) => {
     try {
       setLoadingAssignments(true)
-      const response = await fetch(apiUrl(`/api/post-test-templates/${templateId}/assignments`)
+      const response = await fetch(apiUrl(`/api/post-test-templates/${templateId}/assignments`))
       
       if (!response.ok) {
         throw new Error('Failed to fetch assignments')
@@ -202,7 +202,7 @@ export default function ManagePostTest() {
       })
       
       // Fetch template questions
-      const response = await fetch(apiUrl(`/api/post-test-templates/${template.template_id}/questions`)
+      const response = await fetch(apiUrl(`/api/post-test-templates/${template.template_id}/questions`))
       if (response.ok) {
         const data = await response.json()
         if (data.success && Array.isArray(data.questions)) {
@@ -272,7 +272,7 @@ export default function ManagePostTest() {
       
       if (editingTemplateId) {
         // UPDATE existing template
-        const templateResponse = await fetch(apiUrl(`/api/post-test-templates/${editingTemplateId}`, {
+        const templateResponse = await fetch(apiUrl(`/api/post-test-templates/${editingTemplateId}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -290,7 +290,7 @@ export default function ManagePostTest() {
         }
         
         // Delete old questions and add new ones
-        const questionsResponse = await fetch(apiUrl(`/api/post-test-templates/${editingTemplateId}/questions`, {
+        const questionsResponse = await fetch(apiUrl(`/api/post-test-templates/${editingTemplateId}/questions`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -337,7 +337,7 @@ export default function ManagePostTest() {
         const templateId = templateData.template_id
         
         // Add questions to template
-        const questionsResponse = await fetch(apiUrl(`/api/post-test-templates/${templateId}/questions`, {
+        const questionsResponse = await fetch(apiUrl(`/api/post-test-templates/${templateId}/questions`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -401,7 +401,7 @@ export default function ManagePostTest() {
       
       try {
         // Fetch sessions for the tutor
-        const response = await fetch(apiUrl(`/api/sessions?user_id=${currentUser.user_id}`)
+        const response = await fetch(apiUrl(`/api/sessions?user_id=${currentUser.user_id}`))
         if (response.ok) {
           const data = await response.json()
           

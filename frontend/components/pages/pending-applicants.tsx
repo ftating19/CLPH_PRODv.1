@@ -121,7 +121,7 @@ export default function PendingApplicants() {
     if (!currentApplicant) return
     
     try {
-      const response = await fetch(apiUrl(`/api/tutor-applications/${currentApplicant.application_id}/approve`, {
+      const response = await fetch(apiUrl(`/api/tutor-applications/${currentApplicant.application_id}/approve`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -170,7 +170,7 @@ export default function PendingApplicants() {
     }
     
     try {
-      const response = await fetch(apiUrl(`/api/tutor-applications/${currentApplicant.application_id}/reject`, {
+      const response = await fetch(apiUrl(`/api/tutor-applications/${currentApplicant.application_id}/reject`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
