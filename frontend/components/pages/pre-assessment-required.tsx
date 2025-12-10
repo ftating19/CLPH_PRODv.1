@@ -134,7 +134,7 @@ export default function PreAssessmentRequired({
       setShowStartDialog(false)
 
       // Fetch questions
-      const questionsResponse = await fetch(`apiUrl/api/pre-assessment-questions/pre-assessment/${selectedAssessment.id}`)
+      const questionsResponse = await fetch(apiUrl(`/api/pre-assessment-questions/pre-assessment/${selectedAssessment.id}`)
       if (!questionsResponse.ok) throw new Error('Failed to fetch questions')
       const questionsData = await questionsResponse.json()
       

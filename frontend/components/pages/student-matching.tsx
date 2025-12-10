@@ -137,8 +137,8 @@ function StudentBookingForm({ student, currentUser, onClose }: StudentBookingFor
       
       // Fetch both tutor's existing bookings and student's existing bookings
       const [tutorResponse, studentResponse] = await Promise.all([
-        fetch(`apiUrl/api/sessions?tutor_id=${tutorId}`),
-        fetch(`apiUrl/api/sessions?user_id=${studentId}`)
+        fetch(apiUrl(`/api/sessions?tutor_id=${tutorId}`),
+        fetch(apiUrl(`/api/sessions?user_id=${studentId}`)
       ])
       
       if (!tutorResponse.ok || !studentResponse.ok) {
@@ -445,7 +445,7 @@ function StudentBookingForm({ student, currentUser, onClose }: StudentBookingFor
       const bookingPromises = selectedTimeSlots.map(async (timeSlot) => {
         const [startTime, endTime] = timeSlot.split('-')
         
-        const response = await fetch("apiUrl/api/sessions/tutor-booking", {
+        const response = await fetch(apiUrl("/api/sessions/tutor-booking", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1031,7 +1031,7 @@ export default function StudentMatching() {
 
         const assessments = await Promise.all(studentsToCheck.map(async (s) => {
           try {
-            const res = await fetch(`apiUrl/api/pre-assessment-results/user/${s.user_id}?_t=${Date.now()}`)
+            const res = await fetch(apiUrl(`/api/pre-assessment-results/user/${s.user_id}?_t=${Date.now()}`)
             if (!res.ok) return { user_id: s.user_id, percentage: null }
             const data = await res.json()
             const latest = Array.isArray(data.results) && data.results.length > 0 ? data.results[0] : null

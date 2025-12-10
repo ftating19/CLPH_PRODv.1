@@ -123,7 +123,7 @@ export default function PendingPostTests() {
   const fetchPendingPostTests = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`apiUrl/api/pending-post-tests`)
+      const response = await fetch(apiUrl(`/api/pending-post-tests`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch pending post-tests')
@@ -150,7 +150,7 @@ export default function PendingPostTests() {
   const fetchPostTestQuestions = async (pendingPostTestId: number) => {
     try {
       setLoadingQuestions(true)
-      const response = await fetch(`apiUrl/api/pending-post-tests/${pendingPostTestId}`)
+      const response = await fetch(apiUrl(`/api/pending-post-tests/${pendingPostTestId}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch questions')
@@ -187,7 +187,7 @@ export default function PendingPostTests() {
     try {
       setProcessing(true)
       const response = await fetch(
-        `apiUrl/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/approve`,
+        apiUrl(`/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/approve`,
         {
           method: 'PUT',
           headers: {
@@ -239,7 +239,7 @@ export default function PendingPostTests() {
     try {
       setProcessing(true)
       const response = await fetch(
-        `apiUrl/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/reject`,
+        apiUrl(`/api/pending-post-tests/${postTestToProcess.pending_post_test_id}/reject`,
         {
           method: 'PUT',
           headers: {

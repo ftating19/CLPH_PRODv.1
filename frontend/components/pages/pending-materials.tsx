@@ -121,7 +121,7 @@ export default function PendingMaterials() {
     if (!currentMaterial || !currentUser) return
     
     try {
-      const response = await fetch(`apiUrl/api/pending-materials/${currentMaterial.material_id}/approve`, {
+      const response = await fetch(apiUrl(`/api/pending-materials/${currentMaterial.material_id}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -170,7 +170,7 @@ export default function PendingMaterials() {
     }
     
     try {
-      const response = await fetch(`apiUrl/api/pending-materials/${currentMaterial.material_id}/reject`, {
+      const response = await fetch(apiUrl(`/api/pending-materials/${currentMaterial.material_id}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

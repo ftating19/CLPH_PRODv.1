@@ -190,7 +190,7 @@ export default function PendingQuizzes() {
     if (!currentQuiz || !currentUser) return
     
     try {
-      const response = await fetch(`apiUrl/api/pending-quizzes/${currentQuiz.quizzes_id}/approve`, {
+      const response = await fetch(apiUrl(`/api/pending-quizzes/${currentQuiz.quizzes_id}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -238,7 +238,7 @@ export default function PendingQuizzes() {
     }
     
     try {
-      const response = await fetch(`apiUrl/api/pending-quizzes/${currentQuiz.quizzes_id}/reject`, {
+      const response = await fetch(apiUrl(`/api/pending-quizzes/${currentQuiz.quizzes_id}/reject`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -286,7 +286,7 @@ export default function PendingQuizzes() {
     setShowQuestionsModal(true)
     
     try {
-      const response = await fetch(`apiUrl/api/questions/quiz/${quiz.quizzes_id}`)
+      const response = await fetch(apiUrl(`/api/questions/quiz/${quiz.quizzes_id}`)
       if (!response.ok) {
         throw new Error('Failed to fetch quiz questions')
       }
