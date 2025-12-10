@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { apiUrl } from "@/lib/api-config"
 import {
   BookOpen,
   Users,
@@ -48,7 +49,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   // Fetch dashboard stats (single API call for all counts)
   useEffect(() => {
     console.log('📊 Dashboard: Fetching stats...');
-    fetch("http://localhost:4000/api/stats/dashboard")
+    fetch(apiUrl("/api/stats/dashboard"))
       .then((res) => res.json())
       .then((data) => {
         console.log('📊 Dashboard: Stats received:', data);
@@ -63,7 +64,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
 
   useEffect(() => {
     // Fetch recent forums and tutors
-    fetch("http://localhost:4000/api/forums")
+    fetch(apiUrl("/api/forums"))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.forums)) {
@@ -78,7 +79,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
 
     // Fetch recommended tutors (5 stars or high ratings)
     console.log('🔍 Dashboard: Fetching tutors...');
-    fetch("http://localhost:4000/api/tutors")
+    fetch(apiUrl("/api/tutors"))
       .then((res) => res.json())
       .then((data) => {
         console.log('👨‍🏫 Dashboard: Tutors data received:', data);
@@ -120,7 +121,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
     
     console.log('🔍 Dashboard: Fetching pre-assessment for user:', currentUser.user_id);
     
-    fetch(`http://localhost:4000/api/pre-assessment-results/user/${currentUser.user_id}?_t=${Date.now()}`, {
+    fetch(apiUrl(`/api/pre-assessment-results/user/${currentUser.user_id}?_t=${Date.now()}`), {
       headers: {
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache'
@@ -194,7 +195,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   useEffect(() => {
     if (!currentUser?.user_id) return;
     
-    fetch(`http://localhost:4000/api/quiz-attempts/user/${currentUser.user_id}?_t=${Date.now()}`)
+    fetch(apiUrl(`/api/quiz-attempts/user/${currentUser.user_id}?_t=${Date.now()}`))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.attempts)) {
@@ -224,7 +225,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   // Fetch top quiz performers for dashboard global view
   useEffect(() => {
     // request top performers limited to 3
-    fetch(`http://localhost:4000/api/analytics/top-quiz-performers?limit=3`)
+    fetch(apiUrl(`/api/analytics/top-quiz-performers?limit=3`))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.performers)) {
@@ -247,7 +248,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   useEffect(() => {
     if (!currentUser?.user_id || currentUser?.role?.toLowerCase() !== 'student') return;
     
-    fetch(`http://localhost:4000/api/post-tests/student/${currentUser.user_id}`)
+    fetch(apiUrl(`/api/post-tests/student/${currentUser.user_id}`))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.postTests)) {
@@ -261,7 +262,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   useEffect(() => {
     if (!currentUser?.user_id) return;
     
-    fetch(`http://localhost:4000/api/bookings/user/${currentUser.user_id}`)
+    fetch(apiUrl(`/api/bookings/user/${currentUser.user_id}`))
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.bookings)) {
