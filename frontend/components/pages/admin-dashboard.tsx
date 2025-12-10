@@ -51,7 +51,7 @@ export default function AdminDashboard() {
     if (currentUser.role) headers['x-user-role'] = currentUser.role
 
     // Fetch users (admin-only endpoint)
-    fetch("apiUrl/api/users", { headers })
+    fetch(apiUrl("/api/users"), { headers })
       .then((res) => res.json())
       .then((data) => {
         if (typeof data.total === "number") {
@@ -78,7 +78,7 @@ export default function AdminDashboard() {
       });
 
     // Fetch tutors count from tutors table (public endpoint)
-    fetch("apiUrl/api/tutors")
+    fetch(apiUrl("/api/tutors"))
       .then((res) => res.json())
       .then((data) => {
         if (typeof data.total === "number") {
@@ -95,7 +95,7 @@ export default function AdminDashboard() {
       });
 
     // Fetch feedback statistics
-    fetch("apiUrl/api/system-feedback/stats", { headers })
+    fetch(apiUrl("/api/system-feedback/stats"), { headers })
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
@@ -114,7 +114,7 @@ export default function AdminDashboard() {
     
     try {
       setLoadingViolations(true);
-      const response = await fetch(`apiUrl/api/admin/profanity-violations?requesting_user_id=${currentUser.user_id}&limit=20`);
+      const response = await fetch(apiUrl(`/api/admin/profanity-violations?requesting_user_id=${currentUser.user_id}&limit=20`));
       const data = await response.json();
       
       if (data.success) {
