@@ -44,5 +44,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Use Next.js standalone output for production
-CMD ["node", ".next/standalone/server.js"]
+CMD ["npm", "start"]
