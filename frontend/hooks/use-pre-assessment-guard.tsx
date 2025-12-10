@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useUser } from '@/contexts/UserContext'
+import { apiUrl } from '@/lib/api-config'
 
 interface PreAssessmentGuardResult {
   hasCompletedPreAssessment: boolean | null
@@ -36,7 +37,7 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
       setError(null)
 
       // Check if user has completed any pre-assessment
-      const resultsResponse = await fetch(`http://localhost:4000/api/pre-assessment-results/user/${currentUser.user_id}`)
+      const resultsResponse = await fetch(apiUrl(`/api/pre-assessment-results/user/${currentUser.user_id}`))
       
       if (!resultsResponse.ok) {
         // If the API endpoint doesn't exist (404), bypass the requirement
@@ -63,7 +64,7 @@ export const usePreAssessmentGuard = (): PreAssessmentGuardResult => {
       } else {
         // Check for available pre-assessments for their program and year level
         const assessmentsResponse = await fetch(
-          `http://localhost:4000/api/pre-assessments/program/${encodeURIComponent(currentUser.program)}/year/${encodeURIComponent(currentUser.year_level || '')}`
+          apiUrl(`/api/pre-assessments/program/${encodeURIComponent(currentUser.program)}/year/${encodeURIComponent(currentUser.year_level || '')}`)
         )
         
         if (!assessmentsResponse.ok) {
