@@ -38,6 +38,10 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json ./package-lock.json
 
+# Ensure the runtime user owns the application files so it can read
+# `node_modules`, `.next`, and other assets when running as a non-root user.
+RUN chown -R nextjs:nodejs /app
+
 USER nextjs
 
 # Ensure the pending resources directory exists and is writable by the
