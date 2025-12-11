@@ -306,6 +306,18 @@ try {
   console.warn('Could not create or serve pending-resources directory:', e.message);
 }
 
+// Configure class-cards directory and public exposure (used for tutor class card uploads)
+const classCardsDir = process.env.CLASS_CARDS_DIR || path.join(__dirname, '../../frontend/public/class-cards');
+const classCardsPublicUrl = process.env.CLASS_CARDS_PUBLIC_URL || null; // optional absolute URL
+try {
+  if (!fs.existsSync(classCardsDir)) {
+    fs.mkdirSync(classCardsDir, { recursive: true });
+  }
+  app.use('/class-cards', express.static(classCardsDir));
+} catch (e) {
+  console.warn('Could not create or serve class-cards directory:', e.message);
+}
+
 const PORT = process.env.PORT || 4000
 
 app.get('/health', (req, res) => res.json({ ok: true }))
@@ -2352,10 +2364,16 @@ app.post('/api/upload', imageUpload.single('file'), async (req, res) => {
       });
     }
 
-    const fileUrl = `/class-cards/${req.file.filename}`;
-    
+    // Compose public-accessible file URL for the uploaded class card.
+    // Priority: CLASS_CARDS_PUBLIC_URL -> backend host (/class-cards) -> FRONTEND_URL
+    const publicBase = classCardsPublicUrl
+      || `${req.protocol}://${req.get('host')}/class-cards`
+      || (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL.replace(/\/$/, '')}/class-cards` : '/class-cards');
+
+    const fileUrl = `${publicBase.replace(/\/$/, '')}/${req.file.filename}`;
+
     console.log(`✅ Image uploaded successfully: ${fileUrl}`);
-    
+
     res.json({
       success: true,
       message: 'Image uploaded successfully',
