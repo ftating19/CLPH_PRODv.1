@@ -4456,6 +4456,54 @@ app.get('/api/pending-materials/:id', async (req, res) => {
   }
 });
 
+// Serve/stream a pending material file directly (for preview in new tab)
+app.get('/api/pending-materials/:id/serve', async (req, res) => {
+  try {
+    const materialId = req.params.id;
+    console.log(`Serving pending material file ${materialId}`);
+
+    const pool = await db.getPool();
+    const material = await getPendingMaterialById(pool, materialId);
+
+    if (!material || !material.file_path) {
+      return res.status(404).json({ success: false, error: 'Pending material not found' });
+    }
+
+    // Resolve filesystem path for the file (supports '/pending-resources/...' stored values)
+    let relPath = material.file_path;
+    try {
+      if (relPath.startsWith('http')) {
+        const parsed = new URL(relPath);
+        relPath = parsed.pathname;
+      }
+    } catch (e) {
+      // ignore URL parsing errors
+    }
+
+    let cleanRelPath = relPath.replace(/^\/pending-resources\//, '');
+    const filePath = path.join(pendingResourcesDir, cleanRelPath);
+
+    if (!fs.existsSync(filePath)) {
+      console.error('Pending file not found on server:', filePath);
+      return res.status(404).json({ success: false, error: 'File not found' });
+    }
+
+    // Try to increment view count in pendingmaterials table (best-effort)
+    try {
+      await pool.query('UPDATE pendingmaterials SET view_count = view_count + 1 WHERE material_id = ?', [materialId]);
+    } catch (incErr) {
+      console.warn('Failed to increment pending material view count:', incErr.message);
+    }
+
+    // Stream the file
+    res.setHeader('Content-Type', 'application/pdf');
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('Error serving pending material file:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 // Approve pending material
 app.put('/api/pending-materials/:id/approve', async (req, res) => {
   try {

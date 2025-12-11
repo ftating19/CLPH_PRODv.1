@@ -217,7 +217,8 @@ export default function PendingMaterials() {
     // Open PDF in new tab for preview using the backend serve endpoint so the
     // API streams the PDF regardless of frontend host configuration.
     const apiBase = (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')) || 'https://api.cictpeerlearninghub.com'
-    const serveUrl = `${apiBase}/api/study-materials/${material.material_id}/serve`
+    // Use the pending-materials serve endpoint so preview works for items that are still pending
+    const serveUrl = `${apiBase}/api/pending-materials/${material.material_id}/serve`
     window.open(serveUrl, '_blank')
   }
 
