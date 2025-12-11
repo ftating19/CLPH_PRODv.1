@@ -40,6 +40,19 @@ COPY --from=builder /app/package-lock.json ./package-lock.json
 
 USER nextjs
 
+# Ensure the pending resources directory exists and is writable by the
+# runtime user. This makes it possible to mount a host volume there or
+# allow a backend process to read files when the frontend image is used
+# as a shared static files location.
+RUN mkdir -p /app/public/pending-resources \
+	&& chown -R nextjs:nodejs /app/public/pending-resources \
+	&& chmod -R 775 /app/public/pending-resources
+
+# Optional: declare a mount point so deployers can bind-mount a host
+# directory to persist uploaded files. Do not rely on this creating
+# persistent storage by itself in orchestrators.
+VOLUME ["/app/public/pending-resources"]
+
 EXPOSE 3000
 
 ENV PORT=3000

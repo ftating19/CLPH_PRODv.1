@@ -1,0 +1,40 @@
+version: '3.8'
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: clph-frontend:local
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      # mount same host folder into frontend at /app/public/pending-resources
+      - /var/www/frontend/public/pending-resources:/app/public/pending-resources:rw
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: clph-backend:local
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - ENABLE_DEBUG_ENDPOINTS=true
+      - PENDING_RESOURCES_DIR=/var/www/frontend/public/pending-resources
+      - PENDING_RESOURCES_URL=https://cictpeerlearninghub.com/pending-resources
+      - FRONTEND_URL=http://localhost:3000
+    volumes:
+      # mount same host folder into backend at the path the backend expects
+      - /var/www/frontend/public/pending-resources:/var/www/frontend/public/pending-resources:rw
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+# Optional: named volume example (commented out). Uncomment and adjust if you prefer a Docker managed volume instead of a host path.
+# volumes:
+#   pending-resources:
+#     driver: local
