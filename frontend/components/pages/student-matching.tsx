@@ -954,7 +954,8 @@ export default function StudentMatching() {
   
   // Use constants for programs
   const allPrograms = CICT_PROGRAMS
-
+  // Active programs currently present among loaded students
+  const activePrograms = Array.from(new Set(students.map(s => s.program).filter(Boolean)))
   // Debug logging for user info
   if (process.env.NODE_ENV === 'development') {
     console.log('Student Matching - Current User Info:', {
@@ -1170,8 +1171,8 @@ export default function StudentMatching() {
     sortForTutor()
   }, [currentUser, studentAssessmentMap, userLoading])
 
-  // Get unique programs for filter - only for admins
-  const programs = userRole === "admin" ? allPrograms : []
+  // Get unique programs for filter (admin uses full list), but show active programs count to all users
+  const programs = allPrograms
 
   const handleContactStudent = (student: Student) => {
     setSelectedStudent(student)
@@ -1414,7 +1415,7 @@ export default function StudentMatching() {
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Active Programs</p>
-                <p className="text-2xl font-bold">{programs.length}</p>
+                <p className="text-2xl font-bold">{activePrograms.length}</p>
               </div>
             </div>
           </CardContent>
