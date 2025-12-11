@@ -2707,11 +2707,11 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Study material not found' });
     }
 
-    // Resolve filesystem path for the file (supports '/pending-resources/...' stored values)
+    // Resolve filesystem path for the file. Support both pending-resources
+    // and learning-resources stored values and absolute URLs.
     let relPath = material.file_path;
-    // If stored as absolute URL, try to extract the pathname
     try {
-      if (relPath.startsWith('http')) {
+      if (relPath && relPath.startsWith('http')) {
         const parsed = new URL(relPath);
         relPath = parsed.pathname;
       }
@@ -2719,9 +2719,25 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
       // ignore URL parsing errors
     }
 
-    // Remove any leading /pending-resources from relPath
-    let cleanRelPath = relPath.replace(/^\/pending-resources\//, '');
-    const filePath = path.join(pendingResourcesDir, cleanRelPath);
+    let filePath;
+    if (relPath && relPath.startsWith('/pending-resources/')) {
+      // stored path under pending-resources
+      const cleanRelPath = relPath.replace(/^\/pending-resources\//, '');
+      filePath = path.join(pendingResourcesDir, cleanRelPath);
+    } else if (relPath && relPath.startsWith('/learning-resources/')) {
+      // stored path under learning-resources
+      const cleanRelPath = relPath.replace(/^\/learning-resources\//, '');
+      const learningDir = path.join(__dirname, '../../frontend/public/learning-resources');
+      filePath = path.join(learningDir, cleanRelPath);
+    } else {
+      // Fallback: try to resolve by basename in pendingResourcesDir first,
+      // then in learning-resources directory.
+      const filename = path.basename(relPath || '');
+      const candidatePending = path.join(pendingResourcesDir, filename);
+      const candidateLearning = path.join(__dirname, '../../frontend/public/learning-resources', filename);
+      if (fs.existsSync(candidatePending)) filePath = candidatePending;
+      else filePath = candidateLearning;
+    }
 
     if (!fs.existsSync(filePath)) {
       console.error('File not found on server:', filePath);
@@ -4553,20 +4569,33 @@ app.put('/api/pending-materials/:id/approve', async (req, res) => {
     
     // Move file from pending-resources to learning-resources
     try {
-      const pendingFilePath = path.join(__dirname, '../../frontend/public', pendingMaterial.file_path);
       const filename = path.basename(pendingMaterial.file_path);
+
+      // Source: the pending resources directory where uploads are stored
+      const pendingFilePath = path.join(pendingResourcesDir, filename);
+
+      // Destination: learning-resources directory under frontend public
       const learningResourcesPath = path.join(__dirname, '../../frontend/public/learning-resources');
       const newFilePath = path.join(learningResourcesPath, filename);
-      
+
       // Create learning-resources directory if it doesn't exist
       if (!fs.existsSync(learningResourcesPath)) {
         fs.mkdirSync(learningResourcesPath, { recursive: true });
       }
-      
-      // Move file from pending-resources to learning-resources
+
+      // If file exists in pendingResourcesDir, move it. Otherwise, attempt legacy path fallback.
       if (fs.existsSync(pendingFilePath)) {
         fs.renameSync(pendingFilePath, newFilePath);
-        console.log(`✅ Moved file from ${pendingMaterial.file_path} to /learning-resources/${filename}`);
+        console.log(`✅ Moved file from ${pendingFilePath} to ${newFilePath}`);
+      } else {
+        // Legacy fallback: try joining the frontend/public root with stored file_path
+        const legacyPending = path.join(__dirname, '../../frontend/public', pendingMaterial.file_path.replace(/^\//, ''));
+        if (fs.existsSync(legacyPending)) {
+          fs.renameSync(legacyPending, newFilePath);
+          console.log(`✅ Moved file from legacy path ${legacyPending} to ${newFilePath}`);
+        } else {
+          console.warn('Pending file not found at expected locations:', pendingFilePath, legacyPending);
+        }
       }
     } catch (moveErr) {
       console.error('Error moving approved file:', moveErr);
