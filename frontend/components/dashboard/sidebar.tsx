@@ -655,18 +655,7 @@ export default function Sidebar() {
             </div>
           </div>
 
-          {!isAdmin && (
-            <div className="px-4 py-4 border-t border-gray-200 dark:border-[#1F1F23]">
-              <div className="space-y-1">
-                <NavItem href="/settings" icon={Settings}>
-                  Settings
-                </NavItem>
-                <NavItem href="/help" icon={HelpCircle}>
-                  Help
-                </NavItem>
-              </div>
-            </div>
-          )}
+          {/* Settings and Help removed from side menu per request */}
         </div>
       </nav>
 

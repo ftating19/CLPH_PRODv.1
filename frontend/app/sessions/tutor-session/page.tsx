@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2, BookOpen, Search, Filter, GraduationCap, Users, UserCheck } from "lucide-react"
+import { Star, Clock, Calendar, User, MessageCircle, CheckCircle, XCircle, Award, Loader2, BookOpen, Search, Filter, GraduationCap, Users, UserCheck, Lock } from "lucide-react"
 import Layout from "@/components/dashboard/layout"
 import { useUser } from "@/contexts/UserContext"
 import ChatModal from "@/components/modals/ChatModal"
@@ -69,6 +69,7 @@ export default function TutorSessionPage() {
   const [templates, setTemplates] = useState<any[]>([])
   const [loadingTemplates, setLoadingTemplates] = useState(false)
   const [assigningTemplate, setAssigningTemplate] = useState(false)
+  const [templateAssignedMap, setTemplateAssignedMap] = useState<{[key:number]: boolean}>({})
   const { toast } = useToast()
   
   // State for take post-test modal  
@@ -188,6 +189,48 @@ export default function TutorSessionPage() {
       setAssigningTemplate(false)
     }
   }
+
+  // When the selector modal opens, check which templates are already assigned to this booking/student
+  useEffect(() => {
+    if (!showSelectTemplateModal.open) return
+    if (!templates || templates.length === 0) return
+
+    const bookingId = showSelectTemplateModal.bookingDetails?.booking_id
+    const studentId = showSelectTemplateModal.bookingDetails?.student_id
+
+    const relevantTemplates = templates.filter(t => !showSelectTemplateModal.bookingDetails?.subject_id || t.subject_id === showSelectTemplateModal.bookingDetails.subject_id)
+
+    let cancelled = false
+
+    const fetchAssignments = async () => {
+      const map: {[key:number]: boolean} = {}
+      await Promise.all(relevantTemplates.map(async (t: any) => {
+        try {
+          const res = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${t.template_id}/assignments`)
+          if (!res.ok) {
+            map[t.template_id] = false
+            return
+          }
+          const data = await res.json()
+          if (data.success && Array.isArray(data.assignments)) {
+            map[t.template_id] = data.assignments.some((a: any) => (
+              (bookingId && a.booking_id === bookingId) || (studentId && a.student_id === studentId)
+            ))
+          } else {
+            map[t.template_id] = false
+          }
+        } catch (e) {
+          map[t.template_id] = false
+        }
+      }))
+
+      if (!cancelled) setTemplateAssignedMap(map)
+    }
+
+    fetchAssignments()
+
+    return () => { cancelled = true }
+  }, [showSelectTemplateModal.open, templates, showSelectTemplateModal.bookingDetails])
 
   // Mark session as complete handler for student
   const handleStudentComplete = async (booking_id: number) => {
@@ -1329,13 +1372,22 @@ export default function TutorSessionPage() {
                               <span>{template.total_questions} questions</span>
                             </div>
                           </div>
-                          <Button
-                            onClick={() => handleAssignTemplate(template.template_id, showSelectTemplateModal.bookingDetails!)}
-                            disabled={assigningTemplate}
-                            size="sm"
-                          >
-                            {assigningTemplate ? 'Assigning...' : 'Assign'}
-                          </Button>
+                          {
+                            templateAssignedMap[template.template_id] ? (
+                              <Button size="sm" disabled variant="ghost" className="flex items-center gap-2">
+                                <Lock className="w-4 h-4" />
+                                Assigned
+                              </Button>
+                            ) : (
+                              <Button
+                                onClick={() => handleAssignTemplate(template.template_id, showSelectTemplateModal.bookingDetails!)}
+                                disabled={assigningTemplate}
+                                size="sm"
+                              >
+                                {assigningTemplate ? 'Assigning...' : 'Assign'}
+                              </Button>
+                            )
+                          }
                         </div>
                       </CardContent>
                     </Card>
