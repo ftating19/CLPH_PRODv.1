@@ -2743,7 +2743,9 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
       // ignore URL parsing errors
     }
 
-    const filePath = path.join(__dirname, '../../frontend/public', relPath);
+    // Remove any leading /pending-resources from relPath
+    let cleanRelPath = relPath.replace(/^\/pending-resources\//, '');
+    const filePath = path.join(pendingResourcesDir, cleanRelPath);
 
     if (!fs.existsSync(filePath)) {
       console.error('File not found on server:', filePath);
