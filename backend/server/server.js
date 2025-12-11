@@ -9298,18 +9298,8 @@ app.get('/api/post-test-templates/:templateId', async (req, res) => {
 
 // Create new template
 app.post('/api/post-test-templates', async (req, res) => {
-  try {
-    const postTestTemplates = require('../queries/postTestTemplates');
-    const result = await postTestTemplates.createTemplate(req.body);
-    
-    res.json({
-      success: true,
-      template_id: result.template_id
-    });
-  } catch (err) {
-    console.error('Error creating template:', err);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
+  // Disabled direct creation of post test templates by tutors. Post tests must go to pending_post_tests for faculty approval.
+  res.status(403).json({ success: false, error: 'Direct creation of post test templates is not allowed. Please use the post-test creation workflow for tutors.' });
 });
 
 // Update template
