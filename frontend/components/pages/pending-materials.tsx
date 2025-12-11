@@ -214,9 +214,11 @@ export default function PendingMaterials() {
   }
 
   const previewFile = (material: PendingMaterial) => {
-    // Open PDF in new tab for preview
-    const fileUrl = `http://localhost:3000${material.file_path}`
-    window.open(fileUrl, '_blank')
+    // Open PDF in new tab for preview using the backend serve endpoint so the
+    // API streams the PDF regardless of frontend host configuration.
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')) || 'https://api.cictpeerlearninghub.com'
+    const serveUrl = `${apiBase}/api/study-materials/${material.material_id}/serve`
+    window.open(serveUrl, '_blank')
   }
 
   const formatFileSize = (bytes: number) => {
