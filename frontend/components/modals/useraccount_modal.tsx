@@ -127,7 +127,7 @@ export default function UserAccountModal({ open, onClose, onSubmit }: UserAccoun
 
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
-			<DialogContent className="max-w-lg">
+			<DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
 				<form onSubmit={handleSubmit}>
 					<DialogHeader>
 						<DialogTitle>Create User Account</DialogTitle>

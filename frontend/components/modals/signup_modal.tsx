@@ -142,7 +142,7 @@ export default function SignupModal({ open, onClose, onSubmit }: SignupModalProp
 
 	return (
 		<Dialog open={open} onOpenChange={onClose}>
-			<DialogContent className="max-w-lg">
+			<DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
 				<form onSubmit={handleSubmit}>
 					<DialogHeader>
 						<DialogTitle>Create Account</DialogTitle>
