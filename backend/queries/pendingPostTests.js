@@ -93,9 +93,9 @@ const createPendingPostTest = async (pool, postTestData) => {
         status, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
     `, [
-      booking_id,
+      booking_id || null,
       tutor_id,
-      student_id,
+      student_id || null,
       title,
       description || null,
       subject_id,

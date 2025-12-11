@@ -3,9 +3,9 @@
 
 CREATE TABLE IF NOT EXISTS `pending_post_tests` (
   `pending_post_test_id` INT NOT NULL AUTO_INCREMENT,
-  `booking_id` INT NOT NULL,
+  `booking_id` INT DEFAULT NULL,
   `tutor_id` INT NOT NULL,
-  `student_id` INT NOT NULL,
+  `student_id` INT DEFAULT NULL,
   `title` VARCHAR(255) NOT NULL,
   `description` TEXT,
   `subject_id` INT NOT NULL,
@@ -25,9 +25,9 @@ CREATE TABLE IF NOT EXISTS `pending_post_tests` (
   KEY `idx_subject_id` (`subject_id`),
   KEY `idx_status` (`status`),
   KEY `idx_reviewed_by` (`reviewed_by`),
-  CONSTRAINT `fk_pending_post_test_booking` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`booking_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_pending_post_test_booking` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`booking_id`) ON DELETE SET NULL,
   CONSTRAINT `fk_pending_post_test_tutor` FOREIGN KEY (`tutor_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_pending_post_test_student` FOREIGN KEY (`student_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_pending_post_test_student` FOREIGN KEY (`student_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `fk_pending_post_test_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_pending_post_test_reviewer` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

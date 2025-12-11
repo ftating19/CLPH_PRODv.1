@@ -8707,55 +8707,74 @@ app.get('/api/post-tests/:id', async (req, res) => {
   }
 });
 
-// Create a new post-test
+// Create a new post-test (supports session-specific or reusable template submissions)
 app.post('/api/post-tests', async (req, res) => {
   try {
     const { booking_id, tutor_id, student_id, title, description, subject_id, subject_name, time_limit, passing_score, questions } = req.body;
-    
-    console.log('Creating new pending post-test:', req.body);
-    
-    // Validate required fields
-    if (!booking_id || !tutor_id || !student_id || !title) {
+
+    console.log('Creating new pending post-test (template-aware):', req.body);
+
+    // Validate required fields: tutor_id and title are mandatory. booking_id/student_id are optional for template submissions.
+    if (!tutor_id || !title) {
       return res.status(400).json({ 
         success: false, 
-        error: 'booking_id, tutor_id, student_id, and title are required' 
+        error: 'tutor_id and title are required' 
       });
     }
-    
+
     const pool = await db.getPool();
-    
-    // Verify the booking exists and tutor has access
-    const [bookingRows] = await pool.query(
-      'SELECT tutor_id, student_id, status FROM bookings WHERE booking_id = ?', 
-      [booking_id]
-    );
-    
-    if (bookingRows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Booking not found' });
+
+    // If booking_id is provided, verify booking exists and tutor has access
+    let booking = null;
+    if (booking_id) {
+      const [bookingRows] = await pool.query(
+        'SELECT tutor_id, student_id, status FROM bookings WHERE booking_id = ?', 
+        [booking_id]
+      );
+      if (bookingRows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Booking not found' });
+      }
+      booking = bookingRows[0];
+      if (booking.tutor_id !== tutor_id) {
+        return res.status(403).json({ success: false, error: 'Only the session tutor can create post-tests for this booking' });
+      }
     }
-    
-    const booking = bookingRows[0];
-    if (booking.tutor_id !== tutor_id) {
-      return res.status(403).json({ success: false, error: 'Only the session tutor can create post-tests' });
+
+    // Prevent duplicate post-tests
+    if (booking_id) {
+      const existingPostTests = await getAllPostTests(pool, { booking_id });
+      const existingPendingPostTests = await getAllPendingPostTests(pool);
+      const hasPendingForBooking = existingPendingPostTests.some(pt => pt.booking_id === booking_id);
+
+      if (existingPostTests.length > 0 || hasPendingForBooking) {
+        return res.status(409).json({ 
+          success: false, 
+          error: 'A post-test already exists or is pending approval for this session' 
+        });
+      }
+    } else {
+      // For template submissions (no booking_id), avoid duplicate pending/template by same tutor and title
+      const [duplicatePending] = await pool.query(
+        'SELECT pending_post_test_id FROM pending_post_tests WHERE tutor_id = ? AND title = ? AND status = "pending" LIMIT 1',
+        [tutor_id, title]
+      );
+      if (duplicatePending.length > 0) {
+        return res.status(409).json({ success: false, error: 'A similar pending template already exists' });
+      }
+      const [duplicateTemplate] = await pool.query(
+        'SELECT template_id FROM post_test_templates WHERE tutor_id = ? AND title = ? AND is_active = 1 LIMIT 1',
+        [tutor_id, title]
+      );
+      if (duplicateTemplate.length > 0) {
+        return res.status(409).json({ success: false, error: 'A template with the same title already exists' });
+      }
     }
-    
-    // Check if post-test already exists for this booking (check both pending and approved)
-    const existingPostTests = await getAllPostTests(pool, { booking_id });
-    const existingPendingPostTests = await getAllPendingPostTests(pool);
-    const hasPendingForBooking = existingPendingPostTests.some(pt => pt.booking_id === booking_id);
-    
-    if (existingPostTests.length > 0 || hasPendingForBooking) {
-      return res.status(409).json({ 
-        success: false, 
-        error: 'A post-test already exists or is pending approval for this session' 
-      });
-    }
-    
-    // Create the pending post-test (requires faculty approval)
+
+    // Create the pending post-test (supports NULL booking_id/student_id)
     const pendingPostTest = await createPendingPostTest(pool, {
-      booking_id: parseInt(booking_id),
+      booking_id: booking_id ? parseInt(booking_id) : null,
       tutor_id: parseInt(tutor_id),
-      student_id: parseInt(student_id),
+      student_id: student_id ? parseInt(student_id) : null,
       title,
       description,
       subject_id: subject_id ? parseInt(subject_id) : null,
@@ -8770,7 +8789,7 @@ app.post('/api/post-tests', async (req, res) => {
       await updatePendingPostTestQuestionCount(pool, pendingPostTest.pending_post_test_id);
     }
 
-    // Send notification to assigned faculty for review
+    // Send notification to assigned faculty for review (based on subject)
     try {
       const subject = await getSubjectById(pool, pendingPostTest.subject_id);
       if (subject && subject.user_id) {
