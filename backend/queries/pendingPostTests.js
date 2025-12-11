@@ -76,14 +76,12 @@ const createPendingPostTest = async (pool, postTestData) => {
 
     const [result] = await pool.query(`
       INSERT INTO pending_post_tests (
-        booking_id, tutor_id, student_id, title, description, 
+        tutor_id, title, description, 
         subject_id, subject_name, time_limit, passing_score, 
         status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
     `, [
-      booking_id || null,
       tutor_id,
-      student_id || null,
       title,
       description || null,
       subject_id,
