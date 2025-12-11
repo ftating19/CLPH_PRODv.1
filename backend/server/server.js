@@ -1263,28 +1263,55 @@ app.get('/api/tutor-applications', async (req, res) => {
       });
     }
 
+    // Compose public base for class-cards (priority: CLASS_CARDS_PUBLIC_URL -> backend host -> FRONTEND_URL)
+    const classCardsPublicBase = classCardsPublicUrl
+      || `${req.protocol}://${req.get('host')}/class-cards`
+      || (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL.replace(/\/$/, '')}/class-cards` : '/class-cards');
+
     // Transform the data to match frontend expectations
-    const transformedApplications = filteredApplications.map(app => ({
-      application_id: app.application_id,
-      user_id: app.user_id,
-      name: app.name || `${app.first_name || ''} ${app.last_name || ''}`.trim(),
-      email: app.email,
-      subject_id: app.subject_id,
-      subject_name: app.subject_name,
-      application_date: app.application_date,
-      status: app.status,
-      validated_by: app.validated_by,
-      tutor_information: app.tutor_information || '',
-      program: app.program || '',
-      year_level: app.year_level || '',
-      specialties: app.specialties || '',
-      class_card_image_url: app.class_card_image_url || null,
-      // Include assessment fields
-      assessment_result_id: app.assessment_result_id,
-      assessment_score: app.assessment_score,
-      assessment_percentage: app.assessment_percentage,
-      assessment_passed: app.assessment_passed
-    }));
+    const transformedApplications = [];
+    for (const app of filteredApplications) {
+      // Normalize class card URL
+      let classCardUrl = null;
+      try {
+        if (app.class_card_image_url) {
+          if (app.class_card_image_url.startsWith('http')) {
+            classCardUrl = app.class_card_image_url;
+          } else if (app.class_card_image_url.startsWith('/')) {
+            // If stored as '/class-cards/filename' or similar
+            classCardUrl = `${classCardsPublicBase.replace(/\/$/, '')}${app.class_card_image_url}`;
+          } else {
+            // If stored as just filename or 'class-cards/filename'
+            const cleaned = app.class_card_image_url.replace(/^\/*/, '');
+            classCardUrl = `${classCardsPublicBase.replace(/\/$/, '')}/${cleaned}`;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to normalize class card URL for app', app.application_id, e && e.message);
+      }
+
+      transformedApplications.push({
+        application_id: app.application_id,
+        user_id: app.user_id,
+        name: app.name || `${app.first_name || ''} ${app.last_name || ''}`.trim(),
+        email: app.email,
+        subject_id: app.subject_id,
+        subject_name: app.subject_name,
+        application_date: app.application_date,
+        status: app.status,
+        validated_by: app.validated_by,
+        tutor_information: app.tutor_information || '',
+        program: app.program || '',
+        year_level: app.year_level || '',
+        specialties: app.specialties || '',
+        class_card_image_url: classCardUrl || null,
+        // Include assessment fields
+        assessment_result_id: app.assessment_result_id,
+        assessment_score: app.assessment_score,
+        assessment_percentage: app.assessment_percentage,
+        assessment_passed: app.assessment_passed
+      });
+    }
 
     console.log(`✅ Found ${transformedApplications.length} tutor applications (filtered)`);
     res.status(200).json({ 
@@ -1314,6 +1341,28 @@ app.get('/api/tutor-applications/:id', async (req, res) => {
       return res.status(404).json({ error: 'Tutor application not found' });
     }
 
+    // Compose public base for class-cards for single application
+    const classCardsPublicBaseSingle = classCardsPublicUrl
+      || `${req.protocol}://${req.get('host')}/class-cards`
+      || (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL.replace(/\/$/, '')}/class-cards` : '/class-cards');
+
+    // Normalize stored class card URL for single application
+    let classCardUrlSingle = null;
+    try {
+      if (application.class_card_image_url) {
+        if (application.class_card_image_url.startsWith('http')) {
+          classCardUrlSingle = application.class_card_image_url;
+        } else if (application.class_card_image_url.startsWith('/')) {
+          classCardUrlSingle = `${classCardsPublicBaseSingle.replace(/\/$/, '')}${application.class_card_image_url}`;
+        } else {
+          const cleanedSingle = application.class_card_image_url.replace(/^\/*/, '');
+          classCardUrlSingle = `${classCardsPublicBaseSingle.replace(/\/$/, '')}/${cleanedSingle}`;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to normalize class card URL for application', application.application_id, e && e.message);
+    }
+
     // Transform the data to match frontend expectations
     const transformedApplication = {
       application_id: application.application_id,
@@ -1329,7 +1378,7 @@ app.get('/api/tutor-applications/:id', async (req, res) => {
       program: application.program || '',
       year_level: application.year_level || '',
       specialties: application.specialties || '',
-      class_card_image_url: application.class_card_image_url || null,
+      class_card_image_url: classCardUrlSingle || null,
       // Include assessment fields
       assessment_result_id: application.assessment_result_id,
       assessment_score: application.assessment_score,
