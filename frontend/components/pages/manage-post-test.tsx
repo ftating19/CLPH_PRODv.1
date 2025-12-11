@@ -314,8 +314,8 @@ export default function ManagePostTest() {
           description: "Template updated successfully!"
         })
       } else {
-        // CREATE new template
-        const templateResponse = await fetch('https://api.cictpeerlearninghub.com/api/post-test-templates', {
+        // CREATE new pending post test for faculty review
+        const pendingResponse = await fetch('https://api.cictpeerlearninghub.com/api/post-tests', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -325,40 +325,25 @@ export default function ManagePostTest() {
             subject_id: parseInt(templateForm.subject_id),
             subject_name: subject?.subject_name || '',
             time_limit: templateForm.time_limit,
-            passing_score: templateForm.passing_score
-          })
-        })
-        
-        if (!templateResponse.ok) {
-          throw new Error('Failed to create template')
-        }
-        
-        const templateData = await templateResponse.json()
-        const templateId = templateData.template_id
-        
-        // Add questions to template
-        const questionsResponse = await fetch(`https://api.cictpeerlearninghub.com/api/post-test-templates/${templateId}/questions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+            passing_score: templateForm.passing_score,
             questions: templateQuestions.map((q, index) => ({
               question_text: q.question,
               question_type: q.type,
               options: q.options,
               correct_answer: q.correct_answer,
               points: q.points,
-              order_number: templateQuestions.length - index // Reverse order since we add new at top
+              order_number: templateQuestions.length - index
             }))
           })
-        })
-        
-        if (!questionsResponse.ok) {
-          throw new Error('Failed to add questions')
+        });
+
+        if (!pendingResponse.ok) {
+          throw new Error('Failed to submit post test for review')
         }
-        
+
         toast({
           title: "Success",
-          description: "Template created successfully!"
+          description: "Post test submitted for faculty review!"
         })
       }
       
