@@ -5133,37 +5133,24 @@ app.put('/api/pending-post-tests/:id/approve', async (req, res) => {
       });
     }
 
-    // Get tutor and student information
+    // Get tutor information
     const [tutorRows] = await pool.query(`
       SELECT user_id, first_name, last_name, email 
       FROM users 
       WHERE user_id = ?
     `, [pendingPostTest.tutor_id]);
 
-    const [studentRows] = await pool.query(`
-      SELECT user_id, first_name, last_name, email 
-      FROM users 
-      WHERE user_id = ?
-    `, [pendingPostTest.student_id]);
-
     const tutor = tutorRows[0];
-    const student = studentRows[0];
-
-    if (!tutor || !student) {
+    if (!tutor) {
       return res.status(404).json({ 
         success: false,
-        error: 'Tutor or student not found' 
+        error: 'Tutor not found' 
       });
     }
 
-    // Get session information if available
-    const [sessionRows] = await pool.query(`
-      SELECT DATE_FORMAT(start_date, '%M %d, %Y at %h:%i %p') as formatted_date
-      FROM bookings 
-      WHERE booking_id = ?
-    `, [pendingPostTest.booking_id]);
-
-    const sessionDate = sessionRows[0]?.formatted_date || null;
+    // Student and session may not exist for template submissions
+    const student = pendingPostTest.student_id ? (await (await pool.query(`SELECT user_id, first_name, last_name, email FROM users WHERE user_id = ?`, [pendingPostTest.student_id]))[0])[0] : null;
+    const sessionDate = null;
     
     // Update status to approved
     await updatePendingPostTestStatus(pool, pendingPostTestId, 'approved', approved_by, null);
@@ -5176,30 +5163,34 @@ app.put('/api/pending-post-tests/:id/approve', async (req, res) => {
 
     console.log(`✅ Post-test approved and converted to template: ${newTemplate.template_id}`);
 
-    // Send email notifications
+    // Send email notifications (student may not exist for template submissions)
     try {
       // Send email to tutor
       const tutorEmailResult = await sendPostTestApprovalEmailToTutor(
         tutor.email,
         `${tutor.first_name} ${tutor.last_name}`,
         pendingPostTest.title,
-        `${student.first_name} ${student.last_name}`,
+        student ? `${student.first_name} ${student.last_name}` : null,
         sessionDate
       );
 
-      // Send email to student
-      const studentEmailResult = await sendPostTestApprovalEmailToStudent(
-        student.email,
-        `${student.first_name} ${student.last_name}`,
-        pendingPostTest.title,
-        `${tutor.first_name} ${tutor.last_name}`,
-        sessionDate
-      );
+      // Send email to student if present
+      if (student) {
+        const studentEmailResult = await sendPostTestApprovalEmailToStudent(
+          student.email,
+          `${student.first_name} ${student.last_name}`,
+          pendingPostTest.title,
+          `${tutor.first_name} ${tutor.last_name}`,
+          sessionDate
+        );
 
-      console.log('Email notifications sent:', {
-        tutor: tutorEmailResult.success,
-        student: studentEmailResult.success
-      });
+        console.log('Email notifications sent:', {
+          tutor: tutorEmailResult.success,
+          student: studentEmailResult.success
+        });
+      } else {
+        console.log('Email notification sent to tutor only:', { tutor: tutorEmailResult.success });
+      }
     } catch (emailError) {
       console.error('Error sending email notifications:', emailError);
       // Don't fail the approval if email fails

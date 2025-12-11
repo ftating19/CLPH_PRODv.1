@@ -9,22 +9,16 @@ const getAllPendingPostTests = async (pool) => {
         ppt.*,
         CONCAT(t.first_name, ' ', t.last_name) as tutor_name,
         t.email as tutor_email,
-        CONCAT(s.first_name, ' ', s.last_name) as student_name,
         CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
         sub.subject_code,
-        sub.subject_name as full_subject_name,
-        b.start_date,
-        b.end_date,
-        b.preferred_time
+        sub.subject_name as full_subject_name
       FROM pending_post_tests ppt
       LEFT JOIN users t ON ppt.tutor_id = t.user_id
-      LEFT JOIN users s ON ppt.student_id = s.user_id
       LEFT JOIN users r ON ppt.reviewed_by = r.user_id
       LEFT JOIN subjects sub ON ppt.subject_id = sub.subject_id
-      LEFT JOIN bookings b ON ppt.booking_id = b.booking_id
       ORDER BY ppt.created_at DESC
     `);
-    
+
     // Map pending_post_test_id to id for frontend compatibility
     return rows.map(row => ({
       ...row,
@@ -44,24 +38,18 @@ const getPendingPostTestById = async (pool, pendingPostTestId) => {
         ppt.*,
         CONCAT(t.first_name, ' ', t.last_name) as tutor_name,
         t.email as tutor_email,
-        CONCAT(s.first_name, ' ', s.last_name) as student_name,
         CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
         sub.subject_code,
-        sub.subject_name as full_subject_name,
-        b.start_date,
-        b.end_date,
-        b.preferred_time
+        sub.subject_name as full_subject_name
       FROM pending_post_tests ppt
       LEFT JOIN users t ON ppt.tutor_id = t.user_id
-      LEFT JOIN users s ON ppt.student_id = s.user_id
       LEFT JOIN users r ON ppt.reviewed_by = r.user_id
       LEFT JOIN subjects sub ON ppt.subject_id = sub.subject_id
-      LEFT JOIN bookings b ON ppt.booking_id = b.booking_id
       WHERE ppt.pending_post_test_id = ?
     `, [pendingPostTestId]);
-    
+
     if (rows.length === 0) return null;
-    
+
     const result = rows[0];
     result.id = result.pending_post_test_id; // Map pending_post_test_id to id for frontend compatibility
     return result;
@@ -175,23 +163,17 @@ const getPendingPostTestsByStatus = async (pool, status) => {
         ppt.*,
         CONCAT(t.first_name, ' ', t.last_name) as tutor_name,
         t.email as tutor_email,
-        CONCAT(s.first_name, ' ', s.last_name) as student_name,
         CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
         sub.subject_code,
-        sub.subject_name as full_subject_name,
-        b.start_date,
-        b.end_date,
-        b.preferred_time
+        sub.subject_name as full_subject_name
       FROM pending_post_tests ppt
       LEFT JOIN users t ON ppt.tutor_id = t.user_id
-      LEFT JOIN users s ON ppt.student_id = s.user_id
       LEFT JOIN users r ON ppt.reviewed_by = r.user_id
       LEFT JOIN subjects sub ON ppt.subject_id = sub.subject_id
-      LEFT JOIN bookings b ON ppt.booking_id = b.booking_id
       WHERE ppt.status = ?
       ORDER BY ppt.created_at DESC
     `, [status]);
-    
+
     return rows.map(row => ({
       ...row,
       id: row.pending_post_test_id
@@ -210,23 +192,17 @@ const getPendingPostTestsBySubject = async (pool, subjectId) => {
         ppt.*,
         CONCAT(t.first_name, ' ', t.last_name) as tutor_name,
         t.email as tutor_email,
-        CONCAT(s.first_name, ' ', s.last_name) as student_name,
         CONCAT(r.first_name, ' ', r.last_name) as reviewed_by_name,
         sub.subject_code,
-        sub.subject_name as full_subject_name,
-        b.start_date,
-        b.end_date,
-        b.preferred_time
+        sub.subject_name as full_subject_name
       FROM pending_post_tests ppt
       LEFT JOIN users t ON ppt.tutor_id = t.user_id
-      LEFT JOIN users s ON ppt.student_id = s.user_id
       LEFT JOIN users r ON ppt.reviewed_by = r.user_id
       LEFT JOIN subjects sub ON ppt.subject_id = sub.subject_id
-      LEFT JOIN bookings b ON ppt.booking_id = b.booking_id
       WHERE ppt.subject_id = ? AND ppt.status = 'pending'
       ORDER BY ppt.created_at DESC
     `, [subjectId]);
-    
+
     return rows.map(row => ({
       ...row,
       id: row.pending_post_test_id
