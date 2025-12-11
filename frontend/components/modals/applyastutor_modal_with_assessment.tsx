@@ -597,13 +597,14 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0">
-                    <Command>
-                      <CommandInput 
-                        placeholder="Search subjects..." 
-                        value={subjectSearchValue}
-                        onValueChange={setSubjectSearchValue}
-                      />
-                      <CommandList>
+                    <div className="max-h-[50vh] sm:max-h-[40vh] overflow-auto">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Search subjects..." 
+                          value={subjectSearchValue}
+                          onValueChange={setSubjectSearchValue}
+                        />
+                        <CommandList className="max-h-[46vh] overflow-auto">
                         {filteredSubjects
                           .filter((subject) => {
                             const searchTerm = subjectSearchValue.toLowerCase();
