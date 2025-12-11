@@ -60,6 +60,8 @@ export default function TutorSessionPage() {
   const [showRatingModal, setShowRatingModal] = useState<{open: boolean, bookingId?: number}>({open: false})
   const [pendingRating, setPendingRating] = useState<number>(0)
   const [remarksInput, setRemarksInput] = useState<{[key:number]: string}>({})
+  // If true for a booking, submit completion after rating is submitted
+  const [shouldCompleteAfterRating, setShouldCompleteAfterRating] = useState<{[key:number]: boolean}>({})
 
   // State for chat modal
   const [showChatModal, setShowChatModal] = useState<{open: boolean, bookingId?: number, bookingDetails?: Booking}>({open: false})
@@ -234,22 +236,11 @@ export default function TutorSessionPage() {
 
   // Mark session as complete handler for student
   const handleStudentComplete = async (booking_id: number) => {
-    try {
-      const res = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${booking_id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Completed" })
-      })
-      const data = await res.json()
-      if (data.success) {
-        setBookings(prev => prev.map(b => b.booking_id === booking_id ? { ...b, status: "Completed" } : b))
-        // Show rating modal after marking as complete
-        setShowRatingModal({open: true, bookingId: booking_id})
-        setPendingRating(0)
-      }
-    } catch {
-      // Optionally show error toast
-    }
+    // Open rating modal first. After the student submits a rating,
+    // we'll mark the session as completed to ensure API accepts it.
+    setShouldCompleteAfterRating(prev => ({ ...prev, [booking_id]: true }))
+    setShowRatingModal({ open: true, bookingId: booking_id })
+    setPendingRating(0)
   }
 
   // Mark session as complete handler
@@ -1296,7 +1287,30 @@ export default function TutorSessionPage() {
                   className="flex-1"
                   disabled={pendingRating === 0}
                   onClick={async () => {
-                    await handleRating(showRatingModal.bookingId!, pendingRating, remarksInput[showRatingModal.bookingId!] || "")
+                    const bid = showRatingModal.bookingId!
+                    await handleRating(bid, pendingRating, remarksInput[bid] || "")
+
+                    // If this rating was triggered by clicking "Mark as Complete",
+                    // complete the session after rating.
+                    if (shouldCompleteAfterRating[bid]) {
+                      try {
+                        const res = await fetch(`https://api.cictpeerlearninghub.com/api/sessions/${bid}/status`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ status: "Completed" })
+                        })
+                        const data = await res.json()
+                        if (data && data.success) {
+                          setBookings(prev => prev.map(b => b.booking_id === bid ? { ...b, status: "Completed" } : b))
+                          toast({ title: "Session Completed", description: "The session has been successfully marked as completed.", variant: "default" })
+                        }
+                      } catch (err) {
+                        toast({ title: "Error", description: "Failed to mark session completed after rating.", variant: "destructive" })
+                      } finally {
+                        setShouldCompleteAfterRating(prev => ({ ...prev, [bid]: false }))
+                      }
+                    }
+
                     setShowRatingModal({open: false})
                     fetchBookings()
                   }}
