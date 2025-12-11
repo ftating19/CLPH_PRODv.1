@@ -8737,11 +8737,31 @@ app.post('/api/post-tests', async (req, res) => {
       const existingPendingPostTests = await getAllPendingPostTests(pool);
       const hasPendingForBooking = existingPendingPostTests.some(pt => pt.booking_id === booking_id);
 
-      if (existingPostTests.length > 0 || hasPendingForBooking) {
-        return res.status(409).json({ 
-          success: false, 
-          error: 'A post-test already exists or is pending approval for this session' 
+      if (existingPostTests.length > 0) {
+        // Return the existing post-test instead of conflict
+        return res.status(200).json({
+          success: true,
+          message: 'A post-test already exists for this session',
+          postTests: existingPostTests
         });
+      }
+
+      if (hasPendingForBooking) {
+        // Find the pending post-test for this booking and attach questions if provided
+        const existingPendingPostTests = await getAllPendingPostTests(pool);
+        const pendingForBooking = existingPendingPostTests.find(pt => pt.booking_id === booking_id);
+        if (pendingForBooking) {
+          if (questions && Array.isArray(questions) && questions.length > 0) {
+            await createPendingPostTestQuestions(pool, pendingForBooking.pending_post_test_id, questions);
+            await updatePendingPostTestQuestionCount(pool, pendingForBooking.pending_post_test_id);
+          }
+          const updated = await getPendingPostTestById(pool, pendingForBooking.pending_post_test_id);
+          return res.status(200).json({
+            success: true,
+            message: 'A pending post-test already exists for this session; questions have been merged',
+            postTest: updated
+          });
+        }
       }
     } else {
       // For template submissions (no booking_id), avoid duplicate pending/template by same tutor and title
@@ -8750,14 +8770,24 @@ app.post('/api/post-tests', async (req, res) => {
         [tutor_id, title]
       );
       if (duplicatePending.length > 0) {
-        return res.status(409).json({ success: false, error: 'A similar pending template already exists' });
+        // Attach questions to the existing pending template if provided
+        const pendingId = duplicatePending[0].pending_post_test_id;
+        if (questions && Array.isArray(questions) && questions.length > 0) {
+          await createPendingPostTestQuestions(pool, pendingId, questions);
+          await updatePendingPostTestQuestionCount(pool, pendingId);
+        }
+        const existing = await getPendingPostTestById(pool, pendingId);
+        return res.status(200).json({ success: true, message: 'A similar pending template already exists; questions have been merged', postTest: existing });
       }
       const [duplicateTemplate] = await pool.query(
         'SELECT template_id FROM post_test_templates WHERE tutor_id = ? AND title = ? AND is_active = 1 LIMIT 1',
         [tutor_id, title]
       );
       if (duplicateTemplate.length > 0) {
-        return res.status(409).json({ success: false, error: 'A template with the same title already exists' });
+        // Return the existing template
+        const templateId = duplicateTemplate[0].template_id;
+        const template = await getTemplateById(templateId);
+        return res.status(200).json({ success: true, message: 'A template with the same title already exists', template });
       }
     }
 
