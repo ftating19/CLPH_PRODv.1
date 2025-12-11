@@ -237,7 +237,7 @@ const getPendingPostTestsBySubject = async (pool, subjectId) => {
   }
 };
 
-// Transfer approved post-test to post_tests table
+// Transfer approved pending post-test to a reusable post_test_templates entry
 const transferToPostTests = async (pool, pendingPostTest) => {
   try {
     const {
@@ -253,53 +253,56 @@ const transferToPostTests = async (pool, pendingPostTest) => {
       total_questions
     } = pendingPostTest;
 
-    console.log('=== TRANSFER TO POST_TESTS DEBUG ===');
+    console.log('=== TRANSFER TO POST_TEST_TEMPLATES DEBUG ===');
     console.log('Pending Post-Test:', pendingPostTest);
-    console.log('=====================================');
+    console.log('============================================');
 
-    // Insert into post_tests
+    // Insert into post_test_templates (reusable template)
     const [result] = await pool.query(`
-      INSERT INTO post_tests (
-        booking_id, tutor_id, student_id, title, description, 
-        subject_id, subject_name, time_limit, passing_score, 
-        total_questions, status, created_at, published_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', NOW(), NOW())
+      INSERT INTO post_test_templates (
+        tutor_id, title, description, subject_id, subject_name,
+        time_limit, passing_score, total_questions, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `, [
-      booking_id,
       tutor_id,
-      student_id,
       title,
       description,
       subject_id,
       subject_name,
       time_limit,
       passing_score,
-      total_questions
+      total_questions || 0
     ]);
 
-    const newPostTestId = result.insertId;
+    const newTemplateId = result.insertId;
 
-    // Transfer questions from pending_post_test_questions to post_test_questions
+    // Transfer questions from pending_post_test_questions to post_test_questions as template questions
     await pool.query(`
       INSERT INTO post_test_questions (
-        post_test_id, question_text, question_type, options, 
+        post_test_id, template_id, question_text, question_type, options, 
         correct_answer, points, explanation, order_number
       )
       SELECT 
-        ? as post_test_id, question_text, question_type, options, 
+        NULL as post_test_id, ? as template_id, question_text, question_type, options, 
         correct_answer, points, explanation, order_number
       FROM pending_post_test_questions
       WHERE pending_post_test_id = ?
       ORDER BY order_number
-    `, [newPostTestId, pendingPostTest.pending_post_test_id]);
+    `, [newTemplateId, pendingPostTest.pending_post_test_id]);
+
+    // Update total_questions on the template
+    await pool.query(
+      'UPDATE post_test_templates SET total_questions = (SELECT COUNT(*) FROM post_test_questions WHERE template_id = ?) WHERE template_id = ?',
+      [newTemplateId, newTemplateId]
+    );
 
     return {
-      post_test_id: newPostTestId,
+      template_id: newTemplateId,
       ...pendingPostTest,
-      status: 'draft'
+      status: 'template'
     };
   } catch (error) {
-    console.error('Error transferring to post_tests:', error);
+    console.error('Error transferring to post_test_templates:', error);
     throw error;
   }
 };

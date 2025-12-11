@@ -5168,13 +5168,13 @@ app.put('/api/pending-post-tests/:id/approve', async (req, res) => {
     // Update status to approved
     await updatePendingPostTestStatus(pool, pendingPostTestId, 'approved', approved_by, null);
     
-    // Transfer to post_tests table
-    const newPostTest = await transferToPostTests(pool, pendingPostTest);
-    
+    // Transfer to post_test_templates (create reusable template)
+    const newTemplate = await transferToPostTests(pool, pendingPostTest);
+
     // Delete from pending_post_tests (cascade will delete questions)
     await deletePendingPostTest(pool, pendingPostTestId);
 
-    console.log(`✅ Post-test approved and transferred: ${newPostTest.post_test_id}`);
+    console.log(`✅ Post-test approved and converted to template: ${newTemplate.template_id}`);
 
     // Send email notifications
     try {
@@ -5207,8 +5207,8 @@ app.put('/api/pending-post-tests/:id/approve', async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Post-test approved successfully',
-      postTest: newPostTest
+      message: 'Post-test approved and added to templates successfully',
+      template: newTemplate
     });
   } catch (err) {
     console.error('Error approving post-test:', err);
