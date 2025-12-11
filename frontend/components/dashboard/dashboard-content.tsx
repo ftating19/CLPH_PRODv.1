@@ -101,14 +101,18 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
             
           console.log('👨‍🏫 Dashboard: Recommended tutors:', recommended);
           setRecommendedTutors(recommended);
+          // Ensure the summary stat reflects the actual recommended tutors list
+          setDashboardStats((prev) => ({ ...prev, recommendedTutors: recommended.length }));
         } else {
           console.log('👨‍🏫 Dashboard: No tutors data or invalid format');
           setRecommendedTutors([]);
+          setDashboardStats((prev) => ({ ...prev, recommendedTutors: 0 }));
         }
       })
       .catch((error) => {
         console.error('❌ Dashboard: Error fetching tutors:', error);
         setRecommendedTutors([]);
+        setDashboardStats((prev) => ({ ...prev, recommendedTutors: 0 }));
       });
   }, []);
 
