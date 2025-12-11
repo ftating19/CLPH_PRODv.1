@@ -217,7 +217,7 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
       // Additional frontend shuffling to ensure randomization
       const shuffledQuestions = shuffleArray(mappedQuestions);
       
-      setQuestions(shuffledQuestions);
+      setQuestions(shuffledQuestions as Question[]);
     } catch (error) {
       console.error('Error fetching questions:', error);
       toast({
@@ -519,10 +519,16 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
       console.error('Error submitting application:', error);
       
       // Don't show generic error if we already handled specific cases above
-      if (error.message && !error.message.includes('Application Already Pending')) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof (error as { message?: unknown }).message === "string" &&
+        !(error as { message: string }).message.includes('Application Already Pending')
+      ) {
         toast({
           title: 'Error',
-          description: error.message || 'An error occurred while submitting your application. Please try again.',
+          description: (error as { message: string }).message || 'An error occurred while submitting your application. Please try again.',
           variant: 'destructive',
         });
       }
@@ -634,6 +640,7 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
                           ))}
                       </CommandList>
                     </Command>
+                    </div>
                   </PopoverContent>
                 </Popover>
               </div>

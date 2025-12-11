@@ -252,7 +252,7 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
       console.error('Error submitting application:', error);
       toast({
         title: 'Error',
-        description: error.message || 'An error occurred while submitting your application. Please try again.',
+        description: error instanceof Error ? error.message : 'An error occurred while submitting your application. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -381,6 +381,7 @@ export default function ApplyAsTutorModal({ open, onClose }: ApplyAsTutorModalPr
                         ))}
                     </CommandList>
                   </Command>
+                  </div>
                 </PopoverContent>
               </Popover>
               {program && yearLevel && filteredSubjects.length === 0 && (
