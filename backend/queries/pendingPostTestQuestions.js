@@ -15,6 +15,9 @@ const createPendingPostTestQuestion = async (pool, questionData) => {
       order_number
     } = questionData;
 
+    // Normalize question_type to match DB enum values (use underscores)
+    const normalizedQuestionType = (question_type || 'multiple_choice').toString().replace(/-/g, '_').replace(/\s+/g, '_');
+
     const [result] = await pool.query(`
       INSERT INTO pending_post_test_questions (
         pending_post_test_id, question_text, question_type, 
@@ -23,7 +26,7 @@ const createPendingPostTestQuestion = async (pool, questionData) => {
     `, [
       pending_post_test_id,
       question_text,
-      question_type || 'multiple_choice',
+      normalizedQuestionType,
       options ? JSON.stringify(options) : null,
       correct_answer,
       points || 1,
@@ -127,8 +130,10 @@ const updatePendingPostTestQuestion = async (pool, pending_question_id, question
     }
     
     if (question_type !== undefined) {
+      // Normalize to DB enum style
+      const normalizedQuestionType = question_type.toString().replace(/-/g, '_').replace(/\s+/g, '_');
       updates.push('question_type = ?');
-      params.push(question_type);
+      params.push(normalizedQuestionType);
     }
     
     if (options !== undefined) {
