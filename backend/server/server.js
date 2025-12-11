@@ -1385,8 +1385,7 @@ app.post('/api/tutor-applications', async (req, res) => {
         }
       });
     }
-    
-    console.log(`✅ No pending applications found for user ${user_id}. Proceeding with new application...`);
+
 
     // Create the application
     const result = await createTutorApplication(pool, {
@@ -1406,42 +1405,23 @@ app.post('/api/tutor-applications', async (req, res) => {
     });
 
     console.log(`✅ Tutor application created with ID: ${result.insertId}`);
-    
+
     // Send notification email to assigned faculty
     try {
       console.log(`🔔 Sending new application notification to faculty for subject ${subject_id}...`);
-      
-      // Get subject details to find assigned faculty
-      const subject = await getSubjectById(pool, subject_id);
-      console.log(`📚 Found subject:`, subject ? `${subject.subject_name} (${subject.subject_code})` : 'NOT FOUND');
-      console.log(`👥 Subject faculty assignment:`, subject?.user_id);
-      
       if (subject && subject.user_id) {
-        // Handle both single faculty ID and JSON array of faculty IDs
         let facultyIds = [];
         try {
-          console.log(`🔍 Parsing faculty IDs from:`, subject.user_id);
-          // Try to parse as JSON array first
           facultyIds = JSON.parse(subject.user_id);
           if (!Array.isArray(facultyIds)) {
             facultyIds = [facultyIds];
           }
-          console.log(`📋 Parsed faculty IDs as array:`, facultyIds);
         } catch {
-          // If parsing fails, treat as single ID
           facultyIds = [subject.user_id];
-          console.log(`📋 Treating as single faculty ID:`, facultyIds);
         }
-
-        // Send notification to each assigned faculty
-        console.log(`👨‍🏫 Processing ${facultyIds.length} faculty member(s)...`);
         for (const facultyId of facultyIds) {
-          console.log(`🔍 Looking up faculty with ID: ${facultyId}`);
           const faculty = await findUserById(pool, facultyId);
-          console.log(`👤 Faculty found:`, faculty ? `${faculty.first_name} ${faculty.last_name} (${faculty.role})` : 'NOT FOUND');
-          
           if (faculty && faculty.role === 'Faculty') {
-            console.log(`📧 Sending notification email to ${faculty.email}...`);
             const facultyEmailResult = await sendFacultyNewApplicationNotificationEmail(
               faculty.email,
               `${faculty.first_name} ${faculty.last_name}`,
@@ -1449,14 +1429,11 @@ app.post('/api/tutor-applications', async (req, res) => {
               subject.subject_name,
               subject.subject_code
             );
-            
             if (facultyEmailResult.success) {
               console.log(`✅ Faculty new application notification sent successfully to ${faculty.email}`);
             } else {
               console.log(`❌ Failed to send faculty notification to ${faculty.email}: ${facultyEmailResult.error}`);
             }
-          } else {
-            console.log(`⚠️ Faculty with ID ${facultyId} not found or not a faculty member (role: ${faculty?.role || 'UNKNOWN'})`);
           }
         }
       } else {
@@ -1464,9 +1441,8 @@ app.post('/api/tutor-applications', async (req, res) => {
       }
     } catch (facultyEmailError) {
       console.log(`⚠️ Error sending faculty notification email: ${facultyEmailError.message}`);
-      // Don't fail the application submission if faculty email fails
     }
-    
+
     res.status(201).json({ 
       success: true,
       message: 'Tutor application submitted successfully. Faculty have been notified for review.',
@@ -8787,82 +8763,47 @@ app.post('/api/post-tests', async (req, res) => {
       time_limit,
       passing_score
     });
-    
+
     // Add questions if provided
     if (questions && Array.isArray(questions) && questions.length > 0) {
       const createdQuestions = await createPendingPostTestQuestions(pool, pendingPostTest.pending_post_test_id, questions);
-      console.log(`✅ Created ${createdQuestions.length} questions for pending post-test ${pendingPostTest.pending_post_test_id}`);
-      
-      // Update question count
       await updatePendingPostTestQuestionCount(pool, pendingPostTest.pending_post_test_id);
     }
-    
-    console.log(`✅ Pending post-test created with ID: ${pendingPostTest.pending_post_test_id}`);
-    
-    // Send initial notification to student (pending approval)
+
+    // Send notification to assigned faculty for review
     try {
-      const [tutorRows] = await pool.query(`
-        SELECT first_name, last_name FROM users WHERE user_id = ?
-      `, [tutor_id]);
-      
-      const [studentRows] = await pool.query(`
-        SELECT first_name, last_name, email FROM users WHERE user_id = ?
-      `, [student_id]);
-      
-      const tutor = tutorRows[0];
-      const student = studentRows[0];
-      
-      if (tutor && student) {
-        // Send a pending approval notification
-        const transporter = require('nodemailer').createTransporter({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: process.env.SMTP_PORT || 587,
-          secure: false,
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
-        
-        const mailOptions = {
-          from: `"CPLH Platform" <${process.env.SMTP_USER}>`,
-          to: student.email,
-          subject: 'Post-Test Created - Awaiting Faculty Approval',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                <h1>📝 Post-Test Created</h1>
-                <p>Awaiting Faculty Approval</p>
-              </div>
-              
-              <div style="background: white; padding: 25px; border: 1px solid #ddd; border-radius: 8px;">
-                <p>Hello <strong>${student.first_name} ${student.last_name}</strong>,</p>
-                
-                <p>Your tutor <strong>${tutor.first_name} ${tutor.last_name}</strong> has created a post-test titled "<strong>${title}</strong>" for you.</p>
-                
-                <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 15px; margin: 20px 0;">
-                  <p style="margin: 0; color: #856404;"><strong>⏳ Status:</strong> This test is currently awaiting faculty approval.</p>
-                </div>
-                
-                <p>You will receive another notification once the test is approved and ready for you to take.</p>
-                
-                <p>Best regards,<br><strong>CPLH Platform</strong></p>
-              </div>
-            </div>
-          `
-        };
-        
-        await transporter.sendMail(mailOptions);
-        console.log(`✅ Pending post-test notification sent to ${student.email}`);
+      const subject = await getSubjectById(pool, pendingPostTest.subject_id);
+      if (subject && subject.user_id) {
+        let facultyIds = [];
+        try {
+          facultyIds = JSON.parse(subject.user_id);
+          if (!Array.isArray(facultyIds)) {
+            facultyIds = [facultyIds];
+          }
+        } catch {
+          facultyIds = [subject.user_id];
+        }
+        for (const facultyId of facultyIds) {
+          const faculty = await findUserById(pool, facultyId);
+          if (faculty && faculty.role === 'Faculty') {
+            // Send email notification to faculty
+            await sendFacultyNewApplicationNotificationEmail(
+              faculty.email,
+              `${faculty.first_name} ${faculty.last_name}`,
+              `Tutor Post-Test Pending Review`,
+              subject.subject_name,
+              subject.subject_code
+            );
+          }
+        }
       }
-    } catch (emailError) {
-      console.error('Error sending pending post-test notification:', emailError);
-      // Don't fail the creation if email fails
+    } catch (facultyEmailError) {
+      console.error('Error sending faculty notification for pending post test:', facultyEmailError);
     }
-    
+
     res.status(201).json({
       success: true,
-      message: 'Post-test submitted for faculty review',
+      message: 'Post-test submitted for faculty review. Faculty have been notified.',
       postTest: pendingPostTest
     });
   } catch (err) {

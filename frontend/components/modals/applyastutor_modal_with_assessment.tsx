@@ -108,7 +108,7 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
   // Filter subjects based on user's program and year level
   const filteredSubjects = subjects.filter(subject => {
     if (!program || !yearLevel) return true;
-    
+
     // Check if subject program matches user's program
     let programMatch = false;
     if (Array.isArray(subject.program)) {
@@ -122,8 +122,12 @@ export default function ApplyAsTutorModalWithAssessment({ open, onClose }: Apply
       }
     }
 
-    // Check if subject year level matches user's year level
-    const yearLevelMatch = !subject.year_level || subject.year_level === yearLevel;
+    // Check if subject year level is less than or equal to user's year level
+    // Convert year levels to numbers for comparison
+    const yearOrder = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+    const applicantYearIndex = yearOrder.indexOf(yearLevel);
+    const subjectYearIndex = yearOrder.indexOf(subject.year_level || "1st Year");
+    const yearLevelMatch = subjectYearIndex !== -1 && applicantYearIndex !== -1 && subjectYearIndex <= applicantYearIndex;
 
     return programMatch && yearLevelMatch;
   });
