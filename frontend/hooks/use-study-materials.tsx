@@ -18,6 +18,27 @@ export interface StudyMaterial {
   program: string
 }
 
+// Added discussion types
+export interface DiscussionPost {
+  id: number
+  title: string
+  content: string
+  author_id: number
+  author_name: string
+  created_at: string
+  updated_at?: string
+}
+
+export interface DiscussionComment {
+  id: number
+  post_id: number
+  content: string
+  author_id: number
+  author_name: string
+  created_at: string
+  updated_at?: string
+}
+
 export function useStudyMaterials() {
   const [materials, setMaterials] = useState<StudyMaterial[]>([])
   const [loading, setLoading] = useState(true)
@@ -189,6 +210,72 @@ export function useStudyMaterials() {
     }
   }
 
+  // New: edit a discussion post
+  const editPost = async (postId: number, payload: { title?: string; content?: string }) => {
+    try {
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')) || 'https://api.cictpeerlearninghub.com'
+      const response = await fetch(`${apiBase}/api/discussions/${postId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: "Post Updated",
+          description: "Your post was updated successfully.",
+          variant: "default"
+        })
+        return result.post as DiscussionPost
+      } else {
+        throw new Error(result.error || 'Failed to update post')
+      }
+    } catch (err) {
+      console.error('Error updating post:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update post'
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      })
+      throw err
+    }
+  }
+
+  // New: edit a comment on a discussion post
+  const editComment = async (commentId: number, payload: { content: string }) => {
+    try {
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')) || 'https://api.cictpeerlearninghub.com'
+      const response = await fetch(`${apiBase}/api/comments/${commentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: "Comment Updated",
+          description: "Your comment was updated successfully.",
+          variant: "default"
+        })
+        return result.comment as DiscussionComment
+      } else {
+        throw new Error(result.error || 'Failed to update comment')
+      }
+    } catch (err) {
+      console.error('Error updating comment:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update comment'
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      })
+      throw err
+    }
+  }
+
   useEffect(() => {
     fetchMaterials()
   }, [])
@@ -202,6 +289,9 @@ export function useStudyMaterials() {
     downloadMaterial,
     previewMaterial,
     deleteMaterial,
-    searchMaterials
+    searchMaterials,
+    // Expose new functions so UI can allow editing
+    editPost,
+    editComment
   }
 }
