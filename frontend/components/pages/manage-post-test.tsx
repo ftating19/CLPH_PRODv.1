@@ -742,7 +742,7 @@ export default function ManagePostTest() {
       )}
       
       {/* Create/Edit Template Dialog */}
-      <Dialog open={showCreateTemplateDialog} onOpenChange={(open) => {
+      <Dialog open={showCreateTemplateDialog} onOpenChange={(open: boolean) => {
         if (!open) {
           setShowCreateTemplateDialog(false)
           setEditingTemplateId(null)
