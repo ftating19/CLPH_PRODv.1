@@ -112,8 +112,18 @@ export function useStudyMaterials() {
 
   const previewMaterial = async (materialId: number) => {
     try {
-      // Open the server-served preview endpoint in a new tab so the API streams the PDF
-      const serveUrl = `https://api.cictpeerlearninghub.com/api/study-materials/${materialId}/serve`
+      // Open the server-served preview endpoint in a new tab so the API streams the PDF.
+      // Use configured API base if available so local/dev environments work correctly.
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')) || 'https://api.cictpeerlearninghub.com'
+
+      // Try to find the material in the cached list to determine its status.
+      const material = materials.find(m => m.material_id === materialId as number) as StudyMaterial | undefined
+
+      // Use the pending-materials serve endpoint for items that are still pending (covers files stored under pending-resources),
+      // otherwise use the normal study-materials serve endpoint for active resources.
+      const serveUrl = material && material.status === 'pending'
+        ? `${apiBase}/api/pending-materials/${materialId}/serve`
+        : `${apiBase}/api/study-materials/${materialId}/serve`
       window.open(serveUrl, '_blank')
       // The serve endpoint will increment the view count; refresh list to reflect changes
       await fetchMaterials()
