@@ -12,5 +12,16 @@ services:
       - db_data:/var/lib/mysql
       - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
 
+  backend:
+    build: .
+    container_name: cplh_backend
+    ports:
+      - "4000:4000"
+    volumes:
+      - ../frontend/public/pending-resources:/app/frontend/public/pending-resources
+      - ../frontend/public/class-cards:/app/frontend/public/class-cards
+    environment:
+      NODE_ENV: production
+
 volumes:
   db_data:
