@@ -142,10 +142,14 @@ export default function DiscussionForums() {
   };
 
   // Check if user can edit/delete a forum post
+  // Normalize current user id for reliable comparisons (API may return string or number)
+  const currentUserId = currentUser?.user_id ? String(currentUser.user_id) : null;
+
+  // Check if user can edit/delete a forum post
   const canManageForum = (forum: any) => {
     if (!currentUser) return false;
     const userRole = currentUser.role?.toLowerCase();
-    return forum.created_by === currentUser.user_id || userRole === 'admin';
+    return String(forum.created_by) === currentUserId || userRole === 'admin';
   };
 
   // Handle edit forum
@@ -788,8 +792,8 @@ export default function DiscussionForums() {
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center space-x-2">
                             <span className="text-sm font-medium">
-                              {currentUser && comment.user_id === currentUser.user_id
-                                ? "You"
+                              {currentUser && String(comment.user_id) === currentUserId
+                                  ? "You"
                                 : comment.user_name && comment.user_name.trim() !== ""
                                   ? comment.user_name
                                   : (comment.first_name && comment.last_name)
