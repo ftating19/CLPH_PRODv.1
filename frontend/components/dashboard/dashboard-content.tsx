@@ -216,6 +216,18 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
       });
   }, [currentUser]);
 
+  // Counts for upcoming sessions (derived from upcomingSessions state)
+  const upcomingCounts = (() => {
+    const counts: { ongoing: number; awaiting: number; pending: number } = { ongoing: 0, awaiting: 0, pending: 0 }
+    upcomingSessions.forEach((s: any) => {
+      const st = (s.status || '').toLowerCase()
+      if (['accepted', 'confirmed', 'in-progress', 'in_progress', 'active', 'booked'].includes(st)) counts.ongoing++
+      else if (st === 'pending_student_approval') counts.awaiting++
+      else if (st === 'pending') counts.pending++
+    })
+    return counts
+  })()
+
   // Fetch quiz attempts for current user
   useEffect(() => {
     if (!currentUser?.user_id) return;
@@ -599,8 +611,12 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               Upcoming Sessions
+              <span className="ml-2 text-sm text-muted-foreground">({upcomingSessions.length})</span>
             </CardTitle>
             <CardDescription>Your scheduled tutoring sessions</CardDescription>
+            <div className="mt-2">
+              <p className="text-xs text-muted-foreground">You have <strong>{upcomingSessions.length}</strong> upcoming sessions — <span className="font-medium">Ongoing:</span> {upcomingCounts.ongoing} · <span className="font-medium">Awaiting:</span> {upcomingCounts.awaiting} · <span className="font-medium">Pending:</span> {upcomingCounts.pending}</p>
+            </div>
           </CardHeader>
           <CardContent>
             {upcomingSessions.length === 0 ? (
