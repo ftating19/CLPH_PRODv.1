@@ -750,6 +750,31 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is working', timestamp: new Date().toISOString() });
 });
 
+// Return all questions for a quiz (used by frontend pending quiz view)
+app.get('/api/questions/quiz/:id', async (req, res) => {
+  try {
+    const quizId = parseInt(req.params.id)
+    if (!quizId || isNaN(quizId)) {
+      return res.status(400).json({ success: false, error: 'Invalid quiz id' })
+    }
+
+    const pool = await db.getPool()
+    const questions = await getQuestionsByQuizId(pool, quizId)
+
+    // Ensure choices are arrays and answer field is present
+    const normalized = (questions || []).map(q => ({
+      ...q,
+      choices: Array.isArray(q.choices) ? q.choices : (q.choices ? JSON.parse(q.choices) : []),
+      answer: q.answer
+    }))
+
+    res.status(200).json({ success: true, questions: normalized })
+  } catch (err) {
+    console.error('Error in /api/questions/quiz/:id', err)
+    res.status(500).json({ success: false, error: 'Failed to fetch questions' })
+  }
+})
+
 // Add the /api/admin/edit-user/:id endpoint for updating user details
 app.put('/api/admin/edit-user/:id', async (req, res) => {
   try {
