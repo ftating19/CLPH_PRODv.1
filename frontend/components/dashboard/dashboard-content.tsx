@@ -311,6 +311,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
 
   // Button handlers (replace with router push or modals as needed)
   const handleFindTutor = () => window.location.href = '/tutor-matching'
+  const handleViewSessions = () => window.location.href = '/sessions'
   const handleJoinDiscussion = () => window.location.href = '/discussion-forums'
   const handleStartDiscussion = () => window.location.href = '/discussion-forums'
   const handleFindTutors = () => window.location.href = '/tutor-matching'
@@ -326,8 +327,8 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
           Connect, collaborate, and excel in your academic journey with peer-to-peer learning.
         </p>
         <div className="flex gap-3">
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={handleFindTutor}>
-            Find a Tutor
+          <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={handleViewSessions}>
+            View Sessions
           </Button>
           <Button variant="outline" size="sm" className="bg-transparent" onClick={handleJoinDiscussion}>
             Join Discussion
@@ -594,8 +595,8 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Calendar className="h-12 w-12 text-muted-foreground mb-3" />
                 <p className="text-sm text-muted-foreground mb-4">No upcoming sessions</p>
-                <Button variant="outline" className="bg-transparent" onClick={handleFindTutor}>
-                  Find a Tutor
+                <Button variant="outline" className="bg-transparent" onClick={handleViewSessions}>
+                  View Sessions
                 </Button>
               </div>
             ) : (
