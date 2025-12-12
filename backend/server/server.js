@@ -584,18 +584,17 @@ app.get('/api/stats/dashboard', async (req, res) => {
       try {
         const [rows] = await pool.query(
           `SELECT
-            COUNT(CASE WHEN LOWER(status) IN ('accepted','confirmed','in-progress','in_progress','active','booked') THEN 1 END) AS ongoing,
-            COUNT(CASE WHEN LOWER(status) = 'pending_student_approval' THEN 1 END) AS awaiting,
-            COUNT(CASE WHEN LOWER(status) = 'pending' THEN 1 END) AS pending,
-            COUNT(CASE WHEN LOWER(status) = 'completed' THEN 1 END) AS completed
+            COUNT(CASE WHEN LOWER(status) IN ('accepted','active') THEN 1 END) AS ongoing,
+            COUNT(CASE WHEN LOWER(status) = 'completed' THEN 1 END) AS completed,
+            COUNT(CASE WHEN LOWER(status) = 'declined' THEN 1 END) AS declined
           FROM bookings
           WHERE student_id = ? OR tutor_id = ?`,
           [userId, userId]
         );
-        bookingCounts = (rows && rows[0]) ? rows[0] : { ongoing: 0, awaiting: 0, pending: 0, completed: 0 };
+        bookingCounts = (rows && rows[0]) ? rows[0] : { ongoing: 0, completed: 0, declined: 0 };
       } catch (err) {
         console.error('Error fetching booking counts for user:', userId, err);
-        bookingCounts = { ongoing: 0, awaiting: 0, pending: 0, completed: 0 };
+        bookingCounts = { ongoing: 0, completed: 0, declined: 0 };
       }
     }
 

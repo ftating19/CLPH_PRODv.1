@@ -224,12 +224,12 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
 
   // Counts for upcoming sessions (derived from upcomingSessions state)
   const upcomingCounts = (() => {
-    const counts: { ongoing: number; awaiting: number; pending: number } = { ongoing: 0, awaiting: 0, pending: 0 }
+    const counts: { ongoing: number; completed: number; declined: number } = { ongoing: 0, completed: 0, declined: 0 }
     upcomingSessions.forEach((s: any) => {
       const st = (s.status || '').toLowerCase()
-      if (['accepted', 'confirmed', 'in-progress', 'in_progress', 'active', 'booked'].includes(st)) counts.ongoing++
-      else if (st === 'pending_student_approval') counts.awaiting++
-      else if (st === 'pending') counts.pending++
+      if (['accepted', 'active'].includes(st)) counts.ongoing++
+      else if (st === 'completed') counts.completed++
+      else if (st === 'declined') counts.declined++
     })
     return counts
   })()
@@ -237,8 +237,8 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   // Prefer backend-provided booking counts if available
   const countsToShow = backendBookingCounts ? {
     ongoing: Number(backendBookingCounts.ongoing || 0),
-    awaiting: Number(backendBookingCounts.awaiting || 0),
-    pending: Number(backendBookingCounts.pending || 0)
+    completed: Number(backendBookingCounts.completed || 0),
+    declined: Number(backendBookingCounts.declined || 0)
   } : upcomingCounts
 
   // Fetch quiz attempts for current user
@@ -624,26 +624,29 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               Upcoming Sessions
-              <span className="ml-2 text-sm text-muted-foreground">({countsToShow.ongoing + countsToShow.awaiting + countsToShow.pending})</span>
+              <span className="ml-2 text-sm text-muted-foreground">({countsToShow.ongoing + countsToShow.completed + countsToShow.declined})</span>
             </CardTitle>
             <CardDescription>Your scheduled tutoring sessions</CardDescription>
             <div className="mt-2">
-              <p className="text-xs text-muted-foreground">You have <strong>{countsToShow.ongoing + countsToShow.awaiting + countsToShow.pending}</strong> upcoming sessions — <span className="font-medium">Ongoing:</span> {countsToShow.ongoing} · <span className="font-medium">Awaiting:</span> {countsToShow.awaiting} · <span className="font-medium">Pending:</span> {countsToShow.pending}</p>
+              <p className="text-xs text-muted-foreground">You have <strong>{countsToShow.ongoing + countsToShow.completed + countsToShow.declined}</strong> upcoming sessions — <span className="font-medium">Ongoing:</span> {countsToShow.ongoing} · <span className="font-medium">Completed:</span> {countsToShow.completed} · <span className="font-medium">Declined:</span> {countsToShow.declined}</p>
             </div>
           </CardHeader>
           <CardContent>
             {upcomingSessions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Calendar className="h-12 w-12 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground mb-4">No upcoming sessions</p>
                 <Button variant="outline" className="bg-transparent" onClick={handleViewSessions}>
                   View Sessions
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-64 overflow-y-auto">
                 <ul className="space-y-3">
-                  {upcomingSessions.map((session, idx) => (
+                  {[...upcomingSessions].sort((a: any, b: any) => {
+                    const ta = a?.start_date ? new Date(a.start_date).getTime() : 0
+                    const tb = b?.start_date ? new Date(b.start_date).getTime() : 0
+                    return ta - tb
+                  }).map((session, idx) => (
                     <li key={session.booking_id || idx} className="border-b pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -658,13 +661,12 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
                             </span>
                           </div>
                         </div>
-                        <Badge variant={['accepted','confirmed','in-progress','in_progress','active','booked'].includes((session.status||'').toLowerCase()) ? 'default' : 'secondary'}>
+                        <Badge variant={['accepted','active'].includes((session.status||'').toLowerCase()) ? 'default' : (['completed'].includes((session.status||'').toLowerCase()) ? 'default' : 'secondary')}>
                           {(() => {
                             const s = (session.status || '').toLowerCase();
-                            if (s === 'accepted' || s === 'in-progress' || s === 'in_progress' || s === 'active' || s === 'booked') return 'Ongoing';
-                            if (s === 'pending_student_approval') return 'Awaiting Response';
-                            if (s === 'confirmed') return 'Confirmed';
-                            if (s === 'pending') return 'Pending';
+                            if (s === 'accepted' || s === 'active') return 'Ongoing';
+                            if (s === 'completed') return 'Completed';
+                            if (s === 'declined') return 'Declined';
                             return session.status || 'Scheduled';
                           })()}
                         </Badge>
