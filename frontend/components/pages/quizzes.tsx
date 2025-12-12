@@ -753,15 +753,21 @@ export default function Quizzes() {
       console.log('Processing questions:', data.questions)
 
       // Transform the questions to match frontend expectations
-      const transformedQuestions = data.questions.map((q: any) => ({
-        id: q.question_id,
-        question: q.question,
-        type: q.question_type || q.type || 'multiple-choice',
-        options: q.choices || q.options || [],
-        correctAnswer: q.answer || q.correct_answer,
-        points: q.points || 1,
-        explanation: q.explanation
-      }))
+      const validTypes = ['multiple-choice', 'true-false', 'enumeration', 'essay']
+      const transformedQuestions = data.questions.map((q: any) => {
+        let rawType = q.question_type || q.type || ''
+        rawType = typeof rawType === 'string' ? rawType.trim().toLowerCase() : ''
+        const type = validTypes.includes(rawType) ? rawType : 'multiple-choice'
+        return {
+          id: q.question_id,
+          question: q.question,
+          type,
+          options: q.choices || q.options || [],
+          correctAnswer: q.answer || q.correct_answer,
+          points: q.points || 1,
+          explanation: q.explanation
+        }
+      })
 
       console.log('Raw questions from database:', data.questions)
       console.log('Transformed questions:', transformedQuestions)
