@@ -2856,17 +2856,32 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
     try {
       const stats = fs.statSync(filePath);
       console.log(`Serving file at path: ${filePath} (${stats.size} bytes)`);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Length', String(stats.size));
-      if (String(req.query.download || '').toLowerCase() === '1') {
-        try {
-          const filename = path.basename(filePath);
-          res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        } catch (e) {
-          // ignore header errors
-        }
+
+      const downloadRequested = String(req.query.download || '').toLowerCase() === '1';
+      const filename = path.basename(filePath);
+
+      if (downloadRequested) {
+        // Use res.download to ensure proper headers and streaming for downloads
+        res.download(filePath, filename, (err) => {
+          if (err) {
+            console.error('Error during res.download:', err);
+            // If headers already sent, cannot send JSON error; just end.
+            if (!res.headersSent) {
+              return res.status(500).json({ success: false, error: 'Failed to download file' });
+            } else {
+              return;
+            }
+          }
+          console.log(`Download initiated for ${filename}`);
+        });
+      } else {
+        // Preview in-browser
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Length', String(stats.size));
+        res.sendFile(filePath, (err) => {
+          if (err) console.error('Error sending file for preview:', err);
+        });
       }
-      res.sendFile(filePath);
     } catch (fsErr) {
       console.error('Error reading file for streaming:', fsErr);
       return res.status(500).json({ success: false, error: 'Failed to read file' });
