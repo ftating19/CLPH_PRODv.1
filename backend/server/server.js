@@ -256,6 +256,8 @@ const {
   getPendingPostTestsBySubject,
   transferToPostTests
 } = require('../queries/pendingPostTests')
+// Import recommendations logic
+const { getRecommendedTutors } = require('../queries/recommendations');
 const {
   createPendingPostTestQuestion,
   createPendingPostTestQuestions,
@@ -321,6 +323,22 @@ try {
 const PORT = process.env.PORT || 4000
 
 app.get('/health', (req, res) => res.json({ ok: true }))
+
+// API endpoint: Get recommended tutors for a user
+app.get('/api/recommendations/tutors/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'Valid user ID is required' });
+    }
+    const pool = await db.getPool();
+    const recommendedTutors = await getRecommendedTutors(pool, userId);
+    res.json({ success: true, recommendedTutors });
+  } catch (err) {
+    console.error('Error fetching recommended tutors:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 
 // Test email configuration
 app.get('/api/test-email', async (req, res) => {
