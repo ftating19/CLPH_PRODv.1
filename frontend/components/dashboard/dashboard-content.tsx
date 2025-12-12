@@ -624,11 +624,11 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               Upcoming Sessions
-              <span className="ml-2 text-sm text-muted-foreground">({countsToShow.ongoing + countsToShow.completed + countsToShow.declined})</span>
+              <span className="ml-2 text-sm text-muted-foreground">({countsToShow.ongoing})</span>
             </CardTitle>
             <CardDescription>Your scheduled tutoring sessions</CardDescription>
             <div className="mt-2">
-              <p className="text-xs text-muted-foreground">You have <strong>{countsToShow.ongoing + countsToShow.completed + countsToShow.declined}</strong> upcoming sessions — <span className="font-medium">Ongoing:</span> {countsToShow.ongoing} · <span className="font-medium">Completed:</span> {countsToShow.completed} · <span className="font-medium">Declined:</span> {countsToShow.declined}</p>
+              <p className="text-xs text-muted-foreground">You have <strong>{countsToShow.ongoing}</strong> ongoing sessions — <span className="font-medium">Completed:</span> {countsToShow.completed} · <span className="font-medium">Declined:</span> {countsToShow.declined}</p>
             </div>
           </CardHeader>
           <CardContent>
