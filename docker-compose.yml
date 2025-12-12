@@ -34,6 +34,7 @@ services:
       - LEARNING_RESOURCES_DIR=/app/frontend/public/learning-resources
       - LEARNING_RESOURCES_URL=https://cictpeerlearninghub.com/learning-resources
       - CLASS_CARDS_DIR=/app/frontend/public/class-cards
+      - CLASS_CARDS__URL=https://cictpeerlearninghub.com/class-cards
       - FRONTEND_URL=http://localhost:3000
     volumes:
       - pending-resources:/app/frontend/public/pending-resources:rw
