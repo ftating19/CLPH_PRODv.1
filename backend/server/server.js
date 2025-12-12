@@ -1,3 +1,21 @@
+// === RECOMMENDATIONS ENDPOINT ===
+const { getRecommendedTutors } = require('../queries/recommendations');
+
+// Get recommended tutors for a user
+app.get('/api/recommendations/tutors/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ success: false, error: 'Valid user ID is required' });
+    }
+    const pool = await db.getPool();
+    const recommendedTutors = await getRecommendedTutors(pool, userId, 5);
+    res.status(200).json({ success: true, tutors: recommendedTutors });
+  } catch (err) {
+    console.error('Error fetching recommended tutors:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 const express = require('express')
 const cors = require('cors')
 const path = require('path')
