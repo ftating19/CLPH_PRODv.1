@@ -286,7 +286,7 @@ export default function LoginPage() {
     <>
       <Toaster position="top-right" />
       <div className="min-h-screen bg-gradient-to-br from-gray-100 to-blue-50 flex items-center justify-center p-6">
-        <div className="w-full max-w-4xl h-[600px] bg-white rounded-xl shadow-xl overflow-hidden flex">
+        <div className="w-full max-w-4xl h-[800px] bg-white rounded-xl shadow-xl overflow-hidden flex">
           {/* Left Side - Branding */}
           <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-indigo-800 flex-col justify-center items-center p-12 text-white">
             <div className="max-w-md text-center">
