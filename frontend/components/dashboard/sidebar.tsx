@@ -2,6 +2,7 @@
 
 import type React from "react"
 
+
 import {
   Users,
   MessageSquare,
@@ -11,7 +12,6 @@ import {
   Settings,
   HelpCircle,
   Menu,
-  GraduationCap,
   UserCheck,
   Shield,
   Clock,
@@ -20,6 +20,7 @@ import {
   Library,
   Target,
 } from "lucide-react"
+import Image from "next/image"
 
 import { Home } from "lucide-react"
 import Link from "next/link"
@@ -439,7 +440,14 @@ export default function Sidebar() {
         <div className="h-full flex flex-col">
           <div className="h-16 px-6 flex items-center border-b border-gray-200 dark:border-[#1F1F23]">
             <div className="flex items-center gap-3">
-              <GraduationCap className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <Image
+                src="/logos/logo.png"
+                alt="CICT Peer Learning Hub Logo"
+                width={36}
+                height={36}
+                priority
+                className="rounded-none"
+              />
               <span className="text-lg font-semibold text-gray-900 dark:text-white">CICT PEER LEARNING HUB</span>
             </div>
           </div>
