@@ -1,28 +1,9 @@
-
 const express = require('express')
 const cors = require('cors')
 const path = require('path')
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 
 // ...imports only, no app initialization or routes here...
-// === RECOMMENDATIONS ENDPOINT ===
-const { getRecommendedTutors } = require('../queries/recommendations');
-
-// Get recommended tutors for a user
-app.get('/api/recommendations/tutors/:userId', async (req, res) => {
-  try {
-    const userId = parseInt(req.params.userId);
-    if (!userId || isNaN(userId)) {
-      return res.status(400).json({ success: false, error: 'Valid user ID is required' });
-    }
-    const pool = await db.getPool();
-    const recommendedTutors = await getRecommendedTutors(pool, userId, 5);
-    res.status(200).json({ success: true, tutors: recommendedTutors });
-  } catch (err) {
-    console.error('Error fetching recommended tutors:', err);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
 
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
@@ -323,19 +304,6 @@ try {
   app.use('/pending-resources', express.static(pendingResourcesDir));
 } catch (e) {
   console.warn('Could not create or serve pending-resources directory:', e.message);
-}
-
-
-// Configure learning-resources directory and public exposure (used for approved study materials)
-const learningResourcesDir = process.env.LEARNING_RESOURCES_DIR || path.join(__dirname, '../../frontend/public/learning-resources');
-const learningResourcesPublicUrl = process.env.LEARNING_RESOURCES_URL || null; // optional absolute URL
-try {
-  if (!fs.existsSync(learningResourcesDir)) {
-    fs.mkdirSync(learningResourcesDir, { recursive: true });
-  }
-  app.use('/learning-resources', express.static(learningResourcesDir));
-} catch (e) {
-  console.warn('Could not create or serve learning-resources directory:', e.message);
 }
 
 // Configure class-cards directory and public exposure (used for tutor class card uploads)
@@ -2826,13 +2794,14 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
     } else if (relPath && relPath.startsWith('/learning-resources/')) {
       // stored path under learning-resources
       const cleanRelPath = relPath.replace(/^\/learning-resources\//, '');
-      filePath = path.join(learningResourcesDir, cleanRelPath);
+      const learningDir = path.join(__dirname, '../../frontend/public/learning-resources');
+      filePath = path.join(learningDir, cleanRelPath);
     } else {
       // Fallback: try to resolve by basename in pendingResourcesDir first,
       // then in learning-resources directory.
       const filename = path.basename(relPath || '');
       const candidatePending = path.join(pendingResourcesDir, filename);
-      const candidateLearning = path.join(learningResourcesDir, filename);
+      const candidateLearning = path.join(__dirname, '../../frontend/public/learning-resources', filename);
       if (fs.existsSync(candidatePending)) filePath = candidatePending;
       else filePath = candidateLearning;
     }
