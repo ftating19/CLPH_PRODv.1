@@ -2738,14 +2738,14 @@ app.get('/api/study-materials/:id/download', async (req, res) => {
     // Increment download count
     await incrementDownloadCount(pool, materialId);
 
-    // Return the serve endpoint URL (same-origin) so frontend can open/anchor it.
-    // This avoids relying on FRONTEND_URL and ensures the file is served by the API.
-    const apiBase = `${req.protocol}://${req.get('host')}`;
-    const serveUrl = `${apiBase}/api/study-materials/${materialId}/serve?download=1`;
+    // Return the public static file URL where the file was uploaded so the
+    // browser can download directly from the static route (avoids streaming issues).
+    const apiBase = (process.env.FRONTEND_URL && process.env.FRONTEND_URL.replace(/\/$/, '')) || `${req.protocol}://${req.get('host')}`;
+    const fileUrl = material.file_path && (String(material.file_path).startsWith('http') ? material.file_path : `${apiBase}${material.file_path}`);
 
     res.json({
       success: true,
-      file_path: serveUrl,
+      file_path: fileUrl,
       title: material.title
     });
   } catch (err) {
