@@ -604,15 +604,27 @@ export default function PendingQuizzes() {
                     
                     {question.choices && (
                       <div>
-                        <Label className="text-sm font-semibold">Options:</Label>
+                        <Label className="text-sm font-semibold">{question.question_type === 'enumeration' ? 'Answers' : 'Options'}:</Label>
                         <div className="mt-2 space-y-2">
                           {(() => {
                             try {
-                              const choices = typeof question.choices === 'string' 
-                                ? JSON.parse(question.choices) 
+                              const choices = typeof question.choices === 'string'
+                                ? JSON.parse(question.choices)
                                 : question.choices
-                              
-                              return choices.map((choice: string, idx: number) => {
+
+                              // For enumeration, render each choice as an accepted answer item
+                              if (question.question_type === 'enumeration') {
+                                return (choices || []).map((choice: string, idx: number) => (
+                                  <div key={idx} className="p-3 rounded-md border bg-muted/50">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm">{choice}</span>
+                                    </div>
+                                  </div>
+                                ))
+                              }
+
+                              // Default behavior for multiple choice / others
+                              return (choices || []).map((choice: string, idx: number) => {
                                 const isCorrect = choice === question.answer
                                 return (
                                   <div 
