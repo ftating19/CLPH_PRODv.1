@@ -602,59 +602,86 @@ export default function PendingQuizzes() {
                       <p className="text-sm mt-1">{question.question}</p>
                     </div>
                     
-                    {question.choices && (
+                    {question.question_type === 'enumeration' ? (
                       <div>
-                        <Label className="text-sm font-semibold">{question.question_type === 'enumeration' ? 'Answers' : 'Options'}:</Label>
+                        <Label className="text-sm font-semibold">Answers:</Label>
                         <div className="mt-2 space-y-2">
                           {(() => {
                             try {
-                              const choices = typeof question.choices === 'string'
-                                ? JSON.parse(question.choices)
-                                : question.choices
-
-                              // For enumeration, render each choice as an accepted answer item
-                              if (question.question_type === 'enumeration') {
-                                return (choices || []).map((choice: string, idx: number) => (
-                                  <div key={idx} className="p-3 rounded-md border bg-muted/50">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-sm">{choice}</span>
-                                    </div>
-                                  </div>
-                                ))
+                              let answers: string[] = []
+                              if (Array.isArray(question.answer)) {
+                                answers = question.answer
+                              } else if (typeof question.answer === 'string') {
+                                try {
+                                  const parsed = JSON.parse(question.answer)
+                                  if (Array.isArray(parsed)) {
+                                    answers = parsed
+                                  } else {
+                                    answers = String(question.answer).split(',').map((s: string) => s.trim()).filter(Boolean)
+                                  }
+                                } catch (e) {
+                                  answers = String(question.answer).split(',').map((s: string) => s.trim()).filter(Boolean)
+                                }
+                              } else if (question.choices && question.choices.length > 0) {
+                                // fallback: if choices provided, use them
+                                answers = question.choices
                               }
 
-                              // Default behavior for multiple choice / others
-                              return (choices || []).map((choice: string, idx: number) => {
-                                const isCorrect = choice === question.answer
-                                return (
-                                  <div 
-                                    key={idx}
-                                    className={`p-3 rounded-md border ${
-                                      isCorrect 
-                                        ? 'bg-green-50 border-green-500 dark:bg-green-950/30' 
-                                        : 'bg-muted/50'
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-sm">
-                                        {String.fromCharCode(65 + idx)}. {choice}
-                                      </span>
-                                      {isCorrect && (
-                                        <Badge className="bg-green-600">
-                                          <CheckCircle className="w-3 h-3 mr-1" />
-                                          Correct Answer
-                                        </Badge>
-                                      )}
-                                    </div>
+                              if (answers.length === 0) {
+                                return <p className="text-sm text-muted-foreground">No accepted answers specified.</p>
+                              }
+
+                              return answers.map((ans: string, idx: number) => (
+                                <div key={idx} className="p-3 rounded-md border bg-muted/50">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm">{ans}</span>
                                   </div>
-                                )
-                              })
+                                </div>
+                              ))
                             } catch (e) {
-                              return <p className="text-sm text-muted-foreground">Error parsing choices</p>
+                              return <p className="text-sm text-destructive">Error parsing enumeration answers</p>
                             }
                           })()}
                         </div>
                       </div>
+                    ) : (
+                      question.choices && question.choices.length > 0 && (
+                        <div>
+                          <Label className="text-sm font-semibold">Options:</Label>
+                          <div className="mt-2 space-y-2">
+                            {(() => {
+                              try {
+                                const choices = typeof question.choices === 'string' ? JSON.parse(question.choices) : question.choices
+                                return (choices || []).map((choice: string, idx: number) => {
+                                  const isCorrect = choice === question.answer
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className={`p-3 rounded-md border ${
+                                        isCorrect
+                                          ? 'bg-green-50 border-green-500 dark:bg-green-950/30'
+                                          : 'bg-muted/50'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-sm">{String.fromCharCode(65 + idx)}. {choice}</span>
+                                        {isCorrect && (
+                                          <Badge className="bg-green-600">
+                                            <CheckCircle className="w-3 h-3 mr-1" />
+                                            Correct Answer
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )
+                                })
+                              } catch (e) {
+                                return <p className="text-sm text-muted-foreground">Error parsing choices</p>
+                              }
+                            })()}
+                          </div>
+                        </div>
+                      )
                     )}
                     
                     {!question.choices && (

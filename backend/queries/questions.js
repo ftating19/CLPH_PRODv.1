@@ -10,12 +10,40 @@ const getQuestionsByQuizId = async (pool, quizId) => {
     `, [quizId]);
     
     // Parse choices from JSON string to array if it's stored as JSON
-    return rows.map(question => ({
-      ...question,
-      choices: typeof question.choices === 'string' ? JSON.parse(question.choices) : question.choices,
-      points: question.points || 1,
-      explanation: question.explanation || null
-    }));
+    return rows.map(question => {
+      let choices = typeof question.choices === 'string' ? JSON.parse(question.choices) : question.choices
+      // Ensure choices is an array
+      if (!Array.isArray(choices)) choices = []
+
+      // If enumeration type and choices empty, try to derive from answer (comma-separated or JSON array)
+      if ((question.question_type === 'enumeration' || question.question_type === 'Enumeration') && (!choices || choices.length === 0) && question.answer) {
+        try {
+          if (Array.isArray(question.answer)) {
+            choices = question.answer
+          } else if (typeof question.answer === 'string') {
+            try {
+              const parsed = JSON.parse(question.answer)
+              if (Array.isArray(parsed)) {
+                choices = parsed
+              } else {
+                choices = String(question.answer).split(',').map(s => s.trim()).filter(Boolean)
+              }
+            } catch (e) {
+              choices = String(question.answer).split(',').map(s => s.trim()).filter(Boolean)
+            }
+          }
+        } catch (e) {
+          choices = []
+        }
+      }
+
+      return {
+        ...question,
+        choices,
+        points: question.points || 1,
+        explanation: question.explanation || null
+      }
+    });
   } catch (error) {
     console.error('Error fetching questions by quiz ID:', error);
     throw error;
@@ -34,9 +62,33 @@ const getQuestionById = async (pool, questionId) => {
     }
     
     const question = rows[0];
+    let choices = question.choices ? (typeof question.choices === 'string' ? JSON.parse(question.choices) : question.choices) : []
+    if (!Array.isArray(choices)) choices = []
+
+    if ((question.question_type === 'enumeration' || question.question_type === 'Enumeration') && (!choices || choices.length === 0) && question.answer) {
+      try {
+        if (Array.isArray(question.answer)) {
+          choices = question.answer
+        } else if (typeof question.answer === 'string') {
+          try {
+            const parsed = JSON.parse(question.answer)
+            if (Array.isArray(parsed)) {
+              choices = parsed
+            } else {
+              choices = String(question.answer).split(',').map(s => s.trim()).filter(Boolean)
+            }
+          } catch (e) {
+            choices = String(question.answer).split(',').map(s => s.trim()).filter(Boolean)
+          }
+        }
+      } catch (e) {
+        choices = []
+      }
+    }
+
     return {
       ...question,
-      choices: question.choices ? JSON.parse(question.choices) : [],
+      choices,
       points: question.points || 1,
       explanation: question.explanation || null
     };
