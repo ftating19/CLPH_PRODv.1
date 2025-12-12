@@ -62,6 +62,7 @@ export default function LearningResources() {
     error: materialsError,
     uploadMaterial,
     downloadMaterial,
+    saveMaterialToDownloads,
     previewMaterial,
     searchMaterials,
     refreshMaterials
@@ -589,7 +590,7 @@ export default function LearningResources() {
                     <Button 
                       size="sm" 
                       className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      onClick={() => downloadMaterial(material.material_id)}
+                      onClick={() => saveMaterialToDownloads(material.material_id)}
                     >
                       <Download className="w-4 h-4 mr-2" />
                       Download
