@@ -322,6 +322,24 @@ try {
 
 const PORT = process.env.PORT || 4000
 
+// === RECOMMENDATIONS ENDPOINT ===
+const { getRecommendedTutors } = require('../queries/recommendations');
+
+// GET recommended tutors for a user
+app.get('/api/recommendations/tutors/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'Valid user ID is required' });
+    }
+    const tutors = await getRecommendedTutors(userId);
+    res.json({ success: true, tutors });
+  } catch (err) {
+    console.error('Error fetching recommended tutors:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 app.get('/health', (req, res) => res.json({ ok: true }))
 
 // API endpoint: Get recommended tutors for a user
