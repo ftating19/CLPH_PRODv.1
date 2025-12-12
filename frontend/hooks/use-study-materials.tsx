@@ -109,16 +109,33 @@ export function useStudyMaterials() {
       if (result.success) {
         // Open the serve URL in a new tab/window so browser handles preview/download.
         // This avoids issues with cross-origin download attribute behavior.
+        // Attempt to open in a new tab first.
+        let opened = false
         try {
-          window.open(result.file_path, '_blank')
+          const w = window.open(result.file_path, '_blank')
+          if (w) opened = true
         } catch (e) {
-          // Fallback: create and click anchor if window.open is blocked
-          const link = document.createElement('a')
-          link.href = result.file_path
-          link.target = '_blank'
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
+          opened = false
+        }
+
+        // If opening a new tab was blocked or didn't happen, use a hidden iframe to trigger download.
+        if (!opened) {
+          try {
+            const iframe = document.createElement('iframe')
+            iframe.style.display = 'none'
+            iframe.src = result.file_path
+            document.body.appendChild(iframe)
+            // Remove iframe after some time to avoid DOM clutter
+            setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 10000)
+          } catch (e) {
+            // Final fallback: create and click anchor
+            const link = document.createElement('a')
+            link.href = result.file_path
+            link.target = '_blank'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+          }
         }
 
         // Refresh materials to update download count
