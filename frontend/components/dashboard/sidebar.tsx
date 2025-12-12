@@ -443,8 +443,8 @@ export default function Sidebar() {
               <Image
                 src="/logos/logo.png"
                 alt="CICT Peer Learning Hub Logo"
-                width={36}
-                height={36}
+                width={56}
+                height={56}
                 priority
                 className="rounded-none"
               />
