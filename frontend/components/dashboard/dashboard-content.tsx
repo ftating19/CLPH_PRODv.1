@@ -291,9 +291,9 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.bookings)) {
-          // Filter for upcoming sessions (status = confirmed or pending)
+          // Filter for ongoing/booked sessions (pending, pending_student_approval, accepted)
           const upcoming = data.bookings
-            .filter((b: any) => ['confirmed', 'pending'].includes(b.status?.toLowerCase()))
+            .filter((b: any) => ['pending', 'pending_student_approval', 'accepted'].includes((b.status || '').toLowerCase()))
             .sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
             .slice(0, 5);
           setUpcomingSessions(upcoming);
@@ -311,7 +311,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
 
   // Button handlers (replace with router push or modals as needed)
   const handleFindTutor = () => window.location.href = '/tutor-matching'
-  const handleViewSessions = () => window.location.href = '/sessions'
+  const handleViewSessions = () => window.location.href = '/tutor-session'
   const handleJoinDiscussion = () => window.location.href = '/discussion-forums'
   const handleStartDiscussion = () => window.location.href = '/discussion-forums'
   const handleFindTutors = () => window.location.href = '/tutor-matching'
@@ -618,7 +618,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
                           </div>
                         </div>
                         <Badge variant={session.status === 'confirmed' ? 'default' : 'secondary'}>
-                          {session.status}
+                          {session.status === 'accepted' ? 'Ongoing' : session.status === 'pending_student_approval' ? 'Awaiting Response' : 'Pending'}
                         </Badge>
                       </div>
                     </li>
