@@ -112,6 +112,36 @@ export function useStudyMaterials() {
         // Prefer the API serve endpoint which sets Content-Disposition to force download.
         const downloadUrl = result.serve_path || result.file_path
 
+        // If the File System Access API is available, prompt the user for a folder
+        // and stream the file into that folder. This opens a native folder picker.
+        const supportsFileSystemAccess = typeof (window as any).showDirectoryPicker === 'function'
+        if (supportsFileSystemAccess) {
+          try {
+            const dirHandle = await (window as any).showDirectoryPicker()
+            const filename = result.title || (new URL(downloadUrl)).pathname.split('/').pop() || `material-${materialId}.pdf`
+            const fileHandle = await dirHandle.getFileHandle(filename, { create: true })
+            const writable = await fileHandle.createWritable()
+
+            const resp = await fetch(downloadUrl, { credentials: 'include' })
+            if (!resp.ok || !resp.body) throw new Error('Failed to fetch file for saving')
+
+            const reader = resp.body.getReader()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              await writable.write(value)
+            }
+            await writable.close()
+            // Refresh materials to update download count
+            await fetchMaterials()
+            toast({ title: 'Download saved', description: `Saved ${filename} to selected folder`, variant: 'default' })
+            return
+          } catch (e) {
+            console.warn('Directory picker/save failed, falling back to normal download', e)
+            // fallthrough to older behavior
+          }
+        }
+
         // Attempt to open in a new tab first.
         let opened = false
         try {
