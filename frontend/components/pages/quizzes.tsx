@@ -2330,12 +2330,13 @@ export default function Quizzes() {
                     </div>
                   </CardHeader>
                   <CardContent>
+                    {/* Render question input based on type */}
                     {takingQuiz.questions[currentQuestionIndex].type === "multiple-choice" ? (
                       <div className="space-y-3">
                         <div className="text-sm font-medium text-muted-foreground mb-3">
                           {isPreviewMode ? "Answer Options:" : "Select your answer:"}
                         </div>
-                        
+
                         {takingQuiz.questions[currentQuestionIndex].options?.map((option, optionIndex) => (
                           <div key={optionIndex} className={`flex items-center space-x-3 p-3 border rounded-lg ${
                             isPreviewMode 
@@ -2368,30 +2369,74 @@ export default function Quizzes() {
                             </Label>
                           </div>
                         ))}
-
-                        {/* Show explanation in preview mode */}
-                        {isPreviewMode && takingQuiz.questions[currentQuestionIndex].explanation && (
-                          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                            <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
-                              Explanation:
-                            </h4>
-                            <p className="text-blue-800 dark:text-blue-200">
-                              {takingQuiz.questions[currentQuestionIndex].explanation}
-                            </p>
+                      </div>
+                    ) : takingQuiz.questions[currentQuestionIndex].type === "true-false" ? (
+                      <div className="space-y-3">
+                        <div className="text-sm font-medium text-muted-foreground mb-3">
+                          {isPreviewMode ? "Answer Options:" : "Select your answer:"}
+                        </div>
+                        {isPreviewMode ? (
+                          <div className="flex space-x-3">
+                            <div className="px-3 py-2 bg-muted/30 rounded">True</div>
+                            <div className="px-3 py-2 bg-muted/30 rounded">False</div>
                           </div>
-                        )}
-
-                        {/* Show correct answer in preview mode */}
-                        {isPreviewMode && (
-                          <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
-                            <div className="text-sm font-medium text-green-900 dark:text-green-100">
-                              Correct Answer: {takingQuiz.questions[currentQuestionIndex].correctAnswer}
+                        ) : (
+                          <div>
+                            <div className={`flex items-center space-x-3 p-3 border rounded-lg ${selectedAnswers[currentQuestionIndex] === 'True' ? "bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700" : "hover:bg-muted cursor-pointer"}`}>
+                              <input
+                                type="radio"
+                                id={`true-${currentQuestionIndex}`}
+                                name={`question-${currentQuestionIndex}`}
+                                value="True"
+                                checked={selectedAnswers[currentQuestionIndex] === 'True'}
+                                onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
+                                className="w-4 h-4"
+                              />
+                              <Label htmlFor={`true-${currentQuestionIndex}`} className="flex-1 cursor-pointer">True</Label>
+                            </div>
+                            <div className={`flex items-center space-x-3 p-3 border rounded-lg ${selectedAnswers[currentQuestionIndex] === 'False' ? "bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700" : "hover:bg-muted cursor-pointer"}`}>
+                              <input
+                                type="radio"
+                                id={`false-${currentQuestionIndex}`}
+                                name={`question-${currentQuestionIndex}`}
+                                value="False"
+                                checked={selectedAnswers[currentQuestionIndex] === 'False'}
+                                onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
+                                className="w-4 h-4"
+                              />
+                              <Label htmlFor={`false-${currentQuestionIndex}`} className="flex-1 cursor-pointer">False</Label>
                             </div>
                           </div>
                         )}
                       </div>
+                    ) : (takingQuiz.questions[currentQuestionIndex].type === "enumeration" || takingQuiz.questions[currentQuestionIndex].type === "essay") ? (
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground mb-3">
+                          {isPreviewMode ? (takingQuiz.questions[currentQuestionIndex].type === 'enumeration' ? 'Expected Answers:' : 'Sample Answer:') : (takingQuiz.questions[currentQuestionIndex].type === 'enumeration' ? 'Enter your answers separated by commas:' : 'Write your answer:')}
+                        </div>
+                        <Textarea
+                          value={selectedAnswers[currentQuestionIndex] || ''}
+                          onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value)}
+                          placeholder={takingQuiz.questions[currentQuestionIndex].type === 'enumeration' ? 'e.g. PHP, JavaScript, Python' : 'Type your essay response here...'}
+                          className="min-h-[120px]"
+                        />
+                      </div>
                     ) : (
                       <div className="text-sm text-muted-foreground">Unsupported question type.</div>
+                    )}
+
+                    {/* Show explanation and correct answer in preview for non-MCQs */}
+                    {isPreviewMode && takingQuiz.questions[currentQuestionIndex].explanation && (
+                      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                        <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Explanation:</h4>
+                        <p className="text-blue-800 dark:text-blue-200">{takingQuiz.questions[currentQuestionIndex].explanation}</p>
+                      </div>
+                    )}
+
+                    {isPreviewMode && (
+                      <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                        <div className="text-sm font-medium text-green-900 dark:text-green-100">Correct Answer: {Array.isArray(takingQuiz.questions[currentQuestionIndex].correctAnswer) ? takingQuiz.questions[currentQuestionIndex].correctAnswer.join(', ') : takingQuiz.questions[currentQuestionIndex].correctAnswer}</div>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
