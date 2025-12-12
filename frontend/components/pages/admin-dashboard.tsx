@@ -372,22 +372,6 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2 mb-6">
-        {/* Manage Uploaded Resources */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Manage Uploaded Resources</CardTitle>
-            <CardDescription>View and moderate uploaded learning materials</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <BookOpen className="h-12 w-12 text-blue-500 mb-3" />
-              <p className="text-sm text-muted-foreground mb-4">Moderate, approve, or remove uploaded resources from students and faculty.</p>
-              <Button variant="outline" className="bg-transparent">
-                Go to Resource Management
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
         {/* Content Moderation - Profanity Violations */}
         <Card className="col-span-2">
           <CardHeader>
@@ -477,41 +461,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
-      {/* System Analytics */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Platform Analytics</CardTitle>
-          <CardDescription>Usage statistics and performance metrics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <BarChart3 className="h-4 w-4 text-blue-500" />
-                <span className="text-sm font-medium">Daily Active Users</span>
-              </div>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">No activity today</p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <MessageSquare className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-medium">Forum Activity</span>
-              </div>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">No posts today</p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <BookOpen className="h-4 w-4 text-purple-500" />
-                <span className="text-sm font-medium">Resource Downloads</span>
-              </div>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">No downloads this week</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* System Analytics (removed) */}
     </>
   )
 }
