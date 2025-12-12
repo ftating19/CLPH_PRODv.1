@@ -177,7 +177,7 @@ export function useStudyMaterials() {
           }
         }
 
-        // Attempt to open in a new tab first.
+        // First try opening in a new tab.
         let opened = false
         try {
           const w = window.open(downloadUrl, '_blank')
@@ -186,23 +186,38 @@ export function useStudyMaterials() {
           opened = false
         }
 
-        // If opening a new tab was blocked or didn't happen, use a hidden iframe to trigger download.
+        // If new tab wasn't opened, do a blob-based Save-As to avoid OneDrive/Chrome write issues.
         if (!opened) {
           try {
-            const iframe = document.createElement('iframe')
-            iframe.style.display = 'none'
-            iframe.src = downloadUrl
-            document.body.appendChild(iframe)
-            // Remove iframe after some time to avoid DOM clutter
-            setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 10000)
-          } catch (e) {
-            // Final fallback: create and click anchor
+            const fileResp = await fetch(downloadUrl, { credentials: 'include' })
+            if (!fileResp.ok) throw new Error('Failed to fetch file for saving')
+            const blob = await fileResp.blob()
+            const blobUrl = URL.createObjectURL(blob)
             const link = document.createElement('a')
-            link.href = downloadUrl
-            link.target = '_blank'
+            link.href = blobUrl
+            link.download = suggestedName
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+            await fetchMaterials()
+            toast({ title: 'Saved', description: `Saved ${suggestedName}`, variant: 'default' })
+          } catch (e) {
+            console.warn('Blob download failed, falling back to iframe/anchor', e)
+            try {
+              const iframe = document.createElement('iframe')
+              iframe.style.display = 'none'
+              iframe.src = downloadUrl
+              document.body.appendChild(iframe)
+              setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 10000)
+            } catch (err) {
+              const link = document.createElement('a')
+              link.href = downloadUrl
+              link.target = '_blank'
+              document.body.appendChild(link)
+              link.click()
+              document.body.removeChild(link)
+            }
           }
         }
 
