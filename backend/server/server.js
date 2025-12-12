@@ -2853,16 +2853,24 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
     }
 
     // Stream the file. If download query param is present, set attachment header.
-    res.setHeader('Content-Type', 'application/pdf');
-    if (String(req.query.download || '').toLowerCase() === '1') {
-      try {
-        const filename = path.basename(filePath);
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      } catch (e) {
-        // ignore header errors
+    try {
+      const stats = fs.statSync(filePath);
+      console.log(`Serving file at path: ${filePath} (${stats.size} bytes)`);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', String(stats.size));
+      if (String(req.query.download || '').toLowerCase() === '1') {
+        try {
+          const filename = path.basename(filePath);
+          res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        } catch (e) {
+          // ignore header errors
+        }
       }
+      res.sendFile(filePath);
+    } catch (fsErr) {
+      console.error('Error reading file for streaming:', fsErr);
+      return res.status(500).json({ success: false, error: 'Failed to read file' });
     }
-    res.sendFile(filePath);
   } catch (err) {
     console.error('Error serving study material file:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
