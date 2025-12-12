@@ -634,20 +634,19 @@ export default function TutorMatching() {
         return isNotCurrentUser && subjectMatch && programMatch && searchMatch;
       })
       .sort((a, b) => {
-        // Priority 1: 5-star tutors first
-        const ratingA = typeof a.ratings === 'string' ? parseFloat(a.ratings) : a.ratings || 0;
-        const ratingB = typeof b.ratings === 'string' ? parseFloat(b.ratings) : b.ratings || 0;
-        const aIsFive = ratingA >= 5;
-        const bIsFive = ratingB >= 5;
-
-        if (aIsFive && !bIsFive) return -1;
-        if (!aIsFive && bIsFive) return 1;
-
-        // Priority 2: Then prioritize tutors recommended by subject (Suggested)
+        // Priority 1: Suggested tutors (by subject) first
         const aIsSuggested = recommendedSubjects.includes(a.subject_id);
         const bIsSuggested = recommendedSubjects.includes(b.subject_id);
         if (aIsSuggested && !bIsSuggested) return -1;
         if (!aIsSuggested && bIsSuggested) return 1;
+
+        // Priority 2: Then 5-star recommended tutors
+        const ratingA = typeof a.ratings === 'string' ? parseFloat(a.ratings) : a.ratings || 0;
+        const ratingB = typeof b.ratings === 'string' ? parseFloat(b.ratings) : b.ratings || 0;
+        const aIsFive = ratingA >= 5;
+        const bIsFive = ratingB >= 5;
+        if (aIsFive && !bIsFive) return -1;
+        if (!aIsFive && bIsFive) return 1;
 
         // Priority 3: Within same status, sort by rating (highest first)
         return ratingB - ratingA;
