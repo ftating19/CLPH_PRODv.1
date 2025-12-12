@@ -2807,14 +2807,13 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
     } else if (relPath && relPath.startsWith('/learning-resources/')) {
       // stored path under learning-resources
       const cleanRelPath = relPath.replace(/^\/learning-resources\//, '');
-      const learningDir = path.join(__dirname, '../../frontend/public/learning-resources');
-      filePath = path.join(learningDir, cleanRelPath);
+      filePath = path.join(learningResourcesDir, cleanRelPath);
     } else {
       // Fallback: try to resolve by basename in pendingResourcesDir first,
       // then in learning-resources directory.
       const filename = path.basename(relPath || '');
       const candidatePending = path.join(pendingResourcesDir, filename);
-      const candidateLearning = path.join(__dirname, '../../frontend/public/learning-resources', filename);
+      const candidateLearning = path.join(learningResourcesDir, filename);
       if (fs.existsSync(candidatePending)) filePath = candidatePending;
       else filePath = candidateLearning;
     }
