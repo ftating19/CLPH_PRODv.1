@@ -275,6 +275,8 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
 
   // Fetch all quizzes (include pending by current user)
   const { quizzes: allQuizzes, loading: quizzesLoading } = useQuizzesWithPending(currentUser?.user_id ?? null)
+  // Only show quizzes explicitly marked as public
+  const publicQuizzes = (allQuizzes || []).filter((q: any) => String(q.quiz_view || '').toLowerCase() === 'public')
 
   // Fetch top quiz performers for dashboard global view
   useEffect(() => {
@@ -588,19 +590,19 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
           <CardContent>
               {quizzesLoading ? (
                 <div className="py-8 text-center">Loading quizzes...</div>
-              ) : allQuizzes && allQuizzes.length === 0 ? (
+              ) : publicQuizzes.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <Brain className="h-12 w-12 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground mb-4">No quizzes available</p>
+                  <p className="text-sm text-muted-foreground mb-4">No public quizzes available</p>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">Available Quizzes</span>
-                    <Badge variant="outline">{allQuizzes?.length ?? 0} total</Badge>
+                    <Badge variant="outline">{publicQuizzes.length} total</Badge>
                   </div>
                   <ul className="space-y-2">
-                    {allQuizzes?.map((q: any, idx: number) => (
+                    {publicQuizzes.map((q: any, idx: number) => (
                       <li key={q.quizzes_id || idx} className="border-b pb-2">
                         <div className="flex items-center justify-between">
                           <div>
