@@ -30,6 +30,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
     recommendedTutors: 0,
     learningMaterials: 0
   });
+  const [backendBookingCounts, setBackendBookingCounts] = useState<any | null>(null);
   // Recent discussions
   const [recentForums, setRecentForums] = useState<any[]>([]);
   // Recommended tutors (5 stars)
@@ -49,18 +50,23 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
   // Fetch dashboard stats (single API call for all counts)
   useEffect(() => {
     console.log('📊 Dashboard: Fetching stats...');
-    fetch("https://api.cictpeerlearninghub.com/api/stats/dashboard")
+    const statsUrl = currentUser?.user_id
+      ? `https://api.cictpeerlearninghub.com/api/stats/dashboard?user_id=${currentUser.user_id}`
+      : `https://api.cictpeerlearninghub.com/api/stats/dashboard`;
+
+    fetch(statsUrl)
       .then((res) => res.json())
       .then((data) => {
         console.log('📊 Dashboard: Stats received:', data);
         if (data.success && data.stats) {
           setDashboardStats(data.stats);
+          if (data.stats.bookingCounts) setBackendBookingCounts(data.stats.bookingCounts);
         }
       })
       .catch((error) => {
         console.error('❌ Dashboard: Error fetching stats:', error);
       });
-  }, []);
+  }, [currentUser?.user_id]);
 
   useEffect(() => {
     // Fetch recent forums and tutors
@@ -227,6 +233,13 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
     })
     return counts
   })()
+
+  // Prefer backend-provided booking counts if available
+  const countsToShow = backendBookingCounts ? {
+    ongoing: Number(backendBookingCounts.ongoing || 0),
+    awaiting: Number(backendBookingCounts.awaiting || 0),
+    pending: Number(backendBookingCounts.pending || 0)
+  } : upcomingCounts
 
   // Fetch quiz attempts for current user
   useEffect(() => {
@@ -611,11 +624,11 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               Upcoming Sessions
-              <span className="ml-2 text-sm text-muted-foreground">({upcomingSessions.length})</span>
+              <span className="ml-2 text-sm text-muted-foreground">({countsToShow.ongoing + countsToShow.awaiting + countsToShow.pending})</span>
             </CardTitle>
             <CardDescription>Your scheduled tutoring sessions</CardDescription>
             <div className="mt-2">
-              <p className="text-xs text-muted-foreground">You have <strong>{upcomingSessions.length}</strong> upcoming sessions — <span className="font-medium">Ongoing:</span> {upcomingCounts.ongoing} · <span className="font-medium">Awaiting:</span> {upcomingCounts.awaiting} · <span className="font-medium">Pending:</span> {upcomingCounts.pending}</p>
+              <p className="text-xs text-muted-foreground">You have <strong>{countsToShow.ongoing + countsToShow.awaiting + countsToShow.pending}</strong> upcoming sessions — <span className="font-medium">Ongoing:</span> {countsToShow.ongoing} · <span className="font-medium">Awaiting:</span> {countsToShow.awaiting} · <span className="font-medium">Pending:</span> {countsToShow.pending}</p>
             </div>
           </CardHeader>
           <CardContent>

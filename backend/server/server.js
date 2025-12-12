@@ -577,6 +577,27 @@ app.get('/api/stats/dashboard', async (req, res) => {
       recommendedTutors: tutorsResult[0].count,
       learningMaterials: materialsResult[0].count
     });
+    // If a user_id is provided, include booking counts for that user
+    const userId = req.query.user_id ? parseInt(req.query.user_id) : null;
+    let bookingCounts = null;
+    if (userId && !isNaN(userId)) {
+      try {
+        const [rows] = await pool.query(
+          `SELECT
+            COUNT(CASE WHEN LOWER(status) IN ('accepted','confirmed','in-progress','in_progress','active','booked') THEN 1 END) AS ongoing,
+            COUNT(CASE WHEN LOWER(status) = 'pending_student_approval' THEN 1 END) AS awaiting,
+            COUNT(CASE WHEN LOWER(status) = 'pending' THEN 1 END) AS pending,
+            COUNT(CASE WHEN LOWER(status) = 'completed' THEN 1 END) AS completed
+          FROM bookings
+          WHERE student_id = ? OR tutor_id = ?`,
+          [userId, userId]
+        );
+        bookingCounts = (rows && rows[0]) ? rows[0] : { ongoing: 0, awaiting: 0, pending: 0, completed: 0 };
+      } catch (err) {
+        console.error('Error fetching booking counts for user:', userId, err);
+        bookingCounts = { ongoing: 0, awaiting: 0, pending: 0, completed: 0 };
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -584,7 +605,8 @@ app.get('/api/stats/dashboard', async (req, res) => {
         activeUsers: activeUsersResult[0].count || 0,
         forumPosts: forumPostsResult[0].count || 0,
         recommendedTutors: tutorsResult[0].count || 0,
-        learningMaterials: materialsResult[0].count || 0
+        learningMaterials: materialsResult[0].count || 0,
+        bookingCounts: bookingCounts
       }
     });
   } catch (err) {
