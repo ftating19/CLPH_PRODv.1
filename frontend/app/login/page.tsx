@@ -421,6 +421,7 @@ export default function LoginPage() {
                 </Button>
               </form>
 
+
               <div className="text-center pt-2">
                 <span className="text-gray-600 text-sm">Don't have an account? </span>
                 <Button 
@@ -431,12 +432,11 @@ export default function LoginPage() {
                   Create one here
                 </Button>
               </div>
+              <div className="mt-4 text-center text-xs text-gray-500">
+                <p>By signing in, you agree to our Terms of Service and Privacy Policy</p>
+              </div>
             </CardContent>
             </Card>
-
-            <div className="mt-4 text-center text-xs text-gray-500">
-              <p>By signing in, you agree to our Terms of Service and Privacy Policy</p>
-            </div>
 
             {/* Signup Modal */}
             <SignupModal
