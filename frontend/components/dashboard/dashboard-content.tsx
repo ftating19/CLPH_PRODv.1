@@ -21,6 +21,7 @@ import {
   Award,
   Calendar,
 } from "lucide-react"
+import { useQuizzesWithPending } from "@/hooks/use-quizzes"
 
 export default function DashboardContent({ currentUser }: { currentUser: any }) {
   // Dashboard stats from centralized endpoint
@@ -271,6 +272,9 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
         setQuizAttempts([]);
       });
   }, [currentUser]);
+
+  // Fetch all quizzes (include pending by current user)
+  const { quizzes: allQuizzes, loading: quizzesLoading } = useQuizzesWithPending(currentUser?.user_id ?? null)
 
   // Fetch top quiz performers for dashboard global view
   useEffect(() => {
@@ -582,40 +586,36 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
             <CardDescription>Recent quiz attempts and performance</CardDescription>
           </CardHeader>
           <CardContent>
-            {quizAttempts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Brain className="h-12 w-12 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground mb-4">No quiz attempts yet</p>
-                <Button variant="outline" className="bg-transparent" onClick={handleViewQuizzes}>
-                  View Quizzes
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium">Recent Attempts</span>
-                  <Badge variant="outline">{quizAttempts.length} total</Badge>
+              {quizzesLoading ? (
+                <div className="py-8 text-center">Loading quizzes...</div>
+              ) : allQuizzes && allQuizzes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Brain className="h-12 w-12 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground mb-4">No quizzes available</p>
                 </div>
-                <ul className="space-y-3">
-                  {quizAttempts.map((attempt, idx) => (
-                    <li key={attempt.id || idx} className="border-b pb-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-sm">{attempt.quiz_title || 'Quiz'}</span>
-                        <Badge variant={attempt.score >= 80 ? "default" : "secondary"}>
-                          {attempt.score}%
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {attempt.subject_name} • {new Date(attempt.created_at).toLocaleDateString()}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                <Button variant="outline" className="w-full mt-4" onClick={handleViewQuizzes}>
-                  View All Quizzes
-                </Button>
-              </div>
-            )}
+              ) : (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Available Quizzes</span>
+                    <Badge variant="outline">{allQuizzes?.length ?? 0} total</Badge>
+                  </div>
+                  <ul className="space-y-2">
+                    {allQuizzes?.map((q: any, idx: number) => (
+                      <li key={q.quizzes_id || idx} className="border-b pb-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-semibold text-sm">{q.title || q.quiz_title}</div>
+                            <div className="text-xs text-muted-foreground">{q.subject_name || q.subject || ''}</div>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {q.duration ? `${q.duration}${q.duration_unit || 'min'}` : ''}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
           </CardContent>
         </Card>
 
