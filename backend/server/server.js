@@ -271,6 +271,10 @@ const fs = require('fs')
 
 const app = express()
 
+// When running behind a reverse proxy (Coolify, nginx, etc.) enable trust proxy
+// so `req.protocol` reflects the original client protocol (e.g. https).
+app.set('trust proxy', true);
+
 // Configure CORS to support credentialed requests from the frontend.
 // When credentials are included, Access-Control-Allow-Origin must NOT be '*',
 // so prefer a configured `FRONTEND_URL` or reflect the request origin.
