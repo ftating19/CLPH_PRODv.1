@@ -311,7 +311,7 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
 
   // Button handlers (replace with router push or modals as needed)
   const handleFindTutor = () => window.location.href = '/tutor-matching'
-  const handleViewSessions = () => window.location.href = '/tutor-session'
+  const handleViewSessions = () => window.location.href = '/sessions/tutor-session'
   const handleJoinDiscussion = () => window.location.href = '/discussion-forums'
   const handleStartDiscussion = () => window.location.href = '/discussion-forums'
   const handleFindTutors = () => window.location.href = '/tutor-matching'
