@@ -93,6 +93,8 @@ interface PreAssessmentResult {
 }
 
 export default function TutorMatching() {
+  // Recommended tutors from backend
+  const [recommendedTutors, setRecommendedTutors] = useState<number[]>([]);
   // Subject filter state
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('all')
   const [selectedProgramFilter, setSelectedProgramFilter] = useState<string>("all")
@@ -280,11 +282,28 @@ export default function TutorMatching() {
     }
   }
 
-  // Load tutors and pre-assessment results on component mount
+
+  // Load tutors, pre-assessment results, and recommended tutors on component mount
   useEffect(() => {
-    fetchTutors()
-    fetchPreAssessmentResults()
-  }, [currentUser?.user_id])
+    fetchTutors();
+    fetchPreAssessmentResults();
+    // Fetch recommended tutors from backend
+    const fetchRecommendedTutors = async () => {
+      if (!currentUser?.user_id) return;
+      try {
+        const res = await fetch(`/api/recommendations/tutors/${currentUser.user_id}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.tutors)) {
+          setRecommendedTutors(data.tutors.map((t: any) => t.user_id));
+        } else {
+          setRecommendedTutors([]);
+        }
+      } catch {
+        setRecommendedTutors([]);
+      }
+    };
+    fetchRecommendedTutors();
+  }, [currentUser?.user_id]);
 
   // Check if user has skipped pre-assessment
   useEffect(() => {
@@ -399,6 +418,7 @@ export default function TutorMatching() {
 
 
   const TutorCard = ({ tutor }: { tutor: Tutor }) => {
+    const isBackendRecommended = recommendedTutors.includes(tutor.user_id);
     const isSubjectRecommended = recommendedSubjects.includes(tutor.subject_id);
     const [cardStats, setCardStats] = useState<{
       comments: any[];
@@ -433,12 +453,12 @@ export default function TutorMatching() {
       fetchCardReviews();
     }, [tutor.user_id]);
     
-    // derive numeric rating and 5-star flag
+    // derive numeric rating
     const ratingValue = typeof tutor.ratings === 'string' ? parseFloat(tutor.ratings) : tutor.ratings || 0;
-    const isFiveStar = ratingValue >= 5;
 
+    // Highlight green if backend recommended
     return (
-      <Card className={`hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 ${isFiveStar ? 'ring-2 ring-green-400 border-green-300' : ''}`}>
+      <Card className={`hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 ${isBackendRecommended ? 'ring-2 ring-green-400 border-green-300' : ''}`}>
         <CardHeader className="pb-4">
           <div className="flex items-start space-x-4">
             <Avatar className="w-16 h-16">
@@ -452,12 +472,12 @@ export default function TutorMatching() {
                   <CardTitle className="text-lg sm:text-xl break-words">{tutor.name || 'Name not provided'}</CardTitle>
                 </div>
                 <div className="flex gap-1 sm:gap-2 flex-wrap flex-shrink-0">
-                  {isFiveStar && (
+                  {isBackendRecommended && (
                     <Badge variant="default" className="bg-green-600 hover:bg-green-700">
                       Recommended
                     </Badge>
                   )}
-                  {!isFiveStar && isSubjectRecommended && (
+                  {!isBackendRecommended && isSubjectRecommended && (
                     <Badge variant="outline" className="bg-amber-100 border-amber-300 text-amber-800">
                       Suggested
                     </Badge>
