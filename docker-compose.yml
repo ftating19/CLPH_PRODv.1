@@ -13,6 +13,7 @@ services:
       # use named Docker volumes to persist uploaded files across restarts
       - pending-resources:/app/frontend/public/pending-resources:rw
       - learning-resources:/app/frontend/public/learning-resources:rw
+      - class-cards:/app/frontend/public/class-cards:rw
       # If you prefer to mount a host path instead, replace the lines above with:
       # - /var/www/frontend/public/pending-resources:/app/frontend/public/pending-resources:rw
       # - /var/www/frontend/public/learning-resources:/app/frontend/public/learning-resources:rw
@@ -32,10 +33,12 @@ services:
       - PENDING_RESOURCES_URL=https://cictpeerlearninghub.com/pending-resources
       - LEARNING_RESOURCES_DIR=/app/frontend/public/learning-resources
       - LEARNING_RESOURCES_URL=https://cictpeerlearninghub.com/learning-resources
+      - CLASS_CARDS_DIR=/app/frontend/public/class-cards
       - FRONTEND_URL=http://localhost:3000
     volumes:
       - pending-resources:/app/frontend/public/pending-resources:rw
       - learning-resources:/app/frontend/public/learning-resources:rw
+      - class-cards:/app/frontend/public/class-cards:rw
       # Or, to use host paths instead, uncomment and set the host directories:
       # - /var/www/frontend/public/pending-resources:/app/frontend/public/pending-resources:rw
       # - /var/www/frontend/public/learning-resources:/app/frontend/public/learning-resources:rw
@@ -47,4 +50,6 @@ volumes:
   pending-resources:
     driver: local
   learning-resources:
+    driver: local
+  class-cards:
     driver: local
