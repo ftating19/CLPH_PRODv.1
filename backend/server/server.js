@@ -2766,9 +2766,15 @@ app.get('/api/study-materials/:id/download', async (req, res) => {
     }
     console.log('Resolved public file URL for download:', fileUrl);
 
+    // Also expose the API-served endpoint which will set Content-Disposition when
+    // requested with ?download=1. Frontend should prefer `serve_path` to trigger
+    // a real download instead of browser preview.
+    const servePath = `${req.protocol}://${req.get('host')}/api/study-materials/${materialId}/serve?download=1`;
+
     res.json({
       success: true,
       file_path: fileUrl,
+      serve_path: servePath,
       title: material.title
     });
   } catch (err) {
