@@ -1123,9 +1123,9 @@ export default function Quizzes() {
           // If updating an existing quiz, delete old questions first
           if (currentQuiz) {
             try {
-              await fetch(`https://api.cictpeerlearninghub.com/api/questions/quiz/${createdQuizId}`), {
+              await fetch(`https://api.cictpeerlearninghub.com/api/questions/quiz/${createdQuizId}`, {
                 method: 'DELETE'
-              }
+              })
               console.log('Deleted old questions for quiz:', createdQuizId)
             } catch (deleteError) {
               console.error('Error deleting old questions:', deleteError)
@@ -1164,22 +1164,20 @@ export default function Quizzes() {
           console.log('Finished saving all questions')
         }
 
-        // Update the quiz with the correct item count
-        if (!currentQuiz) {
-          try {
-            await fetch(`https://api.cictpeerlearninghub.com/api/quizzes/${createdQuizId}`), {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                ...quizData,
-                item_counts: quizQuestions.length
-              })
-            }
-          } catch (updateError) {
-            console.error('Error updating quiz item count:', updateError)
-          }
+        // Update the quiz with the correct item count (ensure backend reflects saved questions)
+        try {
+          await fetch(`https://api.cictpeerlearninghub.com/api/quizzes/${createdQuizId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              ...quizData,
+              item_counts: quizQuestions.length
+            })
+          })
+        } catch (updateError) {
+          console.error('Error updating quiz item count:', updateError)
         }
         
         // Refresh quizzes list
