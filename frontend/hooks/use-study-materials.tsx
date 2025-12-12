@@ -107,15 +107,20 @@ export function useStudyMaterials() {
       const result = await response.json()
 
       if (result.success) {
-        // Create download link
-        const link = document.createElement('a')
-        link.href = result.file_path
-        link.download = result.title
-        link.target = '_blank'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        
+        // Open the serve URL in a new tab/window so browser handles preview/download.
+        // This avoids issues with cross-origin download attribute behavior.
+        try {
+          window.open(result.file_path, '_blank')
+        } catch (e) {
+          // Fallback: create and click anchor if window.open is blocked
+          const link = document.createElement('a')
+          link.href = result.file_path
+          link.target = '_blank'
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+        }
+
         // Refresh materials to update download count
         await fetchMaterials()
       } else {
