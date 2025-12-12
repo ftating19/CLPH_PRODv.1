@@ -2423,13 +2423,14 @@ const upload = multer({
 // Configure multer for image uploads (class cards, etc.)
 const imageStorage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadPath = path.join(__dirname, '../../frontend/public/class-cards');
-    
+    // Use configured `classCardsDir` (allows override via CLASS_CARDS_DIR env)
+    const uploadPath = classCardsDir || path.join(__dirname, '../../frontend/public/class-cards');
+
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
-    
+
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
