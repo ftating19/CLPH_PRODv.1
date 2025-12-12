@@ -291,9 +291,21 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.bookings)) {
-          // Filter for ongoing/booked sessions (pending, pending_student_approval, accepted)
+          // Filter for ongoing/booked sessions - include common variants returned by API
           const upcoming = data.bookings
-            .filter((b: any) => ['pending', 'pending_student_approval', 'accepted'].includes((b.status || '').toLowerCase()))
+            .filter((b: any) => {
+              const s = (b.status || '').toLowerCase();
+              return [
+                'pending',
+                'pending_student_approval',
+                'accepted',
+                'confirmed',
+                'in-progress',
+                'in_progress',
+                'active',
+                'booked'
+              ].includes(s);
+            })
             .sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
             .slice(0, 5);
           setUpcomingSessions(upcoming);
@@ -617,8 +629,15 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
                             </span>
                           </div>
                         </div>
-                        <Badge variant={session.status === 'confirmed' ? 'default' : 'secondary'}>
-                          {session.status === 'accepted' ? 'Ongoing' : session.status === 'pending_student_approval' ? 'Awaiting Response' : 'Pending'}
+                        <Badge variant={['accepted','confirmed','in-progress','in_progress','active','booked'].includes((session.status||'').toLowerCase()) ? 'default' : 'secondary'}>
+                          {(() => {
+                            const s = (session.status || '').toLowerCase();
+                            if (s === 'accepted' || s === 'in-progress' || s === 'in_progress' || s === 'active' || s === 'booked') return 'Ongoing';
+                            if (s === 'pending_student_approval') return 'Awaiting Response';
+                            if (s === 'confirmed') return 'Confirmed';
+                            if (s === 'pending') return 'Pending';
+                            return session.status || 'Scheduled';
+                          })()}
                         </Badge>
                       </div>
                     </li>
