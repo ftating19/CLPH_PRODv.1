@@ -2741,7 +2741,27 @@ app.get('/api/study-materials/:id/download', async (req, res) => {
     // Return the public static file URL where the file was uploaded so the
     // browser can download directly from the static route (avoids streaming issues).
     const apiBase = (process.env.FRONTEND_URL && process.env.FRONTEND_URL.replace(/\/$/, '')) || `${req.protocol}://${req.get('host')}`;
-    const fileUrl = material.file_path && (String(material.file_path).startsWith('http') ? material.file_path : `${apiBase}${material.file_path}`);
+    let fileUrl = null;
+
+    if (material.file_path) {
+      const fp = String(material.file_path);
+      if (fp.startsWith('http')) {
+        try {
+          const parsed = new URL(fp);
+          // Prefer serving from this API host + the same pathname so static route handles it
+          fileUrl = `${apiBase}${parsed.pathname}`;
+        } catch (e) {
+          // fallback to original absolute url
+          fileUrl = fp;
+        }
+      } else if (fp.startsWith('/')) {
+        // relative path stored like /pending-resources/filename
+        fileUrl = `${apiBase}${fp}`;
+      } else {
+        // stored as relative without leading slash
+        fileUrl = `${apiBase}/${fp}`;
+      }
+    }
 
     res.json({
       success: true,
