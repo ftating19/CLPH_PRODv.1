@@ -320,6 +320,15 @@ export default function LoginPage() {
                   <h1 className="text-xl font-bold text-gray-900 mb-1">CICT PEER LEARNING HUB</h1>
                   <p className="text-xs text-gray-600">A Collaborative Platform for Interactive Learning</p>
                 </div>
+                <div className="flex justify-center mb-2">
+                  <Image
+                    src="/logos/logo.png"
+                    alt="CICT Peer Learning Hub Logo"
+                    width={100}
+                    height={100}
+                    priority
+                  />
+                </div>
                 <CardTitle className="text-2xl font-bold text-gray-900">Welcome Back</CardTitle>
                 <CardDescription className="text-gray-600 mt-1 text-sm">
                   Sign in to your account to continue your learning journey
