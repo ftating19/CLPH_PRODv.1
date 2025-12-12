@@ -2947,6 +2947,17 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
         res.setHeader('Expires', '0');
         // Always set a fresh ETag to force download
         res.setHeader('ETag', Date.now().toString());
+        // Ensure CORS headers are present for credentialed requests. When
+        // credentials are used the Access-Control-Allow-Origin must be the
+        // requesting origin (not '*'). Prefer the request Origin header,
+        // otherwise fall back to configured FRONTEND_URL.
+        const reqOrigin = req.get('origin') || process.env.FRONTEND_URL || null;
+        if (reqOrigin) {
+          res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+          res.setHeader('Access-Control-Allow-Credentials', 'true');
+          // Ensure Vary includes Origin so caches behave correctly
+          res.setHeader('Vary', 'Origin');
+        }
       } catch (hdrErr) {
         console.warn('Failed to set cache headers:', hdrErr.message);
       }
