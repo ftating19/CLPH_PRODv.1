@@ -270,7 +270,26 @@ const multer = require('multer')
 const fs = require('fs')
 
 const app = express()
-app.use(cors())
+
+// Configure CORS to support credentialed requests from the frontend.
+// When credentials are included, Access-Control-Allow-Origin must NOT be '*',
+// so prefer a configured `FRONTEND_URL` or reflect the request origin.
+const allowedFrontend = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : null;
+const corsOptions = {
+  credentials: true,
+  origin: (origin, callback) => {
+    // Allow non-browser requests (e.g. curl/postman) with no origin
+    if (!origin) return callback(null, true);
+    // If a FRONTEND_URL is configured, only allow that exact origin
+    if (allowedFrontend) {
+      if (origin === allowedFrontend) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    }
+    // No configured frontend; reflect the request origin so header is not '*'
+    return callback(null, origin);
+  }
+};
+app.use(cors(corsOptions))
 app.use(express.json({ limit: '250mb' })) // Increased limit for file uploads
 // Also accept URL-encoded form data (helps some clients/tools)
 app.use(express.urlencoded({ extended: true, limit: '250mb' }))
