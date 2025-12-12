@@ -314,7 +314,7 @@ export default function LoginPage() {
         {/* Right Side - Login Form */}
         <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
           <div className="w-full max-w-2xl">
-            <Card className="shadow-lg border-0 bg-white h-full max-h-[900px] min-h-[750px] flex flex-col">
+            <Card className="shadow-lg border-0 bg-white h-full max-h-[800px] min-h-[750px] flex flex-col">
               <CardHeader className="text-center pb-4 flex-shrink-0">
                 <div className="lg:hidden mb-4">
                   <h1 className="text-xl font-bold text-gray-900 mb-1">CICT PEER LEARNING HUB</h1>
