@@ -8355,12 +8355,15 @@ app.put('/api/sessions/:booking_id/rating', async (req, res) => {
     }
     const tutor_id = booking.tutor_id;
 
-  // Calculate average rating for this tutor from all completed bookings with a rating
-  const [[avgResult]] = await pool.query('SELECT AVG(rating) AS avg_rating FROM bookings WHERE tutor_id = ? AND rating IS NOT NULL AND status = "Completed"', [tutor_id]);
-  const avg_rating = avgResult.avg_rating ? parseFloat(avgResult.avg_rating).toFixed(2) : null;
+    // Calculate average rating for this tutor from all completed bookings with a rating (regardless of subject)
+    const [[avgResult]] = await pool.query('SELECT AVG(rating) AS avg_rating FROM bookings WHERE tutor_id = ? AND rating IS NOT NULL AND status = "Completed"', [tutor_id]);
+    const avg_rating = avgResult.avg_rating ? parseFloat(avgResult.avg_rating).toFixed(2) : null;
 
-  // Update tutor's ratings column
-  await pool.query('UPDATE tutors SET ratings = ? WHERE user_id = ?', [avg_rating, tutor_id]);
+    // Always update tutor's ratings column, regardless of subject/pre-test
+    const [tutorUpdateResult] = await pool.query('UPDATE tutors SET ratings = ? WHERE user_id = ?', [avg_rating, tutor_id]);
+    if (tutorUpdateResult.affectedRows === 0) {
+      console.warn(`Warning: No tutor row updated for user_id ${tutor_id}. Check if tutor exists in tutors table.`);
+    }
 
     res.json({ success: true, booking_id, rating, remarks, tutor_id, avg_rating });
   } catch (err) {
