@@ -456,10 +456,12 @@ export default function TutorMatching() {
     // derive numeric rating
     const ratingValue = typeof tutor.ratings === 'string' ? parseFloat(tutor.ratings) : tutor.ratings || 0;
     const isFiveStar = ratingValue === 5;
+    // Show 'Recommended' only if 5-star AND subject is recommended (low score)
+    const isRecommended = isFiveStar && isSubjectRecommended;
 
-    // Highlight green if backend recommended or 5-star
+    // Highlight green if recommended
     return (
-      <Card className={`hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 ${isBackendRecommended || isFiveStar ? 'ring-2 ring-green-400 border-green-300' : ''}`}>
+      <Card className={`hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 ${isRecommended ? 'ring-2 ring-green-400 border-green-300' : ''}`}>
         <CardHeader className="pb-4">
           <div className="flex items-start space-x-4">
             <Avatar className="w-16 h-16">
@@ -473,12 +475,12 @@ export default function TutorMatching() {
                   <CardTitle className="text-lg sm:text-xl break-words">{tutor.name || 'Name not provided'}</CardTitle>
                 </div>
                 <div className="flex gap-1 sm:gap-2 flex-wrap flex-shrink-0">
-                  {(isBackendRecommended || isFiveStar) && (
+                  {isRecommended && (
                     <Badge variant="default" className="bg-green-600 hover:bg-green-700">
                       Recommended
                     </Badge>
                   )}
-                  {!isBackendRecommended && !isFiveStar && isSubjectRecommended && (
+                  {!isRecommended && isSubjectRecommended && (
                     <Badge variant="outline" className="bg-amber-100 border-amber-300 text-amber-800">
                       Suggested
                     </Badge>
