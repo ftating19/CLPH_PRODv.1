@@ -112,71 +112,6 @@ export function useStudyMaterials() {
         // Prefer the API serve endpoint which sets Content-Disposition to force download.
         const downloadUrl = result.serve_path || result.file_path
 
-        // Preferred: use the Save File picker so the browser opens a native Save dialog
-        // (avoids write-permission errors for protected folders). Fall back to folder
-        // picker, then to legacy behavior.
-        const winAny = window as any
-        const suggestedName = result.title || (new URL(downloadUrl)).pathname.split('/').pop() || `material-${materialId}.pdf`
-
-        if (typeof winAny.showSaveFilePicker === 'function') {
-          try {
-            const handle = await winAny.showSaveFilePicker({
-              suggestedName,
-              types: [{
-                description: 'PDF Document',
-                accept: { 'application/pdf': ['.pdf'] }
-              }]
-            })
-            const writable = await handle.createWritable()
-
-            const resp = await fetch(downloadUrl, { credentials: 'include' })
-            if (!resp.ok || !resp.body) throw new Error('Failed to fetch file for saving')
-
-            const reader = resp.body.getReader()
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) break
-              await writable.write(value)
-            }
-            await writable.close()
-            await fetchMaterials()
-            toast({ title: 'Download saved', description: `Saved ${suggestedName}`, variant: 'default' })
-            return
-          } catch (e) {
-            console.warn('Save file picker failed, falling back to directory picker or normal download', e)
-            // fallthrough
-          }
-        }
-
-        // If saveFilePicker not available, try directory picker as before
-        const supportsDirectoryPicker = typeof winAny.showDirectoryPicker === 'function'
-        if (supportsDirectoryPicker) {
-          try {
-            const dirHandle = await winAny.showDirectoryPicker()
-            const filename = suggestedName
-            const fileHandle = await dirHandle.getFileHandle(filename, { create: true })
-            const writable = await fileHandle.createWritable()
-
-            const resp = await fetch(downloadUrl, { credentials: 'include' })
-            if (!resp.ok || !resp.body) throw new Error('Failed to fetch file for saving')
-
-            const reader = resp.body.getReader()
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) break
-              await writable.write(value)
-            }
-            await writable.close()
-            // Refresh materials to update download count
-            await fetchMaterials()
-            toast({ title: 'Download saved', description: `Saved ${filename} to selected folder`, variant: 'default' })
-            return
-          } catch (e) {
-            console.warn('Directory picker/save failed, falling back to normal download', e)
-            // fallthrough to older behavior
-          }
-        }
-
         // First try opening in a new tab.
         let opened = false
         try {
@@ -196,6 +131,7 @@ export function useStudyMaterials() {
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = blobUrl;
+            const suggestedName = result.title || (new URL(downloadUrl)).pathname.split('/').pop() || `material-${materialId}.pdf`;
             link.download = suggestedName;
             document.body.appendChild(link);
             link.click();
