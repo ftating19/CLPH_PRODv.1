@@ -2740,7 +2740,9 @@ app.get('/api/study-materials/:id/download', async (req, res) => {
 
     // Return the public static file URL where the file was uploaded so the
     // browser can download directly from the static route (avoids streaming issues).
-    const apiBase = (process.env.FRONTEND_URL && process.env.FRONTEND_URL.replace(/\/$/, '')) || `${req.protocol}://${req.get('host')}`;
+    // Use the API host (request host) to build the public file URL so the
+    // returned link points to the server's static route (avoids frontend host).
+    const apiBase = `${req.protocol}://${req.get('host')}`;
     let fileUrl = null;
 
     if (material.file_path) {
@@ -2762,6 +2764,7 @@ app.get('/api/study-materials/:id/download', async (req, res) => {
         fileUrl = `${apiBase}/${fp}`;
       }
     }
+    console.log('Resolved public file URL for download:', fileUrl);
 
     res.json({
       success: true,
