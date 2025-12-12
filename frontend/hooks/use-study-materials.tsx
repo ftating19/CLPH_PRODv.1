@@ -112,13 +112,48 @@ export function useStudyMaterials() {
         // Prefer the API serve endpoint which sets Content-Disposition to force download.
         const downloadUrl = result.serve_path || result.file_path
 
-        // If the File System Access API is available, prompt the user for a folder
-        // and stream the file into that folder. This opens a native folder picker.
-        const supportsFileSystemAccess = typeof (window as any).showDirectoryPicker === 'function'
-        if (supportsFileSystemAccess) {
+        // Preferred: use the Save File picker so the browser opens a native Save dialog
+        // (avoids write-permission errors for protected folders). Fall back to folder
+        // picker, then to legacy behavior.
+        const winAny = window as any
+        const suggestedName = result.title || (new URL(downloadUrl)).pathname.split('/').pop() || `material-${materialId}.pdf`
+
+        if (typeof winAny.showSaveFilePicker === 'function') {
           try {
-            const dirHandle = await (window as any).showDirectoryPicker()
-            const filename = result.title || (new URL(downloadUrl)).pathname.split('/').pop() || `material-${materialId}.pdf`
+            const handle = await winAny.showSaveFilePicker({
+              suggestedName,
+              types: [{
+                description: 'PDF Document',
+                accept: { 'application/pdf': ['.pdf'] }
+              }]
+            })
+            const writable = await handle.createWritable()
+
+            const resp = await fetch(downloadUrl, { credentials: 'include' })
+            if (!resp.ok || !resp.body) throw new Error('Failed to fetch file for saving')
+
+            const reader = resp.body.getReader()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              await writable.write(value)
+            }
+            await writable.close()
+            await fetchMaterials()
+            toast({ title: 'Download saved', description: `Saved ${suggestedName}`, variant: 'default' })
+            return
+          } catch (e) {
+            console.warn('Save file picker failed, falling back to directory picker or normal download', e)
+            // fallthrough
+          }
+        }
+
+        // If saveFilePicker not available, try directory picker as before
+        const supportsDirectoryPicker = typeof winAny.showDirectoryPicker === 'function'
+        if (supportsDirectoryPicker) {
+          try {
+            const dirHandle = await winAny.showDirectoryPicker()
+            const filename = suggestedName
             const fileHandle = await dirHandle.getFileHandle(filename, { create: true })
             const writable = await fileHandle.createWritable()
 
