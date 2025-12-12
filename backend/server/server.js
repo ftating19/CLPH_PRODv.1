@@ -2892,12 +2892,11 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
 
       // Prevent caching/conditional GET so clients receive the actual file (avoid 304)
       try {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
-        res.setHeader('Last-Modified', new Date().toUTCString());
-        // Clear any ETag to avoid If-None-Match matching
-        res.setHeader('ETag', '');
+        // Always set a fresh ETag to force download
+        res.setHeader('ETag', Date.now().toString());
       } catch (hdrErr) {
         console.warn('Failed to set cache headers:', hdrErr.message);
       }
@@ -2907,7 +2906,6 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
         try {
           res.setHeader('Content-Type', 'application/pdf');
           res.setHeader('Content-Length', String(stats.size));
-          res.setHeader('Cache-Control', 'no-store');
           // set Content-Disposition as attachment to force download
           res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         } catch (hdrErr) {
