@@ -103,7 +103,8 @@ export function useStudyMaterials() {
 
   const downloadMaterial = async (materialId: number) => {
     try {
-      const response = await fetch(`https://api.cictpeerlearninghub.com/api/study-materials/${materialId}/download`)
+      // include credentials so cookie-based auth (if any) works when incrementing counts
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/study-materials/${materialId}/download`, { credentials: 'include' })
       const result = await response.json()
 
       if (result.success) {
