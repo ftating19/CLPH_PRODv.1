@@ -189,19 +189,22 @@ export function useStudyMaterials() {
         // If new tab wasn't opened, do a blob-based Save-As to avoid OneDrive/Chrome write issues.
         if (!opened) {
           try {
-            const fileResp = await fetch(downloadUrl, { credentials: 'include' })
-            if (!fileResp.ok) throw new Error('Failed to fetch file for saving')
-            const blob = await fileResp.blob()
-            const blobUrl = URL.createObjectURL(blob)
-            const link = document.createElement('a')
-            link.href = blobUrl
-            link.download = suggestedName
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
-            await fetchMaterials()
-            toast({ title: 'Saved', description: `Saved ${suggestedName}`, variant: 'default' })
+            // Automatically download the file and let it appear in the browser's download bar
+            const fileResp = await fetch(downloadUrl, { credentials: 'include' });
+            if (!fileResp.ok) throw new Error('Failed to fetch file for saving');
+            const blob = await fileResp.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = suggestedName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+
+            // Refresh materials to update download count
+            await fetchMaterials();
+            toast({ title: 'Saved', description: `Saved ${suggestedName}`, variant: 'default' });
           } catch (e) {
             console.warn('Blob download failed, falling back to iframe/anchor', e)
             try {
