@@ -259,10 +259,7 @@ const transferToStudyMaterials = async (pool, pendingMaterial) => {
     console.log('Full Pending Material:', pendingMaterial);
     console.log('==========================================');
 
-    // Create new file path for learning resources
-    const filename = path.basename(file_path);
-    const newFilePath = `/learning-resources/${filename}`;
-
+    // Use the same file_path as pending (do not move or rename the file)
     const [result] = await pool.query(`
       INSERT INTO studymaterials (
         title, 
@@ -281,7 +278,7 @@ const transferToStudyMaterials = async (pool, pendingMaterial) => {
     `, [
       title,
       description || null,
-      newFilePath,
+      file_path,
       uploaded_by,
       file_type || 'PDF',
       subject || 'General',
@@ -293,7 +290,7 @@ const transferToStudyMaterials = async (pool, pendingMaterial) => {
       material_id: result.insertId,
       title,
       description,
-      file_path: newFilePath,
+      file_path,
       uploaded_by,
       status: 'active',
       download_count: 0,
