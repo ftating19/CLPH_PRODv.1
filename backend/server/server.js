@@ -2903,7 +2903,20 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
       }
 
       if (downloadRequested) {
-        // Use res.download to ensure proper headers and streaming for downloads
+        // Explicitly set headers to ensure download behavior in browsers
+        try {
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Length', String(stats.size));
+          res.setHeader('Cache-Control', 'no-store');
+          // set Content-Disposition as attachment to force download
+          res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        } catch (hdrErr) {
+          console.warn('Failed to set download headers:', hdrErr.message);
+        }
+
+        console.log('Response headers before res.download:', res.getHeaders());
+
+        // Use res.download to ensure proper streaming for downloads
         res.download(filePath, filename, (err) => {
           if (err) {
             console.error('Error during res.download:', err);
