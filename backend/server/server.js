@@ -2962,20 +2962,45 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
           console.warn('Failed to set download headers:', hdrErr.message);
         }
 
-        console.log('Response headers before res.download:', res.getHeaders());
+        console.log('Response headers before streaming:', res.getHeaders());
 
-        // Use res.download to ensure proper streaming for downloads
-        res.download(filePath, filename, (err) => {
-          if (err) {
-            console.error('Error during res.download:', err);
-            if (!res.headersSent) {
-              return res.status(500).json({ success: false, error: 'Failed to download file' });
-            } else {
-              return;
+        // Stream the file manually to avoid issues with res.download in some environments
+        // and to provide clearer logging for debugging.
+        try {
+          const readStream = fs.createReadStream(filePath);
+
+          readStream.on('open', () => {
+            console.log(`Starting stream for ${filename}`);
+          });
+
+          readStream.on('error', (streamErr) => {
+            console.error('Error reading file stream:', streamErr);
+            try {
+              if (!res.headersSent) {
+                res.status(500).json({ success: false, error: 'Failed to stream file' });
+              } else {
+                res.end();
+              }
+            } catch (e) {
+              console.error('Failed to send error response after stream error:', e);
             }
-          }
-          console.log(`Download initiated for ${filename}`);
-        });
+          });
+
+          res.on('finish', () => {
+            console.log(`Stream finished for ${filename}`);
+          });
+
+          res.on('close', () => {
+            console.log(`Client closed connection for ${filename}`);
+            try { readStream.destroy(); } catch (e) {}
+          });
+
+          // Pipe the file stream to the response
+          readStream.pipe(res);
+        } catch (pipeErr) {
+          console.error('Error piping file to response:', pipeErr);
+          if (!res.headersSent) return res.status(500).json({ success: false, error: 'Failed to download file' });
+        }
       } else {
         // Preview in-browser
         try {
