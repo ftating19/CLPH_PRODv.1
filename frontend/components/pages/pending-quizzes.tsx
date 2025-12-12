@@ -647,10 +647,56 @@ export default function PendingQuizzes() {
                     
                     {!question.choices && (
                       <div>
-                        <Label className="text-sm font-semibold">Correct Answer:</Label>
-                        <p className="text-sm mt-1 p-3 rounded-md bg-green-50 border border-green-500 dark:bg-green-950/30">
-                          {question.answer}
-                        </p>
+                        {question.question_type === 'enumeration' ? (
+                          <>
+                            <Label className="text-sm font-semibold">Accepted Answers:</Label>
+                            <div className="mt-2 space-y-2">
+                              {(() => {
+                                try {
+                                  let answers: string[] = []
+                                  if (Array.isArray(question.answer)) {
+                                    answers = question.answer
+                                  } else if (typeof question.answer === 'string') {
+                                    // Try parse JSON array first, fallback to comma-split
+                                    try {
+                                      const parsed = JSON.parse(question.answer)
+                                      if (Array.isArray(parsed)) {
+                                        answers = parsed
+                                      } else {
+                                        answers = String(question.answer).split(',').map((s: string) => s.trim()).filter(Boolean)
+                                      }
+                                    } catch (e) {
+                                      answers = String(question.answer).split(',').map((s: string) => s.trim()).filter(Boolean)
+                                    }
+                                  } else {
+                                    answers = [String(question.answer || '')]
+                                  }
+
+                                  if (answers.length === 0) {
+                                    return <p className="text-sm text-muted-foreground">No accepted answers specified.</p>
+                                  }
+
+                                  return answers.map((ans: string, idx: number) => (
+                                    <div key={idx} className="p-3 rounded-md border bg-muted/50">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-sm">{ans}</span>
+                                      </div>
+                                    </div>
+                                  ))
+                                } catch (e) {
+                                  return <p className="text-sm text-destructive">Error parsing enumeration answers</p>
+                                }
+                              })()}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Label className="text-sm font-semibold">Correct Answer:</Label>
+                            <p className="text-sm mt-1 p-3 rounded-md bg-green-50 border border-green-500 dark:bg-green-950/30">
+                              {question.answer}
+                            </p>
+                          </>
+                        )}
                       </div>
                     )}
                   </CardContent>
