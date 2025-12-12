@@ -2920,12 +2920,8 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
       return res.status(404).json({ success: false, error: 'File not found' });
     }
 
-    // Increment view count
-    try {
-      await incrementViewCount(pool, materialId);
-    } catch (incErr) {
-      console.warn('Failed to increment view count:', incErr.message);
-    }
+    // Note: Do not increment view count here unconditionally. View vs download
+    // behavior is determined below after checking the `download` query param.
 
     // Stream the file. If download query param is present, set attachment header.
     try {
@@ -2933,6 +2929,15 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
       console.log(`Serving file at path: ${filePath} (${stats.size} bytes)`);
 
       const downloadRequested = String(req.query.download || '').toLowerCase() === '1';
+
+      // Only increment view count for preview requests (no download query).
+      if (!downloadRequested) {
+        try {
+          await incrementViewCount(pool, materialId);
+        } catch (incErr) {
+          console.warn('Failed to increment view count:', incErr.message);
+        }
+      }
       const filename = path.basename(filePath);
 
       // Prevent caching/conditional GET so clients receive the actual file (avoid 304)
