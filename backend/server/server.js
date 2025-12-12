@@ -1,3 +1,10 @@
+
+const express = require('express')
+const cors = require('cors')
+const path = require('path')
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
+
+// ...imports only, no app initialization or routes here...
 // === RECOMMENDATIONS ENDPOINT ===
 const { getRecommendedTutors } = require('../queries/recommendations');
 
@@ -16,12 +23,6 @@ app.get('/api/recommendations/tutors/:userId', async (req, res) => {
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
-const express = require('express')
-const cors = require('cors')
-const path = require('path')
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
-
-// ...imports only, no app initialization or routes here...
 
 const db = require('../dbconnection/mysql')
 const { createUser, findUserByEmail, updateUser, findUserById } = require('../queries/users')
