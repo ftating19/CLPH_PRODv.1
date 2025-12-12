@@ -306,6 +306,19 @@ try {
   console.warn('Could not create or serve pending-resources directory:', e.message);
 }
 
+
+// Configure learning-resources directory and public exposure (used for approved study materials)
+const learningResourcesDir = process.env.LEARNING_RESOURCES_DIR || path.join(__dirname, '../../frontend/public/learning-resources');
+const learningResourcesPublicUrl = process.env.LEARNING_RESOURCES_URL || null; // optional absolute URL
+try {
+  if (!fs.existsSync(learningResourcesDir)) {
+    fs.mkdirSync(learningResourcesDir, { recursive: true });
+  }
+  app.use('/learning-resources', express.static(learningResourcesDir));
+} catch (e) {
+  console.warn('Could not create or serve learning-resources directory:', e.message);
+}
+
 // Configure class-cards directory and public exposure (used for tutor class card uploads)
 const classCardsDir = process.env.CLASS_CARDS_DIR || path.join(__dirname, '../../frontend/public/class-cards');
 const classCardsPublicUrl = process.env.CLASS_CARDS_PUBLIC_URL || null; // optional absolute URL

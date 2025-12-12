@@ -12,6 +12,8 @@ services:
     volumes:
       # mount same host folder into frontend at /app/public/pending-resources
       - /var/www/frontend/public/pending-resources:/app/public/pending-resources:rw
+      # mount learning-resources for approved study materials
+      - /var/www/frontend/public/learning-resources:/app/public/learning-resources:rw
     restart: unless-stopped
 
   backend:
@@ -26,10 +28,14 @@ services:
       - ENABLE_DEBUG_ENDPOINTS=true
       - PENDING_RESOURCES_DIR=/var/www/frontend/public/pending-resources
       - PENDING_RESOURCES_URL=https://cictpeerlearninghub.com/pending-resources
+      - LEARNING_RESOURCES_DIR=/var/www/frontend/public/learning-resources
+      - LEARNING_RESOURCES_URL=https://cictpeerlearninghub.com/learning-resources
       - FRONTEND_URL=http://localhost:3000
     volumes:
       # mount same host folder into backend at the path the backend expects
       - /var/www/frontend/public/pending-resources:/var/www/frontend/public/pending-resources:rw
+      # mount learning-resources for approved study materials
+      - /var/www/frontend/public/learning-resources:/var/www/frontend/public/learning-resources:rw
     depends_on:
       - frontend
     restart: unless-stopped
