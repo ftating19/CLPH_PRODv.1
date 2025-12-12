@@ -455,10 +455,11 @@ export default function TutorMatching() {
     
     // derive numeric rating
     const ratingValue = typeof tutor.ratings === 'string' ? parseFloat(tutor.ratings) : tutor.ratings || 0;
+    const isFiveStar = ratingValue === 5;
 
-    // Highlight green if backend recommended
+    // Highlight green if backend recommended or 5-star
     return (
-      <Card className={`hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 ${isBackendRecommended ? 'ring-2 ring-green-400 border-green-300' : ''}`}>
+      <Card className={`hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-200 ${isBackendRecommended || isFiveStar ? 'ring-2 ring-green-400 border-green-300' : ''}`}>
         <CardHeader className="pb-4">
           <div className="flex items-start space-x-4">
             <Avatar className="w-16 h-16">
@@ -472,12 +473,12 @@ export default function TutorMatching() {
                   <CardTitle className="text-lg sm:text-xl break-words">{tutor.name || 'Name not provided'}</CardTitle>
                 </div>
                 <div className="flex gap-1 sm:gap-2 flex-wrap flex-shrink-0">
-                  {isBackendRecommended && (
+                  {(isBackendRecommended || isFiveStar) && (
                     <Badge variant="default" className="bg-green-600 hover:bg-green-700">
                       Recommended
                     </Badge>
                   )}
-                  {!isBackendRecommended && isSubjectRecommended && (
+                  {!isBackendRecommended && !isFiveStar && isSubjectRecommended && (
                     <Badge variant="outline" className="bg-amber-100 border-amber-300 text-amber-800">
                       Suggested
                     </Badge>
@@ -497,13 +498,16 @@ export default function TutorMatching() {
               </div>
               {/* Tutor Rating Display - Compact */}
               <div
-                className="flex items-center text-xs font-medium group relative"
+                className={`flex items-center text-xs font-medium group relative ${isFiveStar ? 'text-green-700 font-bold' : ''}`}
                 title={tutor.ratings ? `Rated ${tutor.ratings} out of 5` : 'No ratings yet'}
               >
                 <span className="mr-1">⭐</span>
                 <span className="text-xs font-medium">
                   {tutor.ratings ? parseFloat(tutor.ratings.toString()).toFixed(1) : 'No ratings'}
                 </span>
+                {isFiveStar && (
+                  <span className="ml-2 px-2 py-0.5 rounded bg-green-100 text-green-800 text-[10px] font-semibold uppercase">5 Star</span>
+                )}
               </div>
             </div>
           </div>
