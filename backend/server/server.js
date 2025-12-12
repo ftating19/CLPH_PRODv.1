@@ -2801,6 +2801,7 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
   try {
     const materialId = req.params.id;
     console.log(`Serving study material file ${materialId}`);
+    console.log('Serve request headers:', Object.keys(req.headers).reduce((acc, k) => ({ ...acc, [k]: req.headers[k] }), {}));
 
     const pool = await db.getPool();
     const material = await getStudyMaterialById(pool, materialId);
