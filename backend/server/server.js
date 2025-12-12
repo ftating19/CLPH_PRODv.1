@@ -2860,12 +2860,23 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
       const downloadRequested = String(req.query.download || '').toLowerCase() === '1';
       const filename = path.basename(filePath);
 
+      // Prevent caching/conditional GET so clients receive the actual file (avoid 304)
+      try {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Last-Modified', new Date().toUTCString());
+        // Clear any ETag to avoid If-None-Match matching
+        res.setHeader('ETag', '');
+      } catch (hdrErr) {
+        console.warn('Failed to set cache headers:', hdrErr.message);
+      }
+
       if (downloadRequested) {
         // Use res.download to ensure proper headers and streaming for downloads
         res.download(filePath, filename, (err) => {
           if (err) {
             console.error('Error during res.download:', err);
-            // If headers already sent, cannot send JSON error; just end.
             if (!res.headersSent) {
               return res.status(500).json({ success: false, error: 'Failed to download file' });
             } else {
@@ -2876,8 +2887,10 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
         });
       } else {
         // Preview in-browser
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Length', String(stats.size));
+        try {
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Length', String(stats.size));
+        } catch (e) {}
         res.sendFile(filePath, (err) => {
           if (err) console.error('Error sending file for preview:', err);
         });
