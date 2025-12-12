@@ -62,7 +62,6 @@ export default function LearningResources() {
     error: materialsError,
     uploadMaterial,
     downloadMaterial,
-    saveMaterialToDownloads,
     previewMaterial,
     searchMaterials,
     refreshMaterials
@@ -590,7 +589,7 @@ export default function LearningResources() {
                     <Button 
                       size="sm" 
                       className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      onClick={() => saveMaterialToDownloads(material.material_id)}
+                      onClick={() => downloadMaterial(material.material_id)}
                     >
                       <Download className="w-4 h-4 mr-2" />
                       Download
@@ -696,7 +695,8 @@ export default function LearningResources() {
                           .map((subject) => (
                             <CommandItem
                               key={subject.subject_id}
-                              value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()}
+                              value={`${subject.subject_code || ''} ${subject.subject_name}`.trim()
+                              }
                               onSelect={() => {
                                 setUploadForm(prev => ({ ...prev, subject: subject.subject_name }))
                                 setFormSubjectComboboxOpen(false)
