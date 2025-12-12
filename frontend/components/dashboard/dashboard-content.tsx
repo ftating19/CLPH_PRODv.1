@@ -275,8 +275,13 @@ export default function DashboardContent({ currentUser }: { currentUser: any }) 
 
   // Fetch all quizzes (include pending by current user)
   const { quizzes: allQuizzes, loading: quizzesLoading } = useQuizzesWithPending(currentUser?.user_id ?? null)
-  // Only show quizzes explicitly marked as public
-  const publicQuizzes = (allQuizzes || []).filter((q: any) => String(q.quiz_view || '').toLowerCase() === 'public')
+  // Only show quizzes explicitly marked as public and not pending
+  const publicQuizzes = (allQuizzes || []).filter((q: any) => {
+    const view = String(q.quiz_view || '').toLowerCase()
+    const status = String(q.status || '').toLowerCase()
+    const isPending = q.is_pending === true || status === 'pending'
+    return view === 'public' && !isPending
+  })
 
   // Fetch top quiz performers for dashboard global view
   useEffect(() => {
