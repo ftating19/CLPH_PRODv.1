@@ -2738,13 +2738,14 @@ app.get('/api/study-materials/:id/download', async (req, res) => {
     // Increment download count
     await incrementDownloadCount(pool, materialId);
 
-    // Build absolute URL for download and return for frontend
-    const baseUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-    const fileUrl = material.file_path && (material.file_path.startsWith('http') ? material.file_path : `${baseUrl}${material.file_path}`);
+    // Return the serve endpoint URL (same-origin) so frontend can open/anchor it.
+    // This avoids relying on FRONTEND_URL and ensures the file is served by the API.
+    const apiBase = `${req.protocol}://${req.get('host')}`;
+    const serveUrl = `${apiBase}/api/study-materials/${materialId}/serve?download=1`;
 
     res.json({
       success: true,
-      file_path: fileUrl,
+      file_path: serveUrl,
       title: material.title
     });
   } catch (err) {
@@ -2851,8 +2852,16 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
       console.warn('Failed to increment view count:', incErr.message);
     }
 
-    // Stream the file
+    // Stream the file. If download query param is present, set attachment header.
     res.setHeader('Content-Type', 'application/pdf');
+    if (String(req.query.download || '').toLowerCase() === '1') {
+      try {
+        const filename = path.basename(filePath);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      } catch (e) {
+        // ignore header errors
+      }
+    }
     res.sendFile(filePath);
   } catch (err) {
     console.error('Error serving study material file:', err);
