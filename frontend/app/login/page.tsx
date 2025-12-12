@@ -324,7 +324,7 @@ export default function LoginPage() {
                   <Image
                     src="/logos/logo.png"
                     alt="CICT Peer Learning Hub Logo"
-                    width={120}
+                    width={200}
                     height={100}
                     priority
                   />
