@@ -8256,7 +8256,7 @@ app.post('/api/sessions', async (req, res) => {
   try {
     console.log('Received request payload:', req.body);
 
-    const { tutor_id, student_id, preferred_dates, preferred_time } = req.body;
+    const { tutor_id, student_id, preferred_dates, preferred_time, subject_id, subject_name } = req.body;
 
     if (!tutor_id || !student_id || !preferred_dates || !Array.isArray(preferred_dates) || preferred_dates.length !== 2 || !preferred_time) {
       console.error('Validation failed for request payload:', req.body);
@@ -8275,10 +8275,10 @@ app.post('/api/sessions', async (req, res) => {
     const student_name = student ? student.name : 'Unknown Student';
 
     console.log('Creating session with details:', {
-      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time
+      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, subject_id, subject_name
     });
 
-    const booking_id = await createSession({ tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, booked_by: 'student' });
+    const booking_id = await createSession({ tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, subject_id, subject_name, booked_by: 'student' });
     console.log('Session created successfully with booking_id:', booking_id);
 
     res.status(201).json({ success: true, booking_id });
@@ -8291,7 +8291,7 @@ app.post('/api/sessions', async (req, res) => {
 // API endpoint: Tutor books a student (reverse booking)
 app.post('/api/sessions/tutor-booking', async (req, res) => {
   try {
-    const { student_id, tutor_id, preferred_dates, preferred_time } = req.body;
+    const { student_id, tutor_id, preferred_dates, preferred_time, subject_id, subject_name } = req.body;
 
     console.log('Tutor booking request:', { student_id, tutor_id, preferred_dates, preferred_time });
 
@@ -8312,7 +8312,7 @@ app.post('/api/sessions/tutor-booking', async (req, res) => {
     const student_name = student ? student.name : 'Unknown Student';
 
     console.log('Creating tutor-initiated session with details:', {
-      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time
+      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, subject_id, subject_name
     });
 
     const booking_id = await createSession({ 
@@ -8323,6 +8323,8 @@ app.post('/api/sessions/tutor-booking', async (req, res) => {
       start_date, 
       end_date, 
       preferred_time, 
+      subject_id,
+      subject_name,
       booked_by: 'tutor',
       status: 'pending_student_approval'  // Special status for tutor-initiated bookings
     });
