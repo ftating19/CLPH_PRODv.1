@@ -8461,7 +8461,6 @@ app.get('/api/sessions', async (req, res) => {
         LEFT JOIN tutors t ON b.tutor_id = t.user_id
         LEFT JOIN subjects s ON t.subject_id = s.subject_id
         WHERE b.student_id = ? OR b.tutor_id = ?
-        GROUP BY b.booking_id
       `;
       const [result] = await pool.query(query, [user_id, user_id]);
       sessions = result;
@@ -8481,7 +8480,6 @@ app.get('/api/sessions', async (req, res) => {
         FROM bookings b
         LEFT JOIN tutors t ON b.tutor_id = t.user_id
         LEFT JOIN subjects s ON t.subject_id = s.subject_id
-        GROUP BY b.booking_id
       `;
       const [result] = await pool.query(query);
       let allSessions = result;
