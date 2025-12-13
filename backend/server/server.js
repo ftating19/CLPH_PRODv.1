@@ -8552,12 +8552,27 @@ app.put('/api/sessions/:booking_id/rating', async (req, res) => {
     }
     const tutor_id = booking.tutor_id;
 
-    // Calculate average rating for this tutor from all completed bookings with a rating (regardless of subject)
-    const [[avgResult]] = await pool.query('SELECT AVG(rating) AS avg_rating FROM bookings WHERE tutor_id = ? AND rating IS NOT NULL AND status = "Completed"', [tutor_id]);
-    const avg_rating = avgResult.avg_rating ? parseFloat(avgResult.avg_rating).toFixed(2) : null;
+    // Calculate average rating for this tutor from all bookings that have a rating
+    // (don't require status = "Completed" so newly-submitted ratings are counted)
+    const [[avgResult]] = await pool.query(
+      'SELECT AVG(rating) AS avg_rating FROM bookings WHERE tutor_id = ? AND rating IS NOT NULL',
+      [tutor_id]
+    );
 
-    // Always update tutor's ratings column, regardless of subject/pre-test
-    const [tutorUpdateResult] = await pool.query('UPDATE tutors SET ratings = ? WHERE user_id = ?', [avg_rating, tutor_id]);
+    // If there are no ratings yet, fall back to the newly-submitted rating
+    const avg_rating = (avgResult && avgResult.avg_rating !== null)
+      ? parseFloat(avgResult.avg_rating).toFixed(2)
+      : (typeof rating === 'number' ? parseFloat(rating).toFixed(2) : null);
+
+    // Update tutor's ratings column if we have a value (avoid overwriting with null)
+    if (avg_rating !== null) {
+      const [tutorUpdateResult] = await pool.query('UPDATE tutors SET ratings = ? WHERE user_id = ?', [avg_rating, tutor_id]);
+      if (tutorUpdateResult.affectedRows === 0) {
+        console.warn(`Warning: No tutor row updated for user_id ${tutor_id}. Check if tutor exists in tutors table.`);
+      }
+    } else {
+      console.warn(`Warning: Computed avg_rating is null for tutor ${tutor_id}; skipping tutors update.`);
+    }
     if (tutorUpdateResult.affectedRows === 0) {
       console.warn(`Warning: No tutor row updated for user_id ${tutor_id}. Check if tutor exists in tutors table.`);
     }
