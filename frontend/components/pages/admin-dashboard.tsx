@@ -131,7 +131,7 @@ export default function AdminDashboard() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Admin Dashboard V1</h1>
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <p className="text-muted-foreground">Platform monitoring and management</p>
       </div>
       {/* System Overview */}
