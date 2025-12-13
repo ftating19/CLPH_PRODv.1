@@ -270,7 +270,30 @@ const multer = require('multer')
 const fs = require('fs')
 
 const app = express()
-app.use(cors())
+
+// When running behind a reverse proxy (Coolify, nginx, etc.) enable trust proxy
+// so `req.protocol` reflects the original client protocol (e.g. https).
+app.set('trust proxy', true);
+
+// Configure CORS to support credentialed requests from the frontend.
+// When credentials are included, Access-Control-Allow-Origin must NOT be '*',
+// so prefer a configured `FRONTEND_URL` or reflect the request origin.
+const allowedFrontend = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : null;
+const corsOptions = {
+  credentials: true,
+  origin: (origin, callback) => {
+    // Allow non-browser requests (e.g. curl/postman) with no origin
+    if (!origin) return callback(null, true);
+    // If a FRONTEND_URL is configured, only allow that exact origin
+    if (allowedFrontend) {
+      if (origin === allowedFrontend) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    }
+    // No configured frontend; reflect the request origin so header is not '*'
+    return callback(null, origin);
+  }
+};
+app.use(cors(corsOptions))
 app.use(express.json({ limit: '250mb' })) // Increased limit for file uploads
 // Also accept URL-encoded form data (helps some clients/tools)
 app.use(express.urlencoded({ extended: true, limit: '250mb' }))
@@ -2901,12 +2924,8 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
       return res.status(404).json({ success: false, error: 'File not found' });
     }
 
-    // Increment view count
-    try {
-      await incrementViewCount(pool, materialId);
-    } catch (incErr) {
-      console.warn('Failed to increment view count:', incErr.message);
-    }
+    // Note: Do not increment view count here unconditionally. View vs download
+    // behavior is determined below after checking the `download` query param.
 
     // Stream the file. If download query param is present, set attachment header.
     try {
@@ -2914,6 +2933,15 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
       console.log(`Serving file at path: ${filePath} (${stats.size} bytes)`);
 
       const downloadRequested = String(req.query.download || '').toLowerCase() === '1';
+
+      // Only increment view count for preview requests (no download query).
+      if (!downloadRequested) {
+        try {
+          await incrementViewCount(pool, materialId);
+        } catch (incErr) {
+          console.warn('Failed to increment view count:', incErr.message);
+        }
+      }
       const filename = path.basename(filePath);
 
       // Prevent caching/conditional GET so clients receive the actual file (avoid 304)
@@ -2923,6 +2951,17 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
         res.setHeader('Expires', '0');
         // Always set a fresh ETag to force download
         res.setHeader('ETag', Date.now().toString());
+        // Ensure CORS headers are present for credentialed requests. When
+        // credentials are used the Access-Control-Allow-Origin must be the
+        // requesting origin (not '*'). Prefer the request Origin header,
+        // otherwise fall back to configured FRONTEND_URL.
+        const reqOrigin = req.get('origin') || process.env.FRONTEND_URL || null;
+        if (reqOrigin) {
+          res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+          res.setHeader('Access-Control-Allow-Credentials', 'true');
+          // Ensure Vary includes Origin so caches behave correctly
+          res.setHeader('Vary', 'Origin');
+        }
       } catch (hdrErr) {
         console.warn('Failed to set cache headers:', hdrErr.message);
       }
@@ -2938,20 +2977,45 @@ app.get('/api/study-materials/:id/serve', async (req, res) => {
           console.warn('Failed to set download headers:', hdrErr.message);
         }
 
-        console.log('Response headers before res.download:', res.getHeaders());
+        console.log('Response headers before streaming:', res.getHeaders());
 
-        // Use res.download to ensure proper streaming for downloads
-        res.download(filePath, filename, (err) => {
-          if (err) {
-            console.error('Error during res.download:', err);
-            if (!res.headersSent) {
-              return res.status(500).json({ success: false, error: 'Failed to download file' });
-            } else {
-              return;
+        // Stream the file manually to avoid issues with res.download in some environments
+        // and to provide clearer logging for debugging.
+        try {
+          const readStream = fs.createReadStream(filePath);
+
+          readStream.on('open', () => {
+            console.log(`Starting stream for ${filename}`);
+          });
+
+          readStream.on('error', (streamErr) => {
+            console.error('Error reading file stream:', streamErr);
+            try {
+              if (!res.headersSent) {
+                res.status(500).json({ success: false, error: 'Failed to stream file' });
+              } else {
+                res.end();
+              }
+            } catch (e) {
+              console.error('Failed to send error response after stream error:', e);
             }
-          }
-          console.log(`Download initiated for ${filename}`);
-        });
+          });
+
+          res.on('finish', () => {
+            console.log(`Stream finished for ${filename}`);
+          });
+
+          res.on('close', () => {
+            console.log(`Client closed connection for ${filename}`);
+            try { readStream.destroy(); } catch (e) {}
+          });
+
+          // Pipe the file stream to the response
+          readStream.pipe(res);
+        } catch (pipeErr) {
+          console.error('Error piping file to response:', pipeErr);
+          if (!res.headersSent) return res.status(500).json({ success: false, error: 'Failed to download file' });
+        }
       } else {
         // Preview in-browser
         try {
@@ -8192,7 +8256,7 @@ app.post('/api/sessions', async (req, res) => {
   try {
     console.log('Received request payload:', req.body);
 
-    const { tutor_id, student_id, preferred_dates, preferred_time } = req.body;
+    const { tutor_id, student_id, preferred_dates, preferred_time, subject_id, subject_name } = req.body;
 
     if (!tutor_id || !student_id || !preferred_dates || !Array.isArray(preferred_dates) || preferred_dates.length !== 2 || !preferred_time) {
       console.error('Validation failed for request payload:', req.body);
@@ -8211,10 +8275,10 @@ app.post('/api/sessions', async (req, res) => {
     const student_name = student ? student.name : 'Unknown Student';
 
     console.log('Creating session with details:', {
-      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time
+      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, subject_id, subject_name
     });
 
-    const booking_id = await createSession({ tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, booked_by: 'student' });
+    const booking_id = await createSession({ tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, subject_id, subject_name, booked_by: 'student' });
     console.log('Session created successfully with booking_id:', booking_id);
 
     res.status(201).json({ success: true, booking_id });
@@ -8227,7 +8291,7 @@ app.post('/api/sessions', async (req, res) => {
 // API endpoint: Tutor books a student (reverse booking)
 app.post('/api/sessions/tutor-booking', async (req, res) => {
   try {
-    const { student_id, tutor_id, preferred_dates, preferred_time } = req.body;
+    const { student_id, tutor_id, preferred_dates, preferred_time, subject_id, subject_name } = req.body;
 
     console.log('Tutor booking request:', { student_id, tutor_id, preferred_dates, preferred_time });
 
@@ -8248,7 +8312,7 @@ app.post('/api/sessions/tutor-booking', async (req, res) => {
     const student_name = student ? student.name : 'Unknown Student';
 
     console.log('Creating tutor-initiated session with details:', {
-      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time
+      tutor_id, tutor_name, student_id, student_name, start_date, end_date, preferred_time, subject_id, subject_name
     });
 
     const booking_id = await createSession({ 
@@ -8259,6 +8323,8 @@ app.post('/api/sessions/tutor-booking', async (req, res) => {
       start_date, 
       end_date, 
       preferred_time, 
+      subject_id,
+      subject_name,
       booked_by: 'tutor',
       status: 'pending_student_approval'  // Special status for tutor-initiated bookings
     });
@@ -8366,16 +8432,10 @@ app.get('/api/sessions', async (req, res) => {
     let sessions = [];
     
     if (tutor_id) {
-      // Show sessions for specific tutor only (for availability checking)
+      // Show sessions for specific tutor only (return only bookings table columns)
       const query = `
-        SELECT 
-          b.*,
-          t.subject_id,
-          s.subject_name,
-          s.subject_code
+        SELECT b.*
         FROM bookings b
-        LEFT JOIN tutors t ON b.tutor_id = t.user_id
-        LEFT JOIN subjects s ON t.subject_id = s.subject_id
         WHERE b.tutor_id = ?
       `;
       const [result] = await pool.query(query, [tutor_id]);
@@ -8386,16 +8446,10 @@ app.get('/api/sessions', async (req, res) => {
         console.log(`Found ${sessions.length} sessions for tutor_id: ${tutor_id}`);
       }
     } else if (user_id) {
-      // Only show sessions for this user (student or tutor) with subject information from tutors table
+      // Only show sessions for this user (student or tutor) - return only bookings table columns
       const query = `
-        SELECT 
-          b.*,
-          t.subject_id,
-          s.subject_name,
-          s.subject_code
+        SELECT b.*
         FROM bookings b
-        LEFT JOIN tutors t ON b.tutor_id = t.user_id
-        LEFT JOIN subjects s ON t.subject_id = s.subject_id
         WHERE b.student_id = ? OR b.tutor_id = ?
       `;
       const [result] = await pool.query(query, [user_id, user_id]);
@@ -8408,14 +8462,8 @@ app.get('/api/sessions', async (req, res) => {
     } else {
       // No user_id: show all sessions (admin/faculty) with subject information from tutors table
       const query = `
-        SELECT 
-          b.*,
-          t.subject_id,
-          s.subject_name,
-          s.subject_code
+        SELECT b.*
         FROM bookings b
-        LEFT JOIN tutors t ON b.tutor_id = t.user_id
-        LEFT JOIN subjects s ON t.subject_id = s.subject_id
       `;
       const [result] = await pool.query(query);
       let allSessions = result;
@@ -8447,6 +8495,7 @@ app.get('/api/sessions', async (req, res) => {
         });
         
         // Filter sessions to only show those for subjects assigned to this faculty
+        // (bookings table is expected to have a subject_id column)
         sessions = allSessions.filter(session => 
           session.subject_id && facultySubjects.includes(session.subject_id)
         );
@@ -8488,12 +8537,27 @@ app.put('/api/sessions/:booking_id/rating', async (req, res) => {
     }
     const tutor_id = booking.tutor_id;
 
-    // Calculate average rating for this tutor from all completed bookings with a rating (regardless of subject)
-    const [[avgResult]] = await pool.query('SELECT AVG(rating) AS avg_rating FROM bookings WHERE tutor_id = ? AND rating IS NOT NULL AND status = "Completed"', [tutor_id]);
-    const avg_rating = avgResult.avg_rating ? parseFloat(avgResult.avg_rating).toFixed(2) : null;
+    // Calculate average rating for this tutor from all bookings that have a rating
+    // (don't require status = "Completed" so newly-submitted ratings are counted)
+    const [[avgResult]] = await pool.query(
+      'SELECT AVG(rating) AS avg_rating FROM bookings WHERE tutor_id = ? AND rating IS NOT NULL',
+      [tutor_id]
+    );
 
-    // Always update tutor's ratings column, regardless of subject/pre-test
-    const [tutorUpdateResult] = await pool.query('UPDATE tutors SET ratings = ? WHERE user_id = ?', [avg_rating, tutor_id]);
+    // If there are no ratings yet, fall back to the newly-submitted rating
+    const avg_rating = (avgResult && avgResult.avg_rating !== null)
+      ? parseFloat(avgResult.avg_rating).toFixed(2)
+      : (typeof rating === 'number' ? parseFloat(rating).toFixed(2) : null);
+
+    // Update tutor's ratings column if we have a value (avoid overwriting with null)
+    if (avg_rating !== null) {
+      const [tutorUpdateResult] = await pool.query('UPDATE tutors SET ratings = ? WHERE user_id = ?', [avg_rating, tutor_id]);
+      if (tutorUpdateResult.affectedRows === 0) {
+        console.warn(`Warning: No tutor row updated for user_id ${tutor_id}. Check if tutor exists in tutors table.`);
+      }
+    } else {
+      console.warn(`Warning: Computed avg_rating is null for tutor ${tutor_id}; skipping tutors update.`);
+    }
     if (tutorUpdateResult.affectedRows === 0) {
       console.warn(`Warning: No tutor row updated for user_id ${tutor_id}. Check if tutor exists in tutors table.`);
     }

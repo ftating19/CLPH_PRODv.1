@@ -365,6 +365,16 @@ export default function PreAssessmentTestModal({ open, onOpenChange, currentUser
           title: "Test Completed & Saved",
           description: `You scored ${totalScore} out of ${totalPoints} points (${correctAnswers}/${questions.length} correct). Results have been saved.`,
         })
+        // Clear any "skip" preference and notify other components that a pre-assessment was completed
+        try {
+          if (currentUser) {
+            localStorage.removeItem(`preAssessmentSkipped_${currentUser.user_id}`)
+            localStorage.removeItem(`preAssessmentSkippedDate_${currentUser.user_id}`)
+            window.dispatchEvent(new CustomEvent('preAssessmentCompleted', { detail: { userId: currentUser.user_id } }))
+          }
+        } catch (e) {
+          console.warn('Could not dispatch preAssessmentCompleted event:', e)
+        }
       } catch (error) {
         console.error('Error submitting test results:', error)
         

@@ -327,6 +327,36 @@ export default function TutorMatching() {
       window.removeEventListener('preAssessmentSkipped', handleSkipEvent as EventListener)
     }
   }, [currentUser?.user_id])
+
+  // Listen for pre-assessment completion events and refresh data
+  useEffect(() => {
+    const handleCompleted = (event: CustomEvent) => {
+      if (event.detail.userId === currentUser?.user_id) {
+        setHasSkippedPreAssessment(false)
+        // Refresh pre-assessment results
+        fetchPreAssessmentResults();
+
+        // Also refresh backend recommendation list
+        (async () => {
+          if (!currentUser?.user_id) return
+          try {
+            const res = await fetch(`/api/recommendations/tutors/${currentUser.user_id}`)
+            const data = await res.json()
+            if (data.success && Array.isArray(data.tutors)) {
+              setRecommendedTutors(data.tutors.map((t: any) => t.user_id))
+            } else {
+              setRecommendedTutors([])
+            }
+          } catch (e) {
+            setRecommendedTutors([])
+          }
+        })()
+      }
+    }
+
+    window.addEventListener('preAssessmentCompleted', handleCompleted as EventListener)
+    return () => window.removeEventListener('preAssessmentCompleted', handleCompleted as EventListener)
+  }, [currentUser?.user_id])
   
   // Reset pagination when filters change
   useEffect(() => {
@@ -993,7 +1023,7 @@ export default function TutorMatching() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={fetchPreAssessmentResults}
+                  onClick={() => fetchPreAssessmentResults()}
                   className="text-blue-600 hover:text-blue-700"
                   disabled={loadingResults}
                 >

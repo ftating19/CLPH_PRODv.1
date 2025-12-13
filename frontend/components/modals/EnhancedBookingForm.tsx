@@ -405,7 +405,9 @@ export default function EnhancedBookingForm({ tutor, currentUser, onClose }: Enh
             tutor_id: tutor.user_id,
             student_id: currentUser.user_id,
             preferred_dates: [bookingDate, bookingDate], // Same day booking
-            preferred_time: `${startTime} - ${endTime}`
+            preferred_time: `${startTime} - ${endTime}`,
+            subject_id: tutor?.subject_id,
+            subject_name: tutor?.subject_name
           })
         })
 

@@ -103,7 +103,8 @@ export function useStudyMaterials() {
 
   const downloadMaterial = async (materialId: number) => {
     try {
-      const response = await fetch(`https://api.cictpeerlearninghub.com/api/study-materials/${materialId}/download`)
+      // include credentials so cookie-based auth (if any) works when incrementing counts
+      const response = await fetch(`https://api.cictpeerlearninghub.com/api/study-materials/${materialId}/download`, { credentials: 'include' })
       const result = await response.json()
 
       if (result.success) {
@@ -112,21 +113,13 @@ export function useStudyMaterials() {
         // Prefer the API serve endpoint which sets Content-Disposition to force download.
         const downloadUrl = result.serve_path || result.file_path
 
-        // First try opening in a new tab.
-        let opened = false
+        // Prefer fetching the file as a blob (with credentials) so we can reliably
+        // trigger a Save-As and handle errors. Fallback to opening in a new tab
+        // (or iframe/anchor) when fetch is blocked or fails.
+        let downloaded = false
         try {
-          const w = window.open(downloadUrl, '_blank')
-          if (w) opened = true
-        } catch (e) {
-          opened = false
-        }
-
-        // If new tab wasn't opened, do a blob-based Save-As to avoid OneDrive/Chrome write issues.
-        if (!opened) {
-          try {
-            // Automatically download the file and let it appear in the browser's download bar
-            const fileResp = await fetch(downloadUrl, { credentials: 'include' });
-            if (!fileResp.ok) throw new Error('Failed to fetch file for saving');
+          const fileResp = await fetch(downloadUrl, { credentials: 'include' });
+          if (fileResp.ok) {
             const blob = await fileResp.blob();
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -138,24 +131,37 @@ export function useStudyMaterials() {
             document.body.removeChild(link);
             setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
 
+            downloaded = true;
             // Refresh materials to update download count
             await fetchMaterials();
             toast({ title: 'Saved', description: `Saved ${suggestedName}`, variant: 'default' });
-          } catch (e) {
-            console.warn('Blob download failed, falling back to iframe/anchor', e)
+          } else {
+            console.warn('Blob fetch returned non-ok status:', fileResp.status, fileResp.statusText);
+          }
+        } catch (e) {
+          console.warn('Blob download failed, will try navigation fallback', e);
+        }
+
+        if (!downloaded) {
+          // Navigation fallback: try opening in a new tab/window first.
+          try {
+            const w = window.open(downloadUrl, '_blank');
+            if (!w) throw new Error('Popup blocked or failed to open');
+          } catch (err) {
+            // Final fallback: iframe or anchor click
             try {
-              const iframe = document.createElement('iframe')
-              iframe.style.display = 'none'
-              iframe.src = downloadUrl
-              document.body.appendChild(iframe)
-              setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 10000)
-            } catch (err) {
-              const link = document.createElement('a')
-              link.href = downloadUrl
-              link.target = '_blank'
-              document.body.appendChild(link)
-              link.click()
-              document.body.removeChild(link)
+              const iframe = document.createElement('iframe');
+              iframe.style.display = 'none';
+              iframe.src = downloadUrl;
+              document.body.appendChild(iframe);
+              setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 10000);
+            } catch (err2) {
+              const link = document.createElement('a');
+              link.href = downloadUrl;
+              link.target = '_blank';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
             }
           }
         }

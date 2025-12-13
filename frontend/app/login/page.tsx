@@ -286,7 +286,7 @@ export default function LoginPage() {
     <>
       <Toaster position="top-right" />
       <div className="min-h-screen bg-gradient-to-br from-gray-100 to-blue-50 flex items-center justify-center p-6">
-        <div className="w-full max-w-4xl h-[600px] bg-white rounded-xl shadow-xl overflow-hidden flex">
+        <div className="w-full max-w-5xl h-[800px] bg-white rounded-xl shadow-xl overflow-hidden flex">
           {/* Left Side - Branding */}
           <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-indigo-800 flex-col justify-center items-center p-12 text-white">
             <div className="max-w-md text-center">
@@ -313,12 +313,21 @@ export default function LoginPage() {
 
         {/* Right Side - Login Form */}
         <div className="flex-1 flex items-center justify-center p-4 lg:p-6">
-          <div className="w-full max-w-md">
-            <Card className="shadow-lg border-0 bg-white h-full max-h-[550px] flex flex-col">
+          <div className="w-full max-w-2xl">
+            <Card className="shadow-lg border-0 bg-white h-full max-h-[800px] min-h-[750px] flex flex-col">
               <CardHeader className="text-center pb-4 flex-shrink-0">
                 <div className="lg:hidden mb-4">
                   <h1 className="text-xl font-bold text-gray-900 mb-1">CICT PEER LEARNING HUB</h1>
                   <p className="text-xs text-gray-600">A Collaborative Platform for Interactive Learning</p>
+                </div>
+                <div className="flex justify-center mb-2">
+                  <Image
+                    src="/logos/logo.png"
+                    alt="CICT Peer Learning Hub Logo"
+                    width={200}
+                    height={100}
+                    priority
+                  />
                 </div>
                 <CardTitle className="text-2xl font-bold text-gray-900">Welcome Back</CardTitle>
                 <CardDescription className="text-gray-600 mt-1 text-sm">
@@ -412,6 +421,7 @@ export default function LoginPage() {
                 </Button>
               </form>
 
+
               <div className="text-center pt-2">
                 <span className="text-gray-600 text-sm">Don't have an account? </span>
                 <Button 
@@ -422,12 +432,11 @@ export default function LoginPage() {
                   Create one here
                 </Button>
               </div>
+              <div className="mt-4 text-center text-xs text-gray-500">
+                <p>By signing in, you agree to our Terms of Service and Privacy Policy</p>
+              </div>
             </CardContent>
             </Card>
-
-            <div className="mt-4 text-center text-xs text-gray-500">
-              <p>By signing in, you agree to our Terms of Service and Privacy Policy</p>
-            </div>
 
             {/* Signup Modal */}
             <SignupModal

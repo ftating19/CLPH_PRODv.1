@@ -950,6 +950,15 @@ export default function TutorSessionPage() {
                           <CardDescription className="text-base mt-1">
                             Session with {booking.student_name}
                           </CardDescription>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {booking.subject_name ? (
+                              <>
+                                {booking.subject_name}{booking.subject_code ? ` (${booking.subject_code})` : ''}
+                              </>
+                            ) : (
+                              <span className="text-gray-400">Subject not specified</span>
+                            )}
+                          </div>
                         </div>
                         <StatusBadge status={booking.status} isExpired={isSessionExpired(booking)} />
                         {/* Booking Source Indicator */}
