@@ -41,7 +41,9 @@ export default function BookingForm({ tutor, currentUser, onClose }: BookingForm
           name,
           student_id: currentUser.user_id,
           preferred_dates,
-          preferred_time
+          preferred_time,
+          subject_id: tutor.subject_id,
+          subject_name: tutor.subject_name
         })
       })
       const data = await res.json()
