@@ -47,7 +47,6 @@ export default function TutorSessionPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const { currentUser } = useUser()
-  const [subjectsMap, setSubjectsMap] = useState<Record<number, string>>({})
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("")
@@ -575,14 +574,11 @@ export default function TutorSessionPage() {
 
   // Filter bookings based on search and filter criteria
   const filteredBookings = bookings.filter((booking) => {
-    // Resolve subject name from bookings or subjectsMap
-    const bookingSubjectName = (booking.subject_name && booking.subject_name.trim()) || (booking.subject_id ? (subjectsMap[booking.subject_id] || '') : '')
-
     // Search filter
     const searchMatch = searchQuery === "" || 
       booking.student_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       booking.tutor_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      bookingSubjectName?.toLowerCase().includes(searchQuery.toLowerCase())
+      booking.subject_name?.toLowerCase().includes(searchQuery.toLowerCase())
 
     // Status filter
     const statusMatch = statusFilter === "all" || 
@@ -613,7 +609,7 @@ export default function TutorSessionPage() {
 
     // Subject filter
     const subjectMatch = subjectFilter === "all" || 
-      bookingSubjectName.toLowerCase() === subjectFilter.toLowerCase()
+      booking.subject_name?.toLowerCase() === subjectFilter.toLowerCase()
 
     // Rating filter
     const ratingMatch = ratingFilter === "all" || 
@@ -683,30 +679,6 @@ export default function TutorSessionPage() {
   useEffect(() => {
     fetchBookings()
   }, [currentUser])
-
-  // Fetch subjects map for subject names (fallback when bookings no longer include subject_name)
-  useEffect(() => {
-    let cancelled = false
-    const fetchSubjects = async () => {
-      try {
-        const res = await fetch('/api/subjects')
-        if (!res.ok) return
-        const data = await res.json()
-        if (data.success && Array.isArray(data.subjects) && !cancelled) {
-          const map: Record<number, string> = {}
-          data.subjects.forEach((s: any) => {
-            if (s.subject_id && s.subject_name) map[s.subject_id] = s.subject_name
-          })
-          setSubjectsMap(map)
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    fetchSubjects()
-    return () => { cancelled = true }
-  }, [])
   
   // Poll for unread message counts every 10 seconds
   useEffect(() => {
@@ -828,7 +800,7 @@ export default function TutorSessionPage() {
                   <SelectContent>
                     <SelectItem value="all">All Subjects</SelectItem>
                     {/* Dynamic subjects from bookings */}
-                    {Array.from(new Set(bookings.map(b => (subjectsMap[b.subject_id as number] || b.subject_name)).filter(Boolean))).sort().map(subject => (
+                    {Array.from(new Set(bookings.map(b => b.subject_name).filter(Boolean))).sort().map(subject => (
                       <SelectItem key={subject} value={subject!.toLowerCase()}>{subject}</SelectItem>
                     ))}
                   </SelectContent>
@@ -911,13 +883,7 @@ export default function TutorSessionPage() {
                   {subjectFilter !== "all" && (
                     <Badge variant="secondary" className="text-xs">
                       <BookOpen className="w-3 h-3 mr-1" />
-                      {(() => {
-                        const found = bookings.find(b => {
-                          const name = (b.subject_name && b.subject_name.trim()) || (b.subject_id ? (subjectsMap[b.subject_id] || '') : '')
-                          return name?.toLowerCase() === subjectFilter
-                        })
-                        return found ? ((found.subject_name) || (found.subject_id ? subjectsMap[found.subject_id] : '')) : ''
-                      })()}
+                      {bookings.find(b => b.subject_name?.toLowerCase() === subjectFilter)?.subject_name}
                     </Badge>
                   )}
                   {ratingFilter !== "all" && (
@@ -960,7 +926,6 @@ export default function TutorSessionPage() {
             </div>
           ) : (
             filteredBookings.map((booking) => {
-              const bookingSubjectName = (booking.subject_name && booking.subject_name.trim()) || (booking.subject_id ? (subjectsMap[booking.subject_id] || '') : '')
               const isCompleted = booking.status?.toLowerCase() === 'completed' || isSessionExpired(booking)
               const cardClassName = isCompleted 
                 ? "transition-all duration-200 border-2 bg-gray-50 dark:bg-gray-800/50 opacity-75 cursor-not-allowed"
@@ -985,9 +950,6 @@ export default function TutorSessionPage() {
                           <CardDescription className="text-base mt-1">
                             Session with {booking.student_name}
                           </CardDescription>
-                          {bookingSubjectName && (
-                            <div className="text-sm text-muted-foreground mt-1">{bookingSubjectName}</div>
-                          )}
                         </div>
                         <StatusBadge status={booking.status} isExpired={isSessionExpired(booking)} />
                         {/* Booking Source Indicator */}
