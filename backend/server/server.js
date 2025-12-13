@@ -8430,16 +8430,10 @@ app.get('/api/sessions', async (req, res) => {
     let sessions = [];
     
     if (tutor_id) {
-      // Show sessions for specific tutor only (for availability checking)
+      // Show sessions for specific tutor only (return only bookings table columns)
       const query = `
-        SELECT 
-          b.*,
-          t.subject_id,
-          s.subject_name,
-          s.subject_code
+        SELECT b.*
         FROM bookings b
-        LEFT JOIN tutors t ON b.tutor_id = t.user_id
-        LEFT JOIN subjects s ON t.subject_id = s.subject_id
         WHERE b.tutor_id = ?
       `;
       const [result] = await pool.query(query, [tutor_id]);
@@ -8450,16 +8444,10 @@ app.get('/api/sessions', async (req, res) => {
         console.log(`Found ${sessions.length} sessions for tutor_id: ${tutor_id}`);
       }
     } else if (user_id) {
-      // Only show sessions for this user (student or tutor) with subject information from tutors table
+      // Only show sessions for this user (student or tutor) - return only bookings table columns
       const query = `
-        SELECT 
-          b.*,
-          t.subject_id,
-          s.subject_name,
-          s.subject_code
+        SELECT b.*
         FROM bookings b
-        LEFT JOIN tutors t ON b.tutor_id = t.user_id
-        LEFT JOIN subjects s ON t.subject_id = s.subject_id
         WHERE b.student_id = ? OR b.tutor_id = ?
       `;
       const [result] = await pool.query(query, [user_id, user_id]);
@@ -8472,14 +8460,8 @@ app.get('/api/sessions', async (req, res) => {
     } else {
       // No user_id: show all sessions (admin/faculty) with subject information from tutors table
       const query = `
-        SELECT 
-          b.*,
-          t.subject_id,
-          s.subject_name,
-          s.subject_code
+        SELECT b.*
         FROM bookings b
-        LEFT JOIN tutors t ON b.tutor_id = t.user_id
-        LEFT JOIN subjects s ON t.subject_id = s.subject_id
       `;
       const [result] = await pool.query(query);
       let allSessions = result;
@@ -8511,6 +8493,7 @@ app.get('/api/sessions', async (req, res) => {
         });
         
         // Filter sessions to only show those for subjects assigned to this faculty
+        // (bookings table is expected to have a subject_id column)
         sessions = allSessions.filter(session => 
           session.subject_id && facultySubjects.includes(session.subject_id)
         );
